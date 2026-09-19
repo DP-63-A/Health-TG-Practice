@@ -41,7 +41,8 @@ public class AnalyticsContractTest {
         "/contracts/fixtures/analytics_normal.json",
         "/contracts/fixtures/analytics_empty.json",
         "/contracts/fixtures/analytics_gaps.json",
-        "/contracts/fixtures/analytics_dedup.json"
+        "/contracts/fixtures/analytics_dedup.json",
+        "/contracts/fixtures/analytics_filtered.json"
     })
     @DisplayName("Проверка соответствия JSON-фикстур согласованному OpenAPI контракту")
     void testFixturesMatchContract(String fixturePath) throws Exception {
