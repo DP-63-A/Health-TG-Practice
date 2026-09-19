@@ -1,0 +1,50 @@
+{
+  "period_info": {
+    "period": "7d",
+    "tz": "Europe/Warsaw",
+    "start_date": "2026-09-13",
+    "end_date": "2026-09-19",
+    "days_with_data": 0,
+    "total_days": 7,
+    "updated_at": "2026-09-19T14:32:00Z"
+  },
+  "cards": {
+    "nutrition": {
+      "calories_kcal": null,
+      "proteins_g": null,
+      "fats_g": null,
+      "carbs_g": null,
+      "is_incomplete": false,
+      "logged_entries_count": 0
+    },
+    "meals_count": 0,
+    "sleep": {
+      "total_minutes": null,
+      "average_minutes_per_day": null,
+      "days_with_data": 0
+    },
+    "steps": {
+      "total_steps": null,
+      "average_steps_per_day": null,
+      "days_with_data": 0
+    },
+    "pulse": {
+      "bpm": null,
+      "measured_at": null,
+      "context": null,
+      "entry_id": null
+    },
+    "ratings": {
+      "sleep_quality": { "score": null, "date": null, "entry_id": null },
+      "digestion_comfort": { "score": null, "date": null, "entry_id": null },
+      "well_being": { "score": null, "date": null, "entry_id": null },
+      "mood": { "score": null, "date": null, "entry_id": null }
+    }
+  },
+  "series": {
+    "nutrition": [],
+    "sleep": [],
+    "steps": [],
+    "ratings": []
+  }
+}
