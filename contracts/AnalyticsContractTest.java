@@ -2,6 +2,7 @@ package com.health.analytics.contracts;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.SpecVersion;
@@ -14,25 +15,32 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.io.InputStream;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class AnalyticsContractTest {
 
-    private static ObjectMapper mapper;
+    private static ObjectMapper jsonMapper;
     private static JsonSchema schema;
 
     @BeforeAll
     static void setUp() throws Exception {
-        mapper = new ObjectMapper();
+        jsonMapper = new ObjectMapper();
+        ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
         JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
-        
-        try (InputStream schemaStream = AnalyticsContractTest.class
-                .getResourceAsStream("/contracts/schemas/analytics_response.json")) {
-            if (schemaStream == null) {
-                throw new IllegalStateException("OpenAPI schema file not found in test resources.");
-            }
-            JsonNode schemaNode = mapper.readTree(schemaStream);
-            schema = factory.getSchema(schemaNode);
+
+        try (InputStream openApiStream = AnalyticsContractTest.class
+                .getResourceAsStream("/contracts/openapi.yaml")) {
+            
+            assertNotNull(openApiStream, "Файл contracts/openapi.yaml не найден в test resources!");
+
+            JsonNode openApiNode = yamlMapper.readTree(openApiStream);
+            JsonNode analyticsSchemaNode = openApiNode
+                    .path("components")
+                    .path("schemas")
+                    .path("AnalyticsResponse");
+
+            schema = factory.getSchema(analyticsSchemaNode);
         }
     }
 
@@ -47,11 +55,9 @@ public class AnalyticsContractTest {
     @DisplayName("Проверка соответствия JSON-фикстур согласованному OpenAPI контракту")
     void testFixturesMatchContract(String fixturePath) throws Exception {
         try (InputStream fixtureStream = AnalyticsContractTest.class.getResourceAsStream(fixturePath)) {
-            if (fixtureStream == null) {
-                throw new IllegalArgumentException("Fixture not found at path: " + fixturePath);
-            }
-            
-            var jsonNode = mapper.readTree(fixtureStream);
+            assertNotNull(fixtureStream, "Фикстура не найдена по пути: " + fixturePath);
+
+            var jsonNode = jsonMapper.readTree(fixtureStream);
             Set<ValidationMessage> errors = schema.validate(jsonNode);
 
             assertTrue(errors.isEmpty(), () -> {
