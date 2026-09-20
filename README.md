@@ -6,17 +6,18 @@
 
 | Область | Технологии | Состояние в этой версии репозитория |
 |---|---|---|
-| Java-инструменты | Java 21, Gradle 8.11.1, JUnit 5.11.4 | Подключены для проверки контрактов |
-| Backend | Spring Boot, Spring Web, MongoDB, Liquibase | Выбранный стек; приложение, БД и миграции ещё не подключены |
+| Java-инструменты | Java 21, Gradle 8.11.1, JUnit | Общая сборка модулей backend и проверки контрактов; версии зависимостей закреплены в сборках модулей |
+| Backend | Spring Boot, TelegramBots | Каркас Telegram-бота; запуск и границы описаны в backend/README.md |
+| API и хранение | Spring Web, MongoDB, Liquibase | Выбранный стек; HTTP API, БД и миграции этим модулем бота не реализованы |
 | Frontend | React, TypeScript, Vite | Выбранный стек; приложение ещё не добавлено |
 
-В репозитории есть OpenAPI, JSON-схемы, примеры и Java-инструмент проверки контрактов. Единственный подключённый Gradle-модуль — `contract-validator` в `tools/contract-validator/`. Каталог `backend/` пока содержит только документацию и не является Gradle-модулем. Docker Compose и CI ещё не настроены.
+Общая сборка включает `contract-validator` в `tools/contract-validator/` и `backend` в `backend/`. Контракты, JSON-схемы и примеры находятся в `contracts/`. Инструкции запуска бота и передачи сценария быстрых отметок — в [backend/README.md](backend/README.md). Docker Compose и CI ещё не настроены.
 
 ## Структура
 
 | Каталог | Назначение |
 |---|---|
-| [backend](backend/README.md) | Место реализации backend |
+| [backend](backend/README.md) | Java-модуль с каркасом Telegram-бота |
 | [frontend](frontend/README.md) | Место реализации Mini App |
 | [contracts](contracts/README.md) | API-контракты, схемы, примеры и ограничения |
 | `tools/contract-validator/` | Существующий Java-инструмент проверки контрактов |
@@ -52,13 +53,21 @@ sh ./gradlew :contract-validator:validate
 
 `validateContracts` запускает тесты валидатора. `:contract-validator:validate` запускает сам валидатор для каталога `contracts/`. Эти проверки подтверждают проверяемые свойства контрактов, но не работоспособность будущего HTTP API, базы данных или Mini App.
 
+Если на Windows в пути с кириллицей Gradle сообщает `ClassNotFoundException` при запуске тестового процесса, используйте параметр совместимости кодировки:
+
+```powershell
+.\gradlew.bat '-Dorg.gradle.jvmargs=-Dfile.encoding=COMPAT' validateContracts :contract-validator:validate --no-daemon
+```
+
+Параметр действует на этот запуск Gradle; он не меняет исходники и системные настройки кодировки.
+
 ## Открытие в IntelliJ IDEA
 
 1. Выберите **File → Open** и откройте корневой каталог репозитория.
 2. Загрузите проект как Gradle-проект. Если IDEA не предложила импорт, откройте панель **Project** (`Alt+1`), нажмите правой кнопкой на корневой `build.gradle.kts` и выберите **Link Gradle Project**.
 3. В **File → Project Structure → Project SDK** выберите JDK 21.
 4. В **Settings → Build, Execution, Deployment → Build Tools → Gradle** выберите Wrapper как источник Gradle и JDK 21 в поле **Gradle JVM**.
-5. Дождитесь синхронизации. В панели Gradle должен появиться модуль `contract-validator`. Проверки можно запустить командами выше во встроенном терминале из корня репозитория.
+5. Дождитесь синхронизации. В панели Gradle должны появиться модули `contract-validator` и `backend`. Проверки контрактов можно запустить командами выше во встроенном терминале из корня репозитория; запуск и тесты бота описаны в [backend/README.md](backend/README.md).
 
 ## Документация
 

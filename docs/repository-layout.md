@@ -11,7 +11,7 @@ Health-TG-Practice/
 ├── gradlew
 ├── gradlew.bat
 ├── gradle/wrapper/
-├── backend/                  документация будущего backend
+├── backend/                  Java-модуль: каркас Telegram-бота, тесты, инструкция запуска
 ├── frontend/                 документация будущего Mini App
 ├── contracts/                контракты, схемы и примеры
 ├── tools/contract-validator/ Java-инструмент проверки контрактов
@@ -24,9 +24,9 @@ Health-TG-Practice/
 
 ## Сборка и проверки
 
-Корневой `settings.gradle.kts` подключает единственный модуль `contract-validator`, расположенный в `tools/contract-validator/`. Корневая задача `validateContracts` вызывает его тесты. Версия Gradle задаётся существующим Wrapper: 8.11.1; Java toolchain модуля — 21.
+Корневой `settings.gradle.kts` подключает `contract-validator` в `tools/contract-validator/` и `backend` в `backend/`. Корневая задача `validateContracts` вызывает тесты валидатора; `:backend:test` — тесты бота. Версия Gradle задаётся общим Wrapper: 8.11.1; Java toolchain обоих модулей — 21.
 
-Каталоги `backend/`, `frontend/`, `fixtures/` и `tests/` пока содержат описания назначения. Они не добавляют исполняемые приложения или новые Gradle-модули.
+В `backend/src/main/java/` расположены логика команд и Telegram-подключение. Настройки запуска и границы реализации описаны в [README модуля](../backend/README.md). Каталоги `frontend/`, `fixtures/` и `tests/` пока содержат описания назначения.
 
 Тесты отдельного Java-модуля хранятся в его `src/test/java/`, тестовые ресурсы — в `src/test/resources/`. Корневой каталог `tests/` предназначен для сквозных сценариев продукта. Примеры контрактов остаются в `contracts/examples/`, общие синтетические наборы — в `fixtures/`.
 
