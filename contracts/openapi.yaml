@@ -1,12 +1,20 @@
 openapi: 3.1.0
 info:
-  title: Health Analytics API
-  version: 1.0.0
+  title: Health-TG Practice API
+  version: 0.1.0-be3-01
+  summary: Canonical API contract with BE3-01 analytics response.
+servers:
+  - url: /api/v1
 paths:
-  /api/v1/analytics:
+  /analytics:
     get:
-      summary: Получение сводной аналитики и временных рядов
+      tags: [analytics]
       operationId: getAnalytics
+      summary: Cards and daily series for a local calendar period
+      description: |
+        Only current confirmed entries contribute. Draft, cancelled and deleted entries are excluded.
+        `from` and `to` are inclusive local dates in the requested IANA timezone.
+        The response is a snapshot; `observations.generated_at` is its freshness timestamp.
       parameters:
         - name: period
           in: query
@@ -14,345 +22,53 @@ paths:
           schema:
             type: string
             enum: [today, days_7, days_21]
-          example: "7d"
-        - name: tz
+        - name: timezone
           in: query
-          required: false
+          required: true
           schema:
             type: string
-            default: "Europe/Warsaw"
-          example: "Europe/Warsaw"
+            example: Europe/Warsaw
+        - name: checkin_category
+          in: query
+          required: false
+          description: Category selected for the state series; defaults to mood.
+          schema:
+            type: string
+            enum: [sleep_quality, digestion_comfort, wellbeing, mood]
       responses:
         '200':
-          description: Успешный ответ с аналитикой
+          description: Analytics response; null values represent gaps or absence, not zero.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AnalyticsResponse'
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          description: Telegram user not allowlisted for the stand
-          content:
-            application/json:
-              schema:
-                $ref: ./schemas/error.json
-        "422":
-          $ref: "#/components/responses/ValidationError"
-        "503":
-          $ref: "#/components/responses/ServiceUnavailable"
-
+                $ref: ./schemas/analytics.json
+              examples:
+                normal:
+                  externalValue: ./fixtures/analytics_normal.json
+                empty:
+                  externalValue: ./fixtures/analytics_empty.json
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Invalid period, timezone or category.
 components:
-  schemas:
-    AnalyticsResponse:
-      type: object
-      required:
-        - period_info
-        - cards
-        - series
-      properties:
-        period_info:
-          $ref: '#/components/schemas/PeriodInfo'
-        cards:
-          $ref: '#/components/schemas/AnalyticsCards'
-        series:
-          $ref: '#/components/schemas/AnalyticsSeries'
-
-    PeriodInfo:
-      type: object
-      required:
-        - period
-        - tz
-        - start_date
-        - end_date
-        - days_with_data
-        - total_days
-        - updated_at
-      properties:
-        period:
-          type: string
-          enum: [today, 7d, 21d]
-        tz:
-          type: string
-          example: "Europe/Warsaw"
-        start_date:
-          type: string
-          format: date
-          example: "2026-09-13"
-        end_date:
-          type: string
-          format: date
-          example: "2026-09-19"
-        days_with_data:
-          type: integer
-          example: 5
-        total_days:
-          type: integer
-          example: 7
-        updated_at:
-          type: string
-          format: date-time
-          example: "2026-09-19T14:32:00Z"
-
-    AnalyticsCards:
-      type: object
-      required:
-        - nutrition
-        - meals_count
-        - sleep
-        - steps
-        - pulse
-        - ratings
-      properties:
-        nutrition:
-          $ref: '#/components/schemas/NutritionCard'
-        meals_count:
-          type: integer
-          example: 12
-        sleep:
-          $ref: '#/components/schemas/SleepCard'
-        steps:
-          $ref: '#/components/schemas/StepsCard'
-        pulse:
-          $ref: '#/components/schemas/PulseCard'
-        ratings:
-          $ref: '#/components/schemas/RatingsCard'
-
-    NutritionCard:
-      type: object
-      required:
-        - calories_kcal
-        - proteins_g
-        - fats_g
-        - carbs_g
-        - is_incomplete
-        - logged_entries_count
-      properties:
-        calories_kcal:
-          type: number
-          nullable: true
-          example: 930.0
-        proteins_g:
-          type: number
-          nullable: true
-          example: 45.0
-        fats_g:
-          type: number
-          nullable: true
-          example: 30.0
-        carbs_g:
-          type: number
-          nullable: true
-          example: 110.0
-        is_incomplete:
-          type: boolean
-          description: Флаг неполноты (если в хотя бы одной записи отсутствуют нутриенты)
-          example: false
-        logged_entries_count:
-          type: integer
-          example: 3
-
-    SleepCard:
-      type: object
-      required:
-        - total_minutes
-        - average_minutes_per_day
-        - days_with_data
-      properties:
-        total_minutes:
-          type: integer
-          nullable: true
-          example: 900
-        average_minutes_per_day:
-          type: number
-          nullable: true
-          example: 450.0
-        days_with_data:
-          type: integer
-          example: 2
-
-    StepsCard:
-      type: object
-      required:
-        - total_steps
-        - average_steps_per_day
-        - days_with_data
-      properties:
-        total_steps:
-          type: integer
-          nullable: true
-          example: 5000
-        average_steps_per_day:
-          type: number
-          nullable: true
-          example: 5000.0
-        days_with_data:
-          type: integer
-          example: 1
-
-    PulseCard:
-      type: object
-      required:
-        - bpm
-        - measured_at
-        - context
-        - entry_id
-      properties:
-        bpm:
-          type: integer
-          nullable: true
-          example: 72
-        measured_at:
-          type: string
-          format: date-time
-          nullable: true
-          example: "2026-09-19T10:15:00Z"
-        context:
-          type: string
-          enum: [instant, resting]
-          nullable: true
-          example: "resting"
-        entry_id:
-          type: string
-          nullable: true
-          example: "entry_pulse_01"
-
-    RatingsCard:
-      type: object
-      required:
-        - sleep_quality
-        - digestion_comfort
-        - well_being
-        - mood
-      properties:
-        sleep_quality:
-          $ref: '#/components/schemas/RatingItem'
-        digestion_comfort:
-          $ref: '#/components/schemas/RatingItem'
-        well_being:
-          $ref: '#/components/schemas/RatingItem'
-        mood:
-          $ref: '#/components/schemas/RatingItem'
-
-    RatingItem:
-      type: object
-      required:
-        - score
-        - date
-        - entry_id
-      properties:
-        score:
-          type: integer
-          nullable: true
-          minimum: 1
-          maximum: 5
-          example: 4
-        date:
-          type: string
-          format: date
-          nullable: true
-          example: "2026-09-19"
-        entry_id:
-          type: string
-          nullable: true
-          example: "entry_rate_01"
-
-    AnalyticsSeries:
-      type: object
-      required:
-        - nutrition
-        - sleep
-        - steps
-        - ratings
-      properties:
-        nutrition:
-          type: array
-          items:
-            $ref: '#/components/schemas/NutritionSeriesPoint'
-        sleep:
-          type: array
-          items:
-            $ref: '#/components/schemas/SleepSeriesPoint'
-        steps:
-          type: array
-          items:
-            $ref: '#/components/schemas/StepsSeriesPoint'
-        ratings:
-          type: array
-          items:
-            $ref: '#/components/schemas/RatingSeriesPoint'
-
-    NutritionSeriesPoint:
-      type: object
-      required:
-        - date
-        - calories_kcal
-        - entry_ids
-      properties:
-        date:
-          type: string
-          format: date
-        calories_kcal:
-          type: number
-          nullable: true
-        entry_ids:
-          type: array
-          items:
-            type: string
-
-    SleepSeriesPoint:
-      type: object
-      required:
-        - date
-        - minutes
-        - entry_id
-      properties:
-        date:
-          type: string
-          format: date
-        minutes:
-          type: integer
-          nullable: true
-        entry_id:
-          type: string
-          nullable: true
-
-    StepsSeriesPoint:
-      type: object
-      required:
-        - date
-        - steps
-        - entry_id
-      properties:
-        date:
-          type: string
-          format: date
-        steps:
-          type: integer
-          nullable: true
-        entry_id:
-          type: string
-          nullable: true
-
-    RatingSeriesPoint:
-      type: object
-      required:
-        - date
-        - category
-        - score
-        - entry_id
-      properties:
-        date:
-          type: string
-          format: date
-        category:
-          type: string
-          enum: [sleep_quality, digestion_comfort, well_being, mood]
-        score:
-          type: integer
-          nullable: true
-          minimum: 1
-          maximum: 5
-        entry_id:
-          type: string
-          nullable: true
+  responses:
+    Unauthorized:
+      description: Missing, invalid or expired session.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [code, message, request_id]
+            properties:
+              code: {type: string}
+              message: {type: string}
+              request_id: {type: string}
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-session

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://health-tg.local/schemas/analytics.json",
+  "title": "AnalyticsResponse",
+  "description": "Canonical BE3-01 response for GET /api/v1/analytics. Dates are local calendar dates in the requested IANA timezone; null means no observation, never zero.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["period", "cards", "series", "observations", "sources"],
+  "properties": {
+    "period": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "from", "to", "timezone"],
+      "properties": {
+        "kind": {"type": "string", "enum": ["today", "days_7", "days_21"]},
+        "from": {"type": "string", "format": "date"},
+        "to": {"type": "string", "format": "date"},
+        "timezone": {"type": "string", "pattern": "^[A-Za-z_]+/[A-Za-z_]+(?:/[A-Za-z_]+)?$"}
+      }
+    },
+    "cards": {
+      "type": "object", "additionalProperties": false,
+      "required": ["nutrition", "meal_count", "sleep", "steps", "heart_rate", "checkins"],
+      "properties": {
+        "nutrition": {
+          "type": "object", "additionalProperties": false,
+          "required": ["energy_kcal", "protein_g", "fat_g", "carbs_g", "incomplete", "meals_with_energy"],
+          "properties": {
+            "energy_kcal": {"type": ["number", "null"], "minimum": 0},
+            "protein_g": {"type": ["number", "null"], "minimum": 0},
+            "fat_g": {"type": ["number", "null"], "minimum": 0},
+            "carbs_g": {"type": ["number", "null"], "minimum": 0},
+            "incomplete": {"type": "boolean"},
+            "meals_with_energy": {"type": "integer", "minimum": 0}
+          }
+        },
+        "meal_count": {"type": "object", "additionalProperties": false, "required": ["count"], "properties": {"count": {"type": "integer", "minimum": 0}}},
+        "sleep": {"$ref": "#/$defs/aggregateMinutes"},
+        "steps": {"$ref": "#/$defs/aggregateCount"},
+        "heart_rate": {
+          "type": "object", "additionalProperties": false,
+          "required": ["value_bpm", "occurred_at", "qualifier", "entry_id"],
+          "properties": {
+            "value_bpm": {"type": ["number", "null"], "minimum": 0},
+            "occurred_at": {"type": ["string", "null"], "format": "date-time"},
+            "qualifier": {"type": ["string", "null"]},
+            "entry_id": {"type": ["string", "null"]}
+          }
+        },
+        "checkins": {
+          "type": "object", "additionalProperties": false,
+          "required": ["sleep_quality", "digestion_comfort", "wellbeing", "mood"],
+          "properties": {
+            "sleep_quality": {"$ref": "#/$defs/ratingCard"},
+            "digestion_comfort": {"$ref": "#/$defs/ratingCard"},
+            "wellbeing": {"$ref": "#/$defs/ratingCard"},
+            "mood": {"$ref": "#/$defs/ratingCard"}
+          }
+        }
+      }
+    },
+    "series": {
+      "type": "object", "additionalProperties": false,
+      "required": ["nutrition", "sleep", "steps", "checkin"],
+      "properties": {
+        "nutrition": {"type": "array", "items": {"$ref": "#/$defs/nutritionPoint"}},
+        "sleep": {"type": "array", "items": {"$ref": "#/$defs/metricPoint"}},
+        "steps": {"type": "array", "items": {"$ref": "#/$defs/metricPoint"}},
+        "checkin": {"$ref": "#/$defs/checkinSeries"}
+      }
+    },
+    "observations": {
+      "type": "object", "additionalProperties": false,
+      "required": ["days_in_period", "days_with_any_data", "generated_at"],
+      "properties": {
+        "days_in_period": {"type": "integer", "minimum": 1},
+        "days_with_any_data": {"type": "integer", "minimum": 0},
+        "generated_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "sources": {"type": "array", "items": {"$ref": "#/$defs/source"}}
+  },
+  "$defs": {
+    "aggregateMinutes": {"type": "object", "additionalProperties": false, "required": ["total_minutes", "average_minutes", "days_with_data"], "properties": {"total_minutes": {"type": ["integer", "null"], "minimum": 0}, "average_minutes": {"type": ["number", "null"], "minimum": 0}, "days_with_data": {"type": "integer", "minimum": 0}}},
+    "aggregateCount": {"type": "object", "additionalProperties": false, "required": ["total", "average", "days_with_data"], "properties": {"total": {"type": ["integer", "null"], "minimum": 0}, "average": {"type": ["number", "null"], "minimum": 0}, "days_with_data": {"type": "integer", "minimum": 0}}},
+    "ratingCard": {"type": "object", "additionalProperties": false, "required": ["score", "date", "entry_id"], "properties": {"score": {"type": ["integer", "null"], "minimum": 1, "maximum": 5}, "date": {"type": ["string", "null"], "format": "date"}, "entry_id": {"type": ["string", "null"]}}},
+    "source": {"type": "object", "additionalProperties": false, "required": ["entry_id", "type", "local_date"], "properties": {"entry_id": {"type": "string"}, "type": {"type": "string", "enum": ["meal", "metrics", "checkin"]}, "local_date": {"type": "string", "format": "date"}}},
+    "pointSource": {"type": "object", "additionalProperties": false, "required": ["entry_id", "type", "local_date"], "properties": {"entry_id": {"type": "string"}, "type": {"type": "string", "enum": ["meal", "metrics", "checkin"]}, "local_date": {"type": "string", "format": "date"}}},
+    "nutritionPoint": {"type": "object", "additionalProperties": false, "required": ["date", "energy_kcal", "source"], "properties": {"date": {"type": "string", "format": "date"}, "energy_kcal": {"type": ["number", "null"], "minimum": 0}, "source": {"type": "array", "items": {"$ref": "#/$defs/pointSource"}}}},
+    "metricPoint": {"type": "object", "additionalProperties": false, "required": ["date", "value", "unit", "source"], "properties": {"date": {"type": "string", "format": "date"}, "value": {"type": ["number", "null"], "minimum": 0}, "unit": {"type": "string", "enum": ["min", "count"]}, "source": {"type": ["object", "null"], "$ref": "#/$defs/pointSource"}}},
+    "checkinSeries": {"type": "object", "additionalProperties": false, "required": ["category", "points"], "properties": {"category": {"type": "string", "enum": ["sleep_quality", "digestion_comfort", "wellbeing", "mood"]}, "points": {"type": "array", "items": {"$ref": "#/$defs/ratingPoint"}}}},
+    "ratingPoint": {"type": "object", "additionalProperties": false, "required": ["date", "value", "unit", "source"], "properties": {"date": {"type": "string", "format": "date"}, "value": {"type": ["integer", "null"], "minimum": 1, "maximum": 5}, "unit": {"const": "score_1_5"}, "source": {"type": ["object", "null"], "$ref": "#/$defs/pointSource"}}}
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "timezone": "Europe/Warsaw",
+  "period": {"kind": "days_7", "from": "2026-09-13", "to": "2026-09-19"},
+  "records": [
+    {"id":"meal-600","type":"meal","status":"confirmed","local_date":"2026-09-19","mass_g":null,"nutrients":{"energy_kcal":600,"protein_g":30,"fat_g":20,"carbs_g":70}},
+    {"id":"meal-oats","type":"meal","status":"confirmed","local_date":"2026-09-19","mass_g":200,"nutrients_basis":"per_100g","nutrients_per_100g":{"energy_kcal":165,"protein_g":10,"fat_g":5,"carbs_g":20}},
+    {"id":"meal-oats-revision-2","type":"meal","status":"confirmed","local_date":"2026-09-19","mass_g":150,"nutrients_basis":"per_100g","nutrients_per_100g":{"energy_kcal":165,"protein_g":10,"fat_g":5,"carbs_g":20},"replaces":"meal-oats"},
+    {"id":"meal-oats-deleted","type":"meal","status":"deleted","local_date":"2026-09-19","replaces":"meal-oats-revision-2"},
+    {"id":"steps-noon","type":"metrics","status":"confirmed","code":"steps","value":3000,"occurred_at":"2026-09-19T12:00:00+02:00","updated_at":"2026-09-19T12:01:00+02:00"},
+    {"id":"steps-evening","type":"metrics","status":"confirmed","code":"steps","value":5000,"occurred_at":"2026-09-19T20:00:00+02:00","updated_at":"2026-09-19T20:01:00+02:00"},
+    {"id":"sleep-1","type":"metrics","status":"confirmed","code":"sleep_duration_min","value":420,"wake_date":"2026-09-14"},
+    {"id":"sleep-2","type":"metrics","status":"confirmed","code":"sleep_duration_min","value":480,"wake_date":"2026-09-16"},
+    {"id":"draft-meal","type":"meal","status":"draft","local_date":"2026-09-19","nutrients":{"energy_kcal":999}},
+    {"id":"cancelled-steps","type":"metrics","status":"cancelled","code":"steps","value":9999,"local_date":"2026-09-19"},
+    {"id":"deleted-pulse","type":"metrics","status":"deleted","code":"heart_rate","value":200,"local_date":"2026-09-19"}
+  ]
+}

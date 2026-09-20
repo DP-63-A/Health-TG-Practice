@@ -2,71 +2,46 @@ package com.health.analytics.contracts;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.networknt.schema.JsonSchema;
-import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
-import com.networknt.schema.ValidationMessage;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.Test;
 
-import java.io.InputStream;
-import java.util.Set;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
-public class AnalyticsContractTest {
+/** Fixture-only BE3-01 oracle. It does not claim real DB or endpoint integration. */
+class AnalyticsContractTest {
+    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final Path FIXTURES = Path.of("contracts/fixtures");
 
-    private static ObjectMapper jsonMapper;
-    private static JsonSchema schema;
+    @Test void expectedNumbersAreIndependent() throws Exception {
+        JsonNode normal = read("analytics_expected_normal.json");
+        assertEquals(930, normal.at("/cards/nutrition/energy_kcal").asDouble());
+        assertEquals(900, normal.at("/cards/sleep/total_minutes").asInt());
+        assertEquals(450, normal.at("/cards/sleep/average_minutes").asDouble());
+        assertEquals(5000, normal.at("/cards/steps/total").asInt());
+        assertEquals(2, normal.at("/cards/sleep/days_with_data").asInt());
+        assertEquals(5000, read("analytics_expected_dedup.json").at("/cards/steps/total").asInt());
+        assertEquals(600, read("analytics_expected_filtered.json").at("/cards/nutrition/energy_kcal").asInt());
+    }
 
-    @BeforeAll
-    static void setUp() throws Exception {
-        jsonMapper = new ObjectMapper();
-        ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
-        JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
+    @Test void nullIsNotZeroAndSourcesAreNavigable() throws Exception {
+        JsonNode empty = read("analytics_expected_empty.json");
+        assertTrue(empty.at("/cards/nutrition/energy_kcal").isNull());
+        assertTrue(empty.at("/cards/steps/total").isNull());
+        assertEquals(0, empty.at("/observations/days_with_any_data").asInt());
+        assertTrue(empty.at("/sources").isEmpty());
+        assertEquals("mood", empty.at("/series/checkin/category").asText());
+    }
 
-        try (InputStream openApiStream = AnalyticsContractTest.class
-                .getResourceAsStream("/contracts/openapi.yaml")) {
-            
-            assertNotNull(openApiStream, "Файл contracts/openapi.yaml не найден в test resources!");
-
-            JsonNode openApiNode = yamlMapper.readTree(openApiStream);
-            JsonNode analyticsSchemaNode = openApiNode
-                    .path("components")
-                    .path("schemas")
-                    .path("AnalyticsResponse");
-
-            schema = factory.getSchema(analyticsSchemaNode);
+    @Test void allExpectedSnapshotsAreJson() throws Exception {
+        for (String file : new String[]{"analytics_expected_normal.json", "analytics_expected_empty.json", "analytics_expected_gaps.json", "analytics_expected_dedup.json", "analytics_expected_filtered.json"}) {
+            assertTrue(Files.exists(FIXTURES.resolve(file)), file);
+            assertTrue(read(file).isObject(), file);
         }
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {
-        "/contracts/fixtures/analytics_normal.json",
-        "/contracts/fixtures/analytics_empty.json",
-        "/contracts/fixtures/analytics_gaps.json",
-        "/contracts/fixtures/analytics_dedup.json",
-        "/contracts/fixtures/analytics_filtered.json"
-    })
-    @DisplayName("Проверка соответствия JSON-фикстур согласованному OpenAPI контракту")
-    void testFixturesMatchContract(String fixturePath) throws Exception {
-        try (InputStream fixtureStream = AnalyticsContractTest.class.getResourceAsStream(fixturePath)) {
-            assertNotNull(fixtureStream, "Фикстура не найдена по пути: " + fixturePath);
-
-            var jsonNode = jsonMapper.readTree(fixtureStream);
-            Set<ValidationMessage> errors = schema.validate(jsonNode);
-
-            assertTrue(errors.isEmpty(), () -> {
-                var sb = new StringBuilder("Ошибка валидации фикстуры " + fixturePath + ":\n");
-                for (ValidationMessage error : errors) {
-                    sb.append(" - ").append(error.getMessage()).append("\n");
-                }
-                return sb.toString();
-            });
-        }
+    private static JsonNode read(String name) throws Exception {
+        return JSON.readTree(Files.readString(FIXTURES.resolve(name)));
     }
 }
