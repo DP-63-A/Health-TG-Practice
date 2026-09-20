@@ -1,4 +1,4 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Health Analytics API
   version: 1.0.0
@@ -13,7 +13,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [today, 7d, 21d]
+            enum: [today, days_7, days_21]
           example: "7d"
         - name: tz
           in: query
@@ -29,10 +29,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AnalyticsResponse'
-        '400':
-          description: Некорректные параметры запроса
-        '401':
-          description: Неавторизованный доступ
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Telegram user not allowlisted for the stand
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/error.json
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
 components:
   schemas:
