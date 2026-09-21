@@ -32,7 +32,7 @@
 - `contracts/fixtures/analytics_gaps.json` — совместимый пример периода с пропусками.
 - `contracts/fixtures/analytics_dedup.json` — совместимый пример дедупликации.
 - `contracts/fixtures/analytics_filtered.json` — совместимый пример фильтрации.
-- `contracts/AnalyticsContractTest.java` — независимые проверки JSON и численных ожиданий в режиме fixtures.
+- `tools/contract-validator/src/test/java/com/health/analytics/contracts/AnalyticsContractTest.java` — независимые проверки JSON и численных ожиданий в режиме fixtures.
 
 ## Совместимость с BE1 и FE2
 
@@ -213,7 +213,7 @@ period=today | days_7 | days_21
 
 ## Проверки
 
-`contracts/AnalyticsContractTest.java` проверяет в fixture-only режиме:
+`tools/contract-validator/src/test/java/com/health/analytics/contracts/AnalyticsContractTest.java` проверяет в fixture-only режиме:
 
 - чтение ожидаемых JSON;
 - независимые численные ожидания 930, 900, 450, 5000 и 600;

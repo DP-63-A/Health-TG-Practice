@@ -1,5 +1,9 @@
 package com.health.analytics.contracts;
 
+import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.SchemaValidatorsConfig;
+import com.networknt.schema.SpecVersion;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -36,18 +40,32 @@ class AnalyticsContractTest {
     }
 
     @Test
-    void allExpectedSnapshotsAreJson() throws Exception {
-        for (String file : new String[]{
-                "analytics_expected_normal.json",
-                "analytics_expected_empty.json",
-                "analytics_expected_gaps.json",
-                "analytics_expected_dedup.json",
-                "analytics_expected_filtered.json"
-        }) {
-            assertTrue(Files.exists(FIXTURES.resolve(file)), file);
-            assertTrue(read(file).isObject(), file);
-        }
+void allExpectedSnapshotsMatchAnalyticsSchema() throws Exception {
+    Path schemaFile = Path.of("contracts/schemas/analytics.json");
+    var config = SchemaValidatorsConfig.builder()
+            .formatAssertionsEnabled(true)
+            .build();
+    var factory = JsonSchemaFactory.getInstance(
+            SpecVersion.VersionFlag.V202012
+    );
+    var schema = factory.getSchema(
+            schemaFile.toUri(),
+            JSON.readTree(Files.readString(schemaFile)),
+            config
+    );
+
+    for (String file : new String[]{
+            "analytics_expected_normal.json",
+            "analytics_expected_empty.json",
+            "analytics_expected_gaps.json",
+            "analytics_expected_dedup.json",
+            "analytics_expected_filtered.json"
+    }) {
+        JsonNode fixture = read(file);
+        var errors = schema.validate(fixture);
+        assertTrue(errors.isEmpty(), () -> file + ": " + errors);
     }
+}
 
     private static JsonNode read(String name) throws Exception {
         return JSON.readTree(Files.readString(FIXTURES.resolve(name)));
