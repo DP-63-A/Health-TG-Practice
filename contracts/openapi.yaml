@@ -22,11 +22,13 @@ paths:
           schema:
             type: string
             enum: [today, days_7, days_21]
-        - name: timezone
+       - name: timezone
           in: query
-          required: true
+          required: false
+          description: IANA timezone. Defaults to Europe/Warsaw.
           schema:
             type: string
+            default: Europe/Warsaw
             example: Europe/Warsaw
         - name: checkin_category
           in: query
