@@ -300,6 +300,14 @@ paths:
           schema:
             type: string
             enum: [today, days_7, days_21]
+        - name: timezone
+          in: query
+          required: false
+          description: IANA timezone used to calculate local calendar dates. Defaults to Europe/Warsaw.
+          schema:
+            type: string
+            default: Europe/Warsaw
+            example: Europe/Warsaw    
         - name: checkin_category
           in: query
           description: Category for the state series block
