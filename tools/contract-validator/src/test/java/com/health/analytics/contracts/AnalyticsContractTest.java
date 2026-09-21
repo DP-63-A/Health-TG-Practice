@@ -40,27 +40,27 @@ class AnalyticsContractTest {
     }
 
     @Test
-void allExpectedSnapshotsMatchAnalyticsSchema() throws Exception {
-    Path schemaFile = Path.of("contracts/schemas/analytics.json");
-    var config = SchemaValidatorsConfig.builder()
+    void allExpectedSnapshotsMatchAnalyticsSchema() throws Exception {
+        Path schemaFile = Path.of("contracts/schemas/analytics.json");
+        var config = SchemaValidatorsConfig.builder()
             .formatAssertionsEnabled(true)
             .build();
-    var factory = JsonSchemaFactory.getInstance(
+        var factory = JsonSchemaFactory.getInstance(
             SpecVersion.VersionFlag.V202012
-    );
-    var schema = factory.getSchema(
+        );
+        var schema = factory.getSchema(
             schemaFile.toUri(),
             JSON.readTree(Files.readString(schemaFile)),
             config
-    );
+        );
 
-    for (String file : new String[]{
+        for (String file : new String[]{
             "analytics_expected_normal.json",
             "analytics_expected_empty.json",
             "analytics_expected_gaps.json",
             "analytics_expected_dedup.json",
             "analytics_expected_filtered.json"
-    }) {
+        }) {
         JsonNode fixture = read(file);
         var errors = schema.validate(fixture);
         assertTrue(errors.isEmpty(), () -> file + ": " + errors);
