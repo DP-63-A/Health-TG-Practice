@@ -335,15 +335,15 @@ paths:
                   $ref: ./schemas/analytics.json
                 examples:
                   normal:
-                    externalValue: ./fixtures/analytics_normal.json
+                    externalValue: ./fixtures/analytics_expected_normal.json
                   empty:
-                    externalValue: ./fixtures/analytics_empty.json
+                    externalValue: ./fixtures/analytics_expected_empty.json
                   gaps:
-                    externalValue: ./fixtures/analytics_gaps.json
+                    externalValue: ./fixtures/analytics_expected_gaps.json
                   deduplication:
-                    externalValue: ./fixtures/analytics_dedup.json
+                    externalValue: ./fixtures/analytics_expected_dedup.json
                   filtered:
-                    externalValue: ./fixtures/analytics_filtered.json
+                    externalValue: ./fixtures/analytics_expected_filtered.json
           "401":
             $ref: "#/components/responses/Unauthorized"
           "422":
