@@ -52,7 +52,7 @@ public final class ContractValidator {
                 builder -> builder.schemaMappers(mappers ->
                         mappers.mapPrefix(SCHEMA_ID_PREFIX, mappedPrefix))
         );
-        this.schemaConfig = SchemaValidatorsConfig.builder().build();
+        this.schemaConfig = SchemaValidatorsConfig.builder().formatAssertionsEnabled(true).build();
     }
 
     public static void main(String[] args) throws Exception {
@@ -111,15 +111,7 @@ public final class ContractValidator {
                 if (message == null) {
                     continue;
                 }
-                String lower = message.toLowerCase();
-                boolean hardFailure = lower.startsWith("unable")
-                        || lower.contains("unable to read")
-                        || lower.contains("not found")
-                        || lower.contains("attribute ") && lower.contains("is not of type")
-                        || (lower.contains("error") && !lower.contains("error-"));
-                if (hardFailure) {
-                    failures.add(yaml.getFileName() + ": " + message);
-                }
+                failures.add(yaml.getFileName() + ": " + message);
             }
         }
         if (result.getOpenAPI() == null) {
@@ -131,42 +123,62 @@ public final class ContractValidator {
             failures.add(yaml.getFileName() + ": paths missing or empty");
         }
         try {
-            validateExternalExamples(YAML_MAPPER.readTree(yaml.toFile()), yaml.getParent(), failures);
+            validateOpenApiExamples(YAML_MAPPER.readTree(yaml.toFile()), yaml.getParent(), failures);
         } catch (IOException e) {
             failures.add(yaml.getFileName() + ": cannot read examples: " + e.getMessage());
         }
         return failures;
     }
 
-    private void validateExternalExamples(JsonNode node, Path base, List<String> failures) {
+    private void validateOpenApiExamples(JsonNode node, Path base, List<String> failures) {
         if (node.isObject()) {
             JsonNode examples = node.get("examples");
             if (examples != null && examples.isObject()) {
                 examples.fields().forEachRemaining(entry -> {
-                    JsonNode externalValue = entry.getValue().get("externalValue");
-                    if (externalValue == null) {
-                        return;
-                    }
-                    if (!externalValue.isTextual()) {
-                        failures.add("Example " + entry.getKey() + ": externalValue must be a URI");
-                        return;
-                    }
-                    Path example = base.resolve(externalValue.textValue()).normalize();
-                    if (!example.startsWith(contractsRoot) || !Files.isRegularFile(example)) {
-                        failures.add("Example " + entry.getKey() + ": missing local JSON " + example);
-                        return;
-                    }
                     try {
-                        MAPPER.readTree(example.toFile());
-                    } catch (IOException e) {
-                        failures.add("Example " + entry.getKey() + ": invalid JSON " + e.getMessage());
+                        JsonNode example = entry.getValue().get("value");
+                        JsonNode externalValue = entry.getValue().get("externalValue");
+                        if (externalValue != null) {
+                            if (!externalValue.isTextual()) {
+                                failures.add("Example " + entry.getKey() + ": externalValue must be a URI");
+                                return;
+                            }
+                            Path path = base.resolve(externalValue.textValue()).normalize();
+                            if (!path.startsWith(contractsRoot) || !Files.isRegularFile(path)) {
+                                failures.add("Example " + entry.getKey() + ": missing local JSON " + path);
+                                return;
+                            }
+                            example = MAPPER.readTree(path.toFile());
+                        }
+                        if (example == null) {
+                            failures.add("Example " + entry.getKey() + ": value or externalValue missing");
+                            return;
+                        }
+                        JsonNode schemaNode = node.get("schema");
+                        if (schemaNode == null) {
+                            failures.add("Example " + entry.getKey() + ": media type schema missing");
+                            return;
+                        }
+                        JsonSchema schema;
+                        JsonNode ref = schemaNode.get("$ref");
+                        if (ref != null && ref.isTextual() && ref.textValue().startsWith("./schemas/")) {
+                            schema = schemaFor(ref.textValue().substring("./schemas/".length()));
+                        } else {
+                            schema = schemaFactory.getSchema(schemaNode, schemaConfig);
+                        }
+                        Set<ValidationMessage> errors = schema.validate(example);
+                        if (!errors.isEmpty()) {
+                            failures.add("Example " + entry.getKey() + " does not match schema: " + errors);
+                        }
+                    } catch (IOException | RuntimeException e) {
+                        failures.add("Example " + entry.getKey() + ": cannot validate: " + e.getMessage());
                     }
                 });
             }
-            node.elements().forEachRemaining(child -> validateExternalExamples(child, base, failures));
+            node.elements().forEachRemaining(child -> validateOpenApiExamples(child, base, failures));
         } else if (node.isArray()) {
             for (JsonNode child : node) {
-                validateExternalExamples(child, base, failures);
+                validateOpenApiExamples(child, base, failures);
             }
         }
     }
@@ -260,15 +272,19 @@ public final class ContractValidator {
 
     private Set<ValidationMessage> validateAgainst(
             String schemaRef, Path example, boolean stripRejection) throws IOException {
-        String refUri = SCHEMA_ID_PREFIX + schemaRef;
-        ObjectNode wrapper = MAPPER.createObjectNode();
-        wrapper.put("$ref", refUri);
-        JsonSchema schema = schemaFactory.getSchema(schemasDir.toUri(), wrapper, schemaConfig);
+        JsonSchema schema = schemaFor(schemaRef);
 
         JsonNode instance = MAPPER.readTree(example.toFile());
         if (stripRejection && instance instanceof ObjectNode obj) {
             obj.remove("_rejection");
         }
         return schema.validate(instance);
+    }
+
+    private JsonSchema schemaFor(String schemaRef) {
+        String refUri = SCHEMA_ID_PREFIX + schemaRef;
+        ObjectNode wrapper = MAPPER.createObjectNode();
+        wrapper.put("$ref", refUri);
+        return schemaFactory.getSchema(schemasDir.toUri(), wrapper, schemaConfig);
     }
 }
