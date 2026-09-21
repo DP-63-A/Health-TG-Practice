@@ -2,4 +2,3 @@
 **/build/
 tools/contract-validator/bin/
 !gradle/wrapper/gradle-wrapper.jar
-3-01-yaml.md
