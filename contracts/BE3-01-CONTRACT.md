@@ -27,11 +27,6 @@
 - `contracts/fixtures/analytics_expected_gaps.json` — период с пропусками сна.
 - `contracts/fixtures/analytics_expected_dedup.json` — выбор последнего дневного итога шагов.
 - `contracts/fixtures/analytics_expected_filtered.json` — исключение неактуальных статусов.
-- `contracts/fixtures/analytics_normal.json` — совместимый пример обычного ответа.
-- `contracts/fixtures/analytics_empty.json` — совместимый пример пустого ответа.
-- `contracts/fixtures/analytics_gaps.json` — совместимый пример периода с пропусками.
-- `contracts/fixtures/analytics_dedup.json` — совместимый пример дедупликации.
-- `contracts/fixtures/analytics_filtered.json` — совместимый пример фильтрации.
 - `tools/contract-validator/src/test/java/com/health/analytics/contracts/AnalyticsContractTest.java` — независимые проверки JSON и численных ожиданий в режиме fixtures.
 
 ## Совместимость с BE1 и FE2

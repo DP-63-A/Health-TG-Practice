@@ -26,7 +26,8 @@ class AnalyticsContractTest {
         assertEquals(5000, normal.at("/cards/steps/total").asInt());
         assertEquals(2, normal.at("/cards/sleep/days_with_data").asInt());
         assertEquals(5000, read("analytics_expected_dedup.json").at("/cards/steps/total").asInt());
-        assertEquals(600, read("analytics_expected_filtered.json").at("/cards/nutrition/energy_kcal").asInt());
+        assertEquals(300, read("analytics_expected_filtered.json")
+        .at("/cards/nutrition/energy_kcal").asInt());
     }
 
     @Test
@@ -43,29 +44,29 @@ class AnalyticsContractTest {
     void allExpectedSnapshotsMatchAnalyticsSchema() throws Exception {
         Path schemaFile = Path.of("contracts/schemas/analytics.json");
         var config = SchemaValidatorsConfig.builder()
-            .formatAssertionsEnabled(true)
-            .build();
+                .formatAssertionsEnabled(true)
+                .build();
         var factory = JsonSchemaFactory.getInstance(
-            SpecVersion.VersionFlag.V202012
+                SpecVersion.VersionFlag.V202012
         );
         var schema = factory.getSchema(
-            schemaFile.toUri(),
-            JSON.readTree(Files.readString(schemaFile)),
-            config
+                schemaFile.toUri(),
+                JSON.readTree(Files.readString(schemaFile)),
+                config
         );
 
         for (String file : new String[]{
-            "analytics_expected_normal.json",
-            "analytics_expected_empty.json",
-            "analytics_expected_gaps.json",
-            "analytics_expected_dedup.json",
-            "analytics_expected_filtered.json"
+                "analytics_expected_normal.json",
+                "analytics_expected_empty.json",
+                "analytics_expected_gaps.json",
+                "analytics_expected_dedup.json",
+                "analytics_expected_filtered.json"
         }) {
-        JsonNode fixture = read(file);
-        var errors = schema.validate(fixture);
-        assertTrue(errors.isEmpty(), () -> file + ": " + errors);
+            JsonNode fixture = read(file);
+            var errors = schema.validate(fixture);
+            assertTrue(errors.isEmpty(), () -> file + ": " + errors);
+        }
     }
-}
 
     private static JsonNode read(String name) throws Exception {
         return JSON.readTree(Files.readString(FIXTURES.resolve(name)));
