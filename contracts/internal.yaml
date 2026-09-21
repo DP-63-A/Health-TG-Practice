@@ -1,0 +1,203 @@
+openapi: 3.1.0
+info:
+  title: Health-TG Internal Core API (non-HTTP public)
+  version: 0.1.0-be1-01
+  description: |
+    Interface contract for BE2 (write) and BE3 (read). Not exposed as a universal
+    public `POST /entries`. Implementations may be in-process method calls.
+    Owner context is always required; schema validation ≠ authorization.
+paths:
+  /internal/create_draft:
+    post:
+      operationId: createDraft
+      summary: Create a draft Entry from a structured candidate (BE2)
+      description: |
+        Input is a candidate produced by the bot/adapter plus trusted Telegram sender
+        context established by BE2 (not client-supplied user id alone).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDraftRequest"
+      responses:
+        "200":
+          description: Draft entry created
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/entry.json
+        "401":
+          description: Missing trusted owner context
+        "403":
+          description: Sender not allowlisted / stand_access false
+        "422":
+          description: Candidate fails schema or domain validation
+
+  /internal/create_checkin:
+    post:
+      operationId: createCheckin
+      summary: Create a check-in draft or auto-confirmed quick mark (BE2)
+      description: |
+        Quick check-in from the bot keyboard. TZ: three taps, no LLM.
+        Whether the result starts as `draft` or immediately `confirmed` is an
+        implementation detail of BE1-03/BE2-05; the payload shape is fixed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCheckinRequest"
+      responses:
+        "200":
+          description: Check-in entry
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/entry.json
+        "401":
+          description: Missing trusted owner context
+        "422":
+          description: Invalid category/score
+
+  /internal/list_confirmed_entries:
+    post:
+      operationId: listConfirmedEntries
+      summary: Read current confirmed entries for analytics (BE3)
+      description: |
+        Returns only current `confirmed` entries for the owner in the date window.
+        Cancelled/deleted/draft are excluded. Not a second database copy.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListConfirmedRequest"
+      responses:
+        "200":
+          description: Confirmed entries for the owner
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: ./schemas/entry.json
+        "401":
+          description: Missing trusted owner context
+        "422":
+          description: Invalid date window
+
+components:
+  schemas:
+    OwnerContext:
+      type: object
+      additionalProperties: false
+      required: [user_id]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        telegram_id:
+          type: integer
+        telegram_update_id:
+          type: integer
+          description: Dedup key material for update replay protection
+      description: Trusted context from BE core / bot; never taken from Mini App alone.
+
+    CreateDraftRequest:
+      type: object
+      additionalProperties: false
+      required: [owner, type, source_kind, source_ref, occurred_at, payload, field_origins]
+      properties:
+        owner:
+          $ref: "#/components/schemas/OwnerContext"
+        type:
+          $ref: ./schemas/common.json#/$defs/EntryType
+        source_kind:
+          $ref: ./schemas/common.json#/$defs/SourceKind
+        source_ref:
+          type: object
+        occurred_at:
+          type: string
+          format: date-time
+        payload:
+          type: object
+        field_origins:
+          type: object
+          additionalProperties:
+            $ref: ./schemas/common.json#/$defs/FieldOrigin
+        idempotency_key:
+          type: string
+          description: Optional key to collapse duplicate draft creation attempts
+      allOf:
+        - if:
+            properties:
+              type:
+                const: meal
+          then:
+            properties:
+              payload:
+                $ref: ./schemas/payloads/meal.json
+        - if:
+            properties:
+              type:
+                const: metrics
+          then:
+            properties:
+              payload:
+                $ref: ./schemas/payloads/metrics.json
+        - if:
+            properties:
+              type:
+                const: checkin
+          then:
+            properties:
+              payload:
+                $ref: ./schemas/payloads/checkin.json
+        - if:
+            properties:
+              type:
+                const: note
+          then:
+            properties:
+              payload:
+                $ref: ./schemas/payloads/note.json
+
+    CreateCheckinRequest:
+      type: object
+      additionalProperties: false
+      required: [owner, category, score, occurred_at]
+      properties:
+        owner:
+          $ref: "#/components/schemas/OwnerContext"
+        category:
+          $ref: ./schemas/common.json#/$defs/CheckinCategory
+        score:
+          $ref: ./schemas/common.json#/$defs/Score1to5
+        occurred_at:
+          type: string
+          format: date-time
+        idempotency_key:
+          type: string
+
+    ListConfirmedRequest:
+      type: object
+      additionalProperties: false
+      required: [owner, from, to]
+      properties:
+        owner:
+          $ref: "#/components/schemas/OwnerContext"
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        types:
+          type: array
+          items:
+            $ref: ./schemas/common.json#/$defs/EntryType

@@ -289,27 +289,17 @@ paths:
     get:
       tags: [analytics]
       operationId: getAnalytics
-      summary: Cards and daily series for a local calendar period
+      summary: Cards, series, observations, sources for a period
       description: |
-        Returns precomputed analytics cards and daily series for the selected period.
-        Only current entries with status `confirmed` contribute.
-        Entries with status `draft`, `cancelled` or `deleted` are excluded.
-        `from` and `to` are inclusive local calendar dates in the requested IANA timezone.
-        If `timezone` is omitted, `Europe/Warsaw` is used.
-        Null values represent absence of data or a gap and are never coerced to zero.
-        `observations.generated_at` identifies the freshness of the response snapshot.
+        Schema owned jointly with BE3-01. Current file is a draft (OPEN-DECISIONS D9).
+        Only confirmed entries contribute. Unknown nutrients are null, never coerced to 0.
       parameters:
         - name: period
           in: query
           required: true
-          description: |
-            Analytics period. `today` is one local calendar day.
-            `days_7` and `days_21` include today and contain respectively
-            7 and 21 local calendar dates.
           schema:
             type: string
             enum: [today, days_7, days_21]
-
         - name: timezone
           in: query
           required: false
@@ -317,33 +307,22 @@ paths:
           schema:
             type: string
             default: Europe/Warsaw
-            example: Europe/Warsaw
-
+            example: Europe/Warsaw    
         - name: checkin_category
           in: query
-          required: false
-          description: Category selected for the state series block. Defaults to mood.
+          description: Category for the state series block
           schema:
             $ref: ./schemas/common.json#/$defs/CheckinCategory
-
       responses:
         "200":
-          description: Analytics response
+          description: Analytics payload
           content:
             application/json:
               schema:
                 $ref: ./schemas/analytics.json
               examples:
-                normal:
-                  externalValue: ./fixtures/analytics_expected_normal.json
-                empty:
-                  externalValue: ./fixtures/analytics_expected_empty.json
-                gaps:
-                  externalValue: ./fixtures/analytics_expected_gaps.json
-                deduplication:
-                  externalValue: ./fixtures/analytics_expected_dedup.json
-                filtered:
-                  externalValue: ./fixtures/analytics_expected_filtered.json
+                week:
+                  externalValue: ./examples/valid/analytics-days7.json
         "401":
           $ref: "#/components/responses/Unauthorized"
         "422":
