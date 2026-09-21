@@ -32,30 +32,30 @@
       "bpm": 72,
       "measured_at": "2026-09-19T10:15:00Z",
       "context": "resting",
-      "entry_id": "e_pulse_1"
+      "entry_id": "22222222-2222-4222-8222-222222222208"
     },
     "ratings": {
-      "sleep_quality": { "score": 4, "date": "2026-09-19", "entry_id": "e_rate_1" },
-      "digestion_comfort": { "score": 5, "date": "2026-09-19", "entry_id": "e_rate_2" },
-      "well_being": { "score": 3, "date": "2026-09-19", "entry_id": "e_rate_3" },
-      "mood": { "score": 4, "date": "2026-09-19", "entry_id": "e_rate_4" }
+      "sleep_quality": { "score": 4, "date": "2026-09-19", "entry_id": "22222222-2222-4222-8222-222222222200" },
+      "digestion_comfort": { "score": 5, "date": "2026-09-19", "entry_id": "22222222-2222-4222-8222-222222222201" },
+      "well_being": { "score": 3, "date": "2026-09-19", "entry_id": "22222222-2222-4222-8222-222222222202" },
+      "mood": { "score": 4, "date": "2026-09-19", "entry_id": "22222222-2222-4222-8222-222222222203" }
     }
   },
   "series": {
     "nutrition": [
-      { "date": "2026-09-19", "calories_kcal": 930.0, "entry_ids": ["e_nutr_1", "e_nutr_2"] }
+      { "date": "2026-09-19", "calories_kcal": 930.0, "entry_ids": ["22222222-2222-4222-8222-222222222204", "22222222-2222-4222-8222-222222222205"] }
     ],
     "sleep": [
-      { "date": "2026-09-19", "minutes": 480, "entry_id": "e_sleep_1" }
+      { "date": "2026-09-19", "minutes": 480, "entry_id": "22222222-2222-4222-8222-222222222206" }
     ],
     "steps": [
-      { "date": "2026-09-19", "steps": 10000, "entry_id": "e_steps_1" }
+      { "date": "2026-09-19", "steps": 10000, "entry_id": "22222222-2222-4222-8222-222222222207" }
     ],
     "ratings": [
-      { "date": "2026-09-19", "category": "sleep_quality", "score": 4, "entry_id": "e_rate_1" },
-      { "date": "2026-09-19", "category": "digestion_comfort", "score": 5, "entry_id": "e_rate_2" },
-      { "date": "2026-09-19", "category": "well_being", "score": 3, "entry_id": "e_rate_3" },
-      { "date": "2026-09-19", "category": "mood", "score": 4, "entry_id": "e_rate_4" }
+      { "date": "2026-09-19", "category": "sleep_quality", "score": 4, "entry_id": "22222222-2222-4222-8222-222222222200" },
+      { "date": "2026-09-19", "category": "digestion_comfort", "score": 5, "entry_id": "22222222-2222-4222-8222-222222222201" },
+      { "date": "2026-09-19", "category": "well_being", "score": 3, "entry_id": "22222222-2222-4222-8222-222222222202" },
+      { "date": "2026-09-19", "category": "mood", "score": 4, "entry_id": "22222222-2222-4222-8222-222222222203" }
     ]
   }
 }
