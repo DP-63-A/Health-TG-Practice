@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://health-tg.local/schemas/analytics.json",
   "title": "AnalyticsResponse",
-  "description": "DRAFT pending BE3-01. Aligned with TZ §7 and FE2 overview; BE3 owns final formulas and field names.",
+  "description": "Canonical BE3-01 response for GET /api/v1/analytics. Dates are local calendar dates in the requested IANA timezone; null means no observation, never zero.",
   "type": "object",
   "additionalProperties": false,
   "required": ["period", "cards", "series", "observations", "sources"],
@@ -12,98 +12,58 @@
       "additionalProperties": false,
       "required": ["kind", "from", "to", "timezone"],
       "properties": {
-        "kind": {
-          "type": "string",
-          "enum": ["today", "days_7", "days_21"]
-        },
-        "from": { "$ref": "common.json#/$defs/LocalDate" },
-        "to": { "$ref": "common.json#/$defs/LocalDate" },
-        "timezone": { "$ref": "common.json#/$defs/IanaTimezone" }
+        "kind": {"type": "string", "enum": ["today", "days_7", "days_21"]},
+        "from": {"type": "string", "format": "date"},
+        "to": {"type": "string", "format": "date"},
+        "timezone": {"type": "string", "pattern": "^[A-Za-z_]+/[A-Za-z_]+(?:/[A-Za-z_]+)?$"}
       }
     },
     "cards": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "nutrition",
-        "meal_count",
-        "sleep",
-        "steps",
-        "heart_rate",
-        "checkins"
-      ],
+      "required": ["nutrition", "meal_count", "sleep", "steps", "heart_rate", "checkins"],
       "properties": {
         "nutrition": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["energy_kcal", "protein_g", "fat_g", "carbs_g", "incomplete"],
+          "required": ["energy_kcal", "protein_g", "fat_g", "carbs_g", "incomplete", "meals_with_energy"],
           "properties": {
-            "energy_kcal": { "type": ["number", "null"] },
-            "protein_g": { "type": ["number", "null"] },
-            "fat_g": { "type": ["number", "null"] },
-            "carbs_g": { "type": ["number", "null"] },
-            "incomplete": {
-              "type": "boolean",
-              "description": "true if any included meal has unknown nutrients (null ≠ 0)."
-            },
-            "meals_with_energy": { "type": "integer", "minimum": 0 }
+            "energy_kcal": {"type": ["number", "null"], "minimum": 0},
+            "protein_g": {"type": ["number", "null"], "minimum": 0},
+            "fat_g": {"type": ["number", "null"], "minimum": 0},
+            "carbs_g": {"type": ["number", "null"], "minimum": 0},
+            "incomplete": {"type": "boolean"},
+            "meals_with_energy": {"type": "integer", "minimum": 0}
           }
         },
         "meal_count": {
           "type": "object",
           "additionalProperties": false,
           "required": ["count"],
-          "properties": {
-            "count": { "type": "integer", "minimum": 0 }
-          }
+          "properties": {"count": {"type": "integer", "minimum": 0}}
         },
-        "sleep": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["total_minutes", "days_with_data"],
-          "properties": {
-            "total_minutes": { "type": ["integer", "null"], "minimum": 0 },
-            "average_minutes": { "type": ["number", "null"], "minimum": 0 },
-            "days_with_data": { "type": "integer", "minimum": 0 }
-          }
-        },
-        "steps": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["total", "days_with_data"],
-          "properties": {
-            "total": { "type": ["integer", "null"], "minimum": 0 },
-            "average": { "type": ["number", "null"], "minimum": 0 },
-            "days_with_data": { "type": "integer", "minimum": 0 }
-          }
-        },
+        "sleep": {"$ref": "#/$defs/aggregateMinutes"},
+        "steps": {"$ref": "#/$defs/aggregateCount"},
         "heart_rate": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["value_bpm", "occurred_at", "qualifier"],
+          "required": ["value_bpm", "occurred_at", "qualifier", "entry_id"],
           "properties": {
-            "value_bpm": { "type": ["number", "null"] },
-            "occurred_at": {
-              "type": ["string", "null"],
-              "format": "date-time"
-            },
-            "qualifier": { "$ref": "common.json#/$defs/HeartRateQualifier" }
+            "value_bpm": {"type": ["number", "null"], "minimum": 0},
+            "occurred_at": {"type": ["string", "null"], "format": "date-time"},
+            "qualifier": {"type": ["string", "null"]},
+            "entry_id": {"type": ["string", "null"], "format": "uuid"}
           }
         },
         "checkins": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "sleep_quality",
-            "digestion_comfort",
-            "wellbeing",
-            "mood"
-          ],
+          "required": ["sleep_quality", "digestion_comfort", "wellbeing", "mood"],
           "properties": {
-            "sleep_quality": { "type": ["integer", "null"], "minimum": 1, "maximum": 5 },
-            "digestion_comfort": { "type": ["integer", "null"], "minimum": 1, "maximum": 5 },
-            "wellbeing": { "type": ["integer", "null"], "minimum": 1, "maximum": 5 },
-            "mood": { "type": ["integer", "null"], "minimum": 1, "maximum": 5 }
+            "sleep_quality": {"$ref": "#/$defs/ratingCard"},
+            "digestion_comfort": {"$ref": "#/$defs/ratingCard"},
+            "wellbeing": {"$ref": "#/$defs/ratingCard"},
+            "mood": {"$ref": "#/$defs/ratingCard"}
           }
         }
       }
@@ -113,30 +73,10 @@
       "additionalProperties": false,
       "required": ["nutrition", "sleep", "steps", "checkin"],
       "properties": {
-        "nutrition": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/DayPointNumber" }
-        },
-        "sleep": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/DayPointNumber" }
-        },
-        "steps": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/DayPointNumber" }
-        },
-        "checkin": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["category", "points"],
-          "properties": {
-            "category": { "$ref": "common.json#/$defs/CheckinCategory" },
-            "points": {
-              "type": "array",
-              "items": { "$ref": "#/$defs/DayPointNumber" }
-            }
-          }
-        }
+        "nutrition": {"type": "array", "items": {"$ref": "#/$defs/nutritionPoint"}},
+        "sleep": {"type": "array", "items": {"$ref": "#/$defs/metricPoint"}},
+        "steps": {"type": "array", "items": {"$ref": "#/$defs/metricPoint"}},
+        "checkin": {"$ref": "#/$defs/checkinSeries"}
       }
     },
     "observations": {
@@ -144,36 +84,112 @@
       "additionalProperties": false,
       "required": ["days_in_period", "days_with_any_data", "generated_at"],
       "properties": {
-        "days_in_period": { "type": "integer", "minimum": 1 },
-        "days_with_any_data": { "type": "integer", "minimum": 0 },
-        "generated_at": { "$ref": "common.json#/$defs/DateTimeUtc" }
+        "days_in_period": {"type": "integer", "minimum": 1},
+        "days_with_any_data": {"type": "integer", "minimum": 0},
+        "generated_at": {"type": "string", "format": "date-time"}
       }
     },
-    "sources": {
-      "type": "array",
-      "description": "Entry ids contributing to the response (confirmed only).",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["entry_id", "type", "local_date"],
-        "properties": {
-          "entry_id": { "$ref": "common.json#/$defs/Uuid" },
-          "type": { "$ref": "common.json#/$defs/EntryType" },
-          "local_date": { "$ref": "common.json#/$defs/LocalDate" }
-        }
-      }
-    }
+    "sources": {"type": "array", "items": {"$ref": "#/$defs/source"}}
   },
   "$defs": {
-    "DayPointNumber": {
+    "aggregateMinutes": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["date", "value"],
+      "required": ["total_minutes", "average_minutes", "days_with_data"],
       "properties": {
-        "date": { "$ref": "common.json#/$defs/LocalDate" },
-        "value": {
-          "type": ["number", "null"],
-          "description": "null = gap / no data for that day (not zero)."
+        "total_minutes": {"type": ["integer", "null"], "minimum": 0},
+        "average_minutes": {"type": ["number", "null"], "minimum": 0},
+        "days_with_data": {"type": "integer", "minimum": 0}
+      }
+    },
+    "aggregateCount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "average", "days_with_data"],
+      "properties": {
+        "total": {"type": ["integer", "null"], "minimum": 0},
+        "average": {"type": ["number", "null"], "minimum": 0},
+        "days_with_data": {"type": "integer", "minimum": 0}
+      }
+    },
+    "ratingCard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score", "date", "entry_id"],
+      "properties": {
+        "score": {"type": ["integer", "null"], "minimum": 1, "maximum": 5},
+        "date": {"type": ["string", "null"], "format": "date"},
+        "entry_id": {"type": ["string", "null"], "format": "uuid"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entry_id", "type", "local_date"],
+      "properties": {
+        "entry_id": {"type": "string", "format": "uuid"},
+        "type": {"type": "string", "enum": ["meal", "metrics", "checkin"]},
+        "local_date": {"type": "string", "format": "date"}
+      }
+    },
+    "pointSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entry_id", "type", "local_date"],
+      "properties": {
+        "entry_id": {"type": "string", "format": "uuid"},
+        "type": {"type": "string", "enum": ["meal", "metrics", "checkin"]},
+        "local_date": {"type": "string", "format": "date"}
+      }
+    },
+    "nutritionPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "energy_kcal", "source"],
+      "properties": {
+        "date": {"type": "string", "format": "date"},
+        "energy_kcal": {"type": ["number", "null"], "minimum": 0},
+        "source": {"type": "array", "items": {"$ref": "#/$defs/pointSource"}}
+      }
+    },
+    "metricPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "value", "unit", "source"],
+      "properties": {
+        "date": {"type": "string", "format": "date"},
+        "value": {"type": ["number", "null"], "minimum": 0},
+        "unit": {"type": "string", "enum": ["min", "count"]},
+        "source": {
+          "anyOf": [
+            {"$ref": "#/$defs/pointSource"},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "checkinSeries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "points"],
+      "properties": {
+        "category": {"type": "string", "enum": ["sleep_quality", "digestion_comfort", "wellbeing", "mood"]},
+        "points": {"type": "array", "items": {"$ref": "#/$defs/ratingPoint"}}
+      }
+    },
+    "ratingPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "value", "unit", "source"],
+      "properties": {
+        "date": {"type": "string", "format": "date"},
+        "value": {"type": ["integer", "null"], "minimum": 1, "maximum": 5},
+        "unit": {"const": "score_1_5"},
+        "source": {
+          "anyOf": [
+            {"$ref": "#/$defs/pointSource"},
+            {"type": "null"}
+          ]
         }
       }
     }
