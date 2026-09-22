@@ -194,6 +194,7 @@ h2 {
 .entry-list span:not(.entry-title), .entry-list time { color: var(--muted); font-size: 14px; }
 .entry-list time { grid-column: 1; }
 .entry-title { font-weight: 650; }
+.pagination-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 16px; }
 .back-link, .source-link { display: inline-block; margin-bottom: 18px; color: var(--accent); }
 .ui-badge { display: inline-flex; align-items: center; max-width: 100%; border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; background: var(--surface); color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
 .ui-badge--info { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
@@ -207,6 +208,10 @@ h2 {
 .entry-form { display: grid; gap: 16px; margin-top: 20px; }
 .entry-form textarea { font-family: ui-monospace, monospace; resize: vertical; }
 .form-actions { display: flex; gap: 10px; }
+.source-card { display: grid; gap: 8px; border: 1px solid var(--border); border-radius: 8px; margin-top: 16px; padding: 14px; background: var(--bg); }
+.source-card h3 { margin: 0; font-size: 18px; }
+.source-card ul { margin: 0; padding-left: 20px; color: var(--muted); }
+.draft-note { border-left: 3px solid var(--warning); margin-top: 16px; padding-left: 10px; color: var(--warning) !important; }
 .ui-button { border: 1px solid var(--accent); border-radius: 8px; padding: 9px 14px; background: var(--accent); color: white; }
 .ui-button--secondary { border-color: var(--border); background: var(--surface); color: var(--text); }
 .ui-button--danger { border-color: var(--danger); background: var(--surface); color: var(--danger); }
@@ -249,7 +254,7 @@ h2 {
   .filters, .entry-meta { grid-template-columns: 1fr 1fr; }
   .entry-list a { grid-template-columns: 1fr; }
   .entry-list time { grid-column: auto; }
-  .ui-card__header, .section-heading, .form-actions { align-items: stretch; flex-direction: column; }
+  .ui-card__header, .section-heading, .form-actions, .pagination-actions { align-items: stretch; flex-direction: column; }
   .ui-button { width: 100%; }
 }
 

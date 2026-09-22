@@ -24,6 +24,20 @@ const entries: Entry[] = [
     payload: { code: 'steps', value: 8200, unit: 'count', local_date: '2026-09-17', local_time: null, qualifier: null },
     field_origins: { value: 'extracted' }, submission_id: 'sub_metrics_01',
   },
+  {
+    id: '22222222-2222-4222-8222-222222222204', user_id: user.id, type: 'checkin', status: 'confirmed', source_kind: 'quick_checkin',
+    source_ref: { file_id: null, telegram_update_id: 9004, telegram_message_id: 45, label: 'Быстрая отметка' },
+    occurred_at: '2026-09-18T08:15:00Z', created_at: '2026-09-18T08:16:00Z', updated_at: '2026-09-18T08:16:00Z', revision: 1,
+    payload: { category: 'mood', score: 4 },
+    field_origins: { category: 'reported', score: 'reported' }, submission_id: 'sub_checkin_01',
+  },
+  {
+    id: '22222222-2222-4222-8222-222222222205', user_id: user.id, type: 'note', status: 'confirmed', source_kind: 'text',
+    source_ref: { file_id: null, telegram_update_id: 9005, telegram_message_id: 46, label: 'Текстовое сообщение' },
+    occurred_at: '2026-09-19T09:10:00Z', created_at: '2026-09-19T09:11:00Z', updated_at: '2026-09-19T09:11:00Z', revision: 2,
+    payload: { text: 'После завтрака чувствую себя хорошо' },
+    field_origins: { text: 'reported' }, submission_id: 'sub_note_01',
+  },
 ]
 
 export const fixtureApiClient: ApiClient = {
@@ -72,9 +86,13 @@ export const fixtureApiClient: ApiClient = {
 
 function listEntries(filters: EntryFilters = {}) {
   const status = filters.status ?? 'confirmed'
+  const limit = filters.limit ?? 20
+  const start = filters.cursor ? Number(filters.cursor) : 0
   const items = entries.filter((entry) => entry.status === status && (!filters.type || entry.type === filters.type) &&
     (!filters.from || entry.occurred_at.slice(0, 10) >= filters.from) && (!filters.to || entry.occurred_at.slice(0, 10) <= filters.to))
-  return { items: items.slice(0, filters.limit ?? 20), next_cursor: null }
+  const page = items.slice(start, start + limit)
+  const next = start + limit < items.length ? String(start + limit) : null
+  return { items: page, next_cursor: next }
 }
 function findEntry(id: string) { const entry = entries.find((item) => item.id === id); if (!entry) throw routeError('GET', `/entries/${id}`, 404); return entry }
 function matchEntry(path: string) { return path.match(/^\/entries\/([^/]+)$/)?.[1] }
