@@ -1,0 +1,204 @@
+:root {
+  --bg: #f7f7f4;
+  --surface: #ffffff;
+  --text: #27272a;
+  --muted: #71717a;
+  --border: #e4e4e7;
+  --accent: #2563eb;
+  --accent-soft: #dbeafe;
+
+  font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+.app-shell {
+  width: min(960px, 100%);
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: 32px 20px;
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mode-badge {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.app-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.refresh-button {
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 14px;
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.app-kicker {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0;
+  font-size: 32px;
+  line-height: 1.15;
+}
+
+h2 {
+  margin-bottom: 12px;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.app-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.app-nav a {
+  min-width: 96px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  background: var(--surface);
+  color: var(--muted);
+  text-align: center;
+  text-decoration: none;
+}
+
+.app-nav a.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.app-main {
+  padding-top: 32px;
+}
+
+.page-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  background: var(--surface);
+}
+
+.page-section p {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.page-section .refresh-status {
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.auth-screen {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  padding: 24px;
+}
+
+.auth-panel {
+  width: min(460px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 28px;
+  background: var(--surface);
+}
+
+.auth-panel h1 {
+  margin-bottom: 12px;
+}
+
+.auth-panel p:not(.app-kicker) {
+  margin-bottom: 20px;
+  color: var(--muted);
+}
+
+.auth-panel button {
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 9px 14px;
+  background: var(--accent);
+  color: #ffffff;
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 24px 16px;
+  }
+
+  .app-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .app-nav a {
+    flex: 1;
+  }
+
+  .app-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
