@@ -43,15 +43,18 @@ export const fixtureApiClient: ApiClient = {
     const entry = findEntry(match[1])
     if (match[2] === 'confirm') {
       const body = options?.body as ConfirmRequest
+      if (entry.status === 'confirmed' && entry.submission_id === body.submission_id) return clone(entry) as TResponse
+      checkDraft(entry)
       checkRevision(entry, body.expected_revision)
       entry.status = 'confirmed'; entry.submission_id = body.submission_id
-    } else entry.status = 'cancelled'
+    } else { checkDraft(entry); entry.status = 'cancelled' }
     bump(entry)
     return clone(entry) as TResponse
   },
   async patch<TResponse, TBody>(path: string, options?: ApiBodyRequestOptions<TBody>) {
     const id = matchEntry(normalizePath(path)); if (!id) throw routeError('PATCH', path, 404)
     const entry = findEntry(id); const body = options?.body as EntryPatchRequest
+    if (entry.status !== 'draft' && entry.status !== 'confirmed') throw invalidStatus(entry)
     checkRevision(entry, body.expected_revision)
     if (body.occurred_at) entry.occurred_at = body.occurred_at
     if (body.payload) entry.payload = { ...entry.payload, ...body.payload } as Entry['payload']
@@ -62,6 +65,7 @@ export const fixtureApiClient: ApiClient = {
     const id = matchEntry(normalizePath(path)); if (!id) throw routeError('DELETE', path, 404)
     const entry = findEntry(id)
     const revision = Number(String(new Headers(options?.headers).get('If-Match')).replaceAll('"', ''))
+    if (entry.status !== 'confirmed') throw invalidStatus(entry)
     checkRevision(entry, revision); entry.status = 'deleted'; bump(entry); return clone(entry) as TResponse
   },
 }
@@ -75,6 +79,8 @@ function listEntries(filters: EntryFilters = {}) {
 function findEntry(id: string) { const entry = entries.find((item) => item.id === id); if (!entry) throw routeError('GET', `/entries/${id}`, 404); return entry }
 function matchEntry(path: string) { return path.match(/^\/entries\/([^/]+)$/)?.[1] }
 function checkRevision(entry: Entry, revision: number) { if (entry.revision !== revision) throw new ApiError({ code: 'VERSION_CONFLICT', message: `expected_revision ${revision} is stale; current revision is ${entry.revision}`, request_id: 'fixture-conflict' }, 409) }
+function checkDraft(entry: Entry) { if (entry.status !== 'draft') throw invalidStatus(entry) }
+function invalidStatus(entry: Entry) { return new ApiError({ code: 'INVALID_STATUS_TRANSITION', message: `Cannot mutate entry ${entry.id} with status ${entry.status}`, request_id: 'fixture-invalid-status' }, 409) }
 function bump(entry: Entry) { entry.revision += 1; entry.updated_at = new Date().toISOString() }
 function clone<T>(value: T): T { return structuredClone(value) }
 function normalizePath(path: string) { return new URL(path, 'http://fixture.local').pathname }
