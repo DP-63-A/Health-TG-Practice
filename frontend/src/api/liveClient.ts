@@ -1,5 +1,5 @@
 import { getSessionToken } from '../auth/session'
-import { ApiError, type ApiErrorPayload, type ApiFieldErrors } from './errors'
+import { ApiError, type ApiErrorPayload, type ApiFieldError } from './errors'
 import type {
   ApiBodyRequestOptions,
   ApiClient,
@@ -153,19 +153,16 @@ function isApiErrorBody(value: unknown): value is ApiErrorPayload {
   )
 }
 
-function isFieldErrors(value: unknown): value is ApiFieldErrors | undefined {
+function isFieldErrors(value: unknown): value is ApiFieldError[] | undefined {
   if (value === undefined) {
     return true
   }
 
-  if (!isRecord(value)) {
+  if (!Array.isArray(value)) {
     return false
   }
-
-  return Object.values(value).every(
-    (item) =>
-      Array.isArray(item) && item.every((message) => typeof message === 'string'),
-  )
+  return value.every((item) => isRecord(item) && typeof item.field === 'string' &&
+    typeof item.message === 'string' && (item.code === undefined || typeof item.code === 'string'))
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

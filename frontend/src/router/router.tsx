@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import AppLayout from '../components/AppLayout'
 import DiaryPage from '../pages/DiaryPage'
+import EntryPage from '../pages/EntryPage'
 import OverviewPage from '../pages/OverviewPage'
 
 export const appRoutes = [
@@ -16,6 +17,7 @@ export const appRoutes = [
         path: 'diary',
         element: <DiaryPage />,
       },
+      { path: 'diary/:id', element: <EntryPage /> },
       {
         path: 'overview',
         element: <OverviewPage />,

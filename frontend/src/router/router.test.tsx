@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { RefreshProvider } from '../refresh/RefreshProvider'
+import { AuthProvider } from '../auth/AuthProvider'
 import { appRoutes } from './router'
 
 describe('app routes', () => {
@@ -29,8 +30,6 @@ function renderRoute(path: string) {
   })
 
   return render(
-    <RefreshProvider>
-      <RouterProvider router={router} />
-    </RefreshProvider>,
+    <AuthProvider><RefreshProvider><RouterProvider router={router} /></RefreshProvider></AuthProvider>,
   )
 }

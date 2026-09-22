@@ -1,16 +1,16 @@
-export type ApiFieldErrors = Record<string, string[]>
+export interface ApiFieldError { field: string; message: string; code?: string }
 
 export interface ApiErrorPayload {
   code: string
   message: string
   request_id: string
-  field_errors?: ApiFieldErrors
+  field_errors?: ApiFieldError[]
 }
 
 export class ApiError extends Error {
   readonly code: string
   readonly request_id: string
-  readonly field_errors?: ApiFieldErrors
+  readonly field_errors?: ApiFieldError[]
   readonly status: number
 
   constructor(payload: ApiErrorPayload, status: number) {

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
   useCallback,
@@ -9,9 +10,10 @@ import {
 } from 'react'
 import { apiClient, apiMode, ApiError } from '../api/client'
 import type { ApiClient, ApiMode } from '../api/client'
-import { clearSessionToken } from './session'
+import type { TelegramAuthResponse, User } from '../api/types'
+import { clearSessionToken, getSessionToken, setSessionToken } from './session'
 
-export type AuthenticatedUser = Record<string, unknown>
+export type AuthenticatedUser = User
 
 export type AuthState =
   | { status: 'loading' }
@@ -58,16 +60,27 @@ export function AuthProvider({
     async function loadSession() {
       setState({ status: 'loading' })
 
-      if (mode === 'live') {
+      if (mode === 'live' && !getSessionToken()) {
+        const initData = window.Telegram?.WebApp?.initData
+        if (initData) {
+          try {
+            const auth = await client.post<TelegramAuthResponse, { init_data: string }>('/auth/telegram', { body: { init_data: initData } })
+            setSessionToken(auth.session_token)
+            if (isActive) setState({ status: 'authenticated', user: auth.user })
+          } catch (error) {
+            if (isActive) setState({ status: 'authRequired', message: error instanceof Error ? error.message : 'Не удалось войти через Telegram.' })
+          }
+          return
+        }
         setState({
           status: 'authRequired',
-          message: 'Live-авторизация пока не подключена: backend auth contract не утвержден.',
+          message: 'Откройте Mini App внутри Telegram, чтобы пройти авторизацию.',
         })
         return
       }
 
       try {
-        const user = await client.get<AuthenticatedUser>('/me')
+        const user = await client.get<User>('/me')
 
         if (isActive) {
           setState({ status: 'authenticated', user })
@@ -106,6 +119,10 @@ export function AuthProvider({
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+declare global {
+  interface Window { Telegram?: { WebApp?: { initData?: string } } }
 }
 
 export function useAuth() {

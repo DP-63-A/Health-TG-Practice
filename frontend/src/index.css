@@ -150,6 +150,31 @@ h2 {
   font-size: 14px;
 }
 
+.section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.filters { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 12px; margin: 24px 0; }
+.filters label, .entry-form label { display: grid; gap: 6px; color: var(--muted); font-size: 14px; }
+.filters input, .filters select, .entry-form input, .entry-form textarea { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; background: var(--surface); color: var(--text); }
+.state-message { padding: 28px; border-radius: 8px; background: var(--bg); text-align: center; }
+.error-message { color: #b91c1c; }
+.entry-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.entry-list a { display: grid; grid-template-columns: 1fr auto; gap: 3px 16px; border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-decoration: none; }
+.entry-list a:hover { border-color: var(--accent); }
+.entry-list span:not(.entry-title), .entry-list time { color: var(--muted); font-size: 14px; }
+.entry-list time { grid-column: 1; }
+.entry-title { font-weight: 650; }
+.back-link, .source-link { display: inline-block; margin-bottom: 18px; color: var(--accent); }
+.status-badge { border-radius: 999px; padding: 4px 10px; background: var(--accent-soft); color: var(--accent); }
+.entry-meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.entry-meta div { border-radius: 8px; padding: 10px; background: var(--bg); }
+.entry-meta dt { color: var(--muted); font-size: 13px; }
+.entry-meta dd { margin: 3px 0 0; overflow-wrap: anywhere; }
+.entry-form { display: grid; gap: 16px; margin-top: 20px; }
+.entry-form textarea { font-family: ui-monospace, monospace; resize: vertical; }
+.form-actions { display: flex; gap: 10px; }
+.form-actions button, .state-message button, .entry-detail > button { border: 1px solid var(--accent); border-radius: 8px; padding: 9px 14px; background: var(--accent); color: white; }
+.form-actions .danger-button { border-color: #dc2626; background: white; color: #dc2626; }
+.conflict-message { border-left: 3px solid #d97706; padding-left: 10px; color: #92400e !important; }
+
 .auth-screen {
   display: grid;
   min-height: 100svh;
@@ -201,4 +226,7 @@ h2 {
     align-items: stretch;
     flex-direction: column;
   }
+  .filters, .entry-meta { grid-template-columns: 1fr 1fr; }
+  .entry-list a { grid-template-columns: 1fr; }
+  .entry-list time { grid-column: auto; }
 }

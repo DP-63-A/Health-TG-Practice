@@ -9,6 +9,16 @@ export type {
   ApiQueryParams,
   ApiRequestOptions,
   ApiBodyRequestOptions,
+  Entry,
+  EntryFilters,
+  EntryListResponse,
+  EntryPatchRequest,
+  EntryPayload,
+  EntryStatus,
+  EntryType,
+  ConfirmRequest,
+  TelegramAuthResponse,
+  User,
 } from './types'
 
 export const apiMode = readApiMode()

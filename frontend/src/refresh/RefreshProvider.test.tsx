@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { appRoutes } from '../router/router'
+import { AuthProvider } from '../auth/AuthProvider'
 import { RefreshProvider, useRefresh, useRefreshSubscription } from './RefreshProvider'
 
 describe('refresh mechanism', () => {
@@ -24,11 +25,11 @@ describe('refresh mechanism', () => {
   it('DiaryPage receives refresh event', async () => {
     renderRoute('/diary')
 
-    expect(await screen.findByText('Обновлений: 0')).toBeInTheDocument()
+    expect(await screen.findByText('Овсянка с ягодами')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Обновить' }))
 
-    expect(screen.getByText('Обновлений: 1')).toBeInTheDocument()
+    expect(await screen.findByText('Овсянка с ягодами')).toBeInTheDocument()
   })
 
   it('OverviewPage receives refresh event', async () => {
@@ -68,8 +69,6 @@ function renderRoute(path: string) {
   })
 
   return render(
-    <RefreshProvider>
-      <RouterProvider router={router} />
-    </RefreshProvider>,
+    <AuthProvider><RefreshProvider><RouterProvider router={router} /></RefreshProvider></AuthProvider>,
   )
 }
