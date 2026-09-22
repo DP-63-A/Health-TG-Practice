@@ -34,7 +34,7 @@
       ]
     }
   },
-  "observations": {"days_in_period": 7, "days_with_any_data": 4, "generated_at": "2026-09-19T20:05:00Z"},
+  "observations": {"days_in_period": 7, "days_with_any_data": 3, "generated_at": "2026-09-19T20:05:00Z"},
   "sources": [
     {"entry_id": "22222222-2222-4222-8222-222222222210", "type": "meal", "local_date": "2026-09-19"},
     {"entry_id": "22222222-2222-4222-8222-222222222211", "type": "meal", "local_date": "2026-09-19"},
