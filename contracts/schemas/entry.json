@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://health-tg.local/schemas/entry.json",
+  "title": "Entry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "user_id",
+    "type",
+    "status",
+    "source_kind",
+    "source_ref",
+    "occurred_at",
+    "created_at",
+    "updated_at",
+    "revision",
+    "payload",
+    "field_origins",
+    "submission_id"
+  ],
+  "properties": {
+    "id": { "$ref": "common.json#/$defs/Uuid" },
+    "user_id": { "$ref": "common.json#/$defs/Uuid" },
+    "type": { "$ref": "common.json#/$defs/EntryType" },
+    "status": { "$ref": "common.json#/$defs/EntryStatus" },
+    "source_kind": { "$ref": "common.json#/$defs/SourceKind" },
+    "source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Link to original message/image; not replaced by recognition result.",
+      "properties": {
+        "file_id": {
+          "type": ["string", "null"],
+          "format": "uuid",
+          "description": "Owned image id for GET /files/{id}; null if text-only."
+        },
+        "telegram_update_id": {
+          "type": ["integer", "null"]
+        },
+        "telegram_message_id": {
+          "type": ["integer", "null"]
+        },
+        "label": {
+          "type": ["string", "null"],
+          "maxLength": 256
+        }
+      }
+    },
+    "occurred_at": { "$ref": "common.json#/$defs/DateTimeUtc" },
+    "created_at": { "$ref": "common.json#/$defs/DateTimeUtc" },
+    "updated_at": { "$ref": "common.json#/$defs/DateTimeUtc" },
+    "revision": { "$ref": "common.json#/$defs/Revision" },
+    "payload": {
+      "description": "Shape depends on type; validated by discriminator below.",
+      "type": "object"
+    },
+    "field_origins": {
+      "type": "object",
+      "description": "Map of payload field path to origin. Example key: nutrients.energy_kcal",
+      "additionalProperties": { "$ref": "common.json#/$defs/FieldOrigin" }
+    },
+    "submission_id": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Idempotency key for confirm; null until first confirm attempt."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "meal" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": { "$ref": "payloads/meal.json" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "metrics" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": { "$ref": "payloads/metrics.json" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": { "const": "metrics" },
+          "status": { "const": "confirmed" }
+        },
+        "required": ["type", "status"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": ["unit", "local_date"],
+            "properties": {
+              "unit": { "type": "string", "minLength": 1 },
+              "local_date": { "$ref": "common.json#/$defs/LocalDate" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "checkin" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": { "$ref": "payloads/checkin.json" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "note" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": { "$ref": "payloads/note.json" }
+        }
+      }
+    }
+  ]
+}

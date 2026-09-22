@@ -1,0 +1,4 @@
+.gradle/
+**/build/
+tools/contract-validator/bin/
+!gradle/wrapper/gradle-wrapper.jar

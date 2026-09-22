@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://health-tg.local/schemas/user.json",
+  "title": "User",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "telegram_id", "timezone", "stand_access"],
+  "properties": {
+    "id": { "$ref": "common.json#/$defs/Uuid" },
+    "telegram_id": {
+      "type": "integer",
+      "description": "Telegram user id. Not trusted from client alone; established after server-side initData verification."
+    },
+    "timezone": {
+      "allOf": [
+        { "$ref": "common.json#/$defs/IanaTimezone" }
+      ],
+      "default": "Europe/Warsaw",
+      "description": "IANA timezone; stand default Europe/Warsaw; stored explicitly."
+    },
+    "stand_access": {
+      "type": "boolean",
+      "description": "Whether the user is allowlisted for the training stand."
+    }
+  },
+  "description": "No name, contacts, date of birth, or diagnosis fields."
+}
