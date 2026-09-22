@@ -27,7 +27,9 @@ class AnalyticsContractTest {
         assertEquals(2, normal.at("/cards/sleep/days_with_data").asInt());
         assertEquals(5000, read("analytics_expected_dedup.json").at("/cards/steps/total").asInt());
         assertEquals(300, read("analytics_expected_filtered.json")
-        .at("/cards/nutrition/energy_kcal").asInt());
+                .at("/cards/nutrition/energy_kcal").asInt());
+        assertEquals(847.5, read("analytics_expected_mass_changed.json")
+                .at("/energy_kcal").asDouble());
     }
 
     @Test
@@ -65,6 +67,44 @@ class AnalyticsContractTest {
             JsonNode fixture = read(file);
             var errors = schema.validate(fixture);
             assertTrue(errors.isEmpty(), () -> file + ": " + errors);
+        }
+    }
+
+    @Test
+    void schemaRejectsMismatchedUnitsAndMissingSources() throws Exception {
+        JsonNode normal = read("analytics_expected_normal.json");
+
+        JsonNode wrongSleepUnit = normal.deepCopy();
+        wrongSleepUnit.at("/series/sleep/0/unit").deepCopy();
+        ((com.fasterxml.jackson.databind.node.ObjectNode) wrongSleepUnit.at("/series/sleep/0")).put("unit", "count");
+
+        JsonNode missingSleepSource = normal.deepCopy();
+        ((com.fasterxml.jackson.databind.node.ObjectNode) missingSleepSource.at("/series/sleep/0")).putNull("source");
+
+        JsonNode wrongCheckinSource = normal.deepCopy();
+        ((com.fasterxml.jackson.databind.node.ObjectNode) wrongCheckinSource.at("/series/checkin/points/0")).putNull("source");
+
+        Path schemaFile = Path.of("contracts/schemas/analytics.json");
+        var schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012)
+                .getSchema(schemaFile.toUri(), JSON.readTree(Files.readString(schemaFile)),
+                        SchemaValidatorsConfig.builder().formatAssertionsEnabled(true).build());
+
+        assertFalse(schema.validate(wrongSleepUnit).isEmpty());
+        assertFalse(schema.validate(missingSleepSource).isEmpty());
+        assertFalse(schema.validate(wrongCheckinSource).isEmpty());
+    }
+
+    @Test
+    void acceptedZoneIdsIncludeUtcAndOffsets() throws Exception {
+        JsonNode normal = read("analytics_expected_normal.json");
+        Path schemaFile = Path.of("contracts/schemas/analytics.json");
+        var schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012)
+                .getSchema(schemaFile.toUri(), JSON.readTree(Files.readString(schemaFile)),
+                        SchemaValidatorsConfig.builder().formatAssertionsEnabled(true).build());
+        for (String zone : new String[]{"America/Port-au-Prince", "Etc/GMT+3", "UTC"}) {
+            JsonNode candidate = normal.deepCopy();
+            ((com.fasterxml.jackson.databind.node.ObjectNode) candidate.at("/period")).put("timezone", zone);
+            assertTrue(schema.validate(candidate).isEmpty(), zone);
         }
     }
 

@@ -15,7 +15,15 @@
         "kind": {"type": "string", "enum": ["today", "days_7", "days_21"]},
         "from": {"type": "string", "format": "date"},
         "to": {"type": "string", "format": "date"},
-        "timezone": {"type": "string", "pattern": "^[A-Za-z_]+/[A-Za-z_]+(?:/[A-Za-z_]+)?$"}
+        "timezone": {
+          "type": "string",
+          "minLength": 1,
+          "description": "IANA ZoneId. The application validates the value with java.time.ZoneId; UTC is also accepted.",
+          "anyOf": [
+            {"const": "UTC"},
+            {"pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:[+\\-][0-9]+)?(?:/[A-Za-z0-9_+.-]+)+$"}
+          ]
+        }
       }
     },
     "cards": {
@@ -51,7 +59,7 @@
           "properties": {
             "value_bpm": {"type": ["number", "null"], "minimum": 0},
             "occurred_at": {"type": ["string", "null"], "format": "date-time"},
-            "qualifier": {"type": ["string", "null"]},
+            "qualifier": {"$ref": "common.json#/$defs/HeartRateQualifier"},
             "entry_id": {"type": ["string", "null"], "format": "uuid"}
           }
         },
@@ -74,8 +82,8 @@
       "required": ["nutrition", "sleep", "steps", "checkin"],
       "properties": {
         "nutrition": {"type": "array", "items": {"$ref": "#/$defs/nutritionPoint"}},
-        "sleep": {"type": "array", "items": {"$ref": "#/$defs/metricPoint"}},
-        "steps": {"type": "array", "items": {"$ref": "#/$defs/metricPoint"}},
+        "sleep": {"type": "array", "items": {"$ref": "#/$defs/sleepPoint"}},
+        "steps": {"type": "array", "items": {"$ref": "#/$defs/stepsPoint"}},
         "checkin": {"$ref": "#/$defs/checkinSeries"}
       }
     },
@@ -132,16 +140,7 @@
         "local_date": {"type": "string", "format": "date"}
       }
     },
-    "pointSource": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["entry_id", "type", "local_date"],
-      "properties": {
-        "entry_id": {"type": "string", "format": "uuid"},
-        "type": {"type": "string", "enum": ["meal", "metrics", "checkin"]},
-        "local_date": {"type": "string", "format": "date"}
-      }
-    },
+    "pointSource": {"$ref": "#/$defs/source"},
     "nutritionPoint": {
       "type": "object",
       "additionalProperties": false,
@@ -159,14 +158,28 @@
       "properties": {
         "date": {"type": "string", "format": "date"},
         "value": {"type": ["number", "null"], "minimum": 0},
-        "unit": {"type": "string", "enum": ["min", "count"]},
-        "source": {
-          "anyOf": [
-            {"$ref": "#/$defs/pointSource"},
-            {"type": "null"}
-          ]
+        "unit": {"type": "string"},
+        "source": {"type": ["object", "null"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"value": {"const": null}}},
+          "then": {"properties": {"source": {"const": null}}},
+          "else": {"properties": {"source": {"$ref": "#/$defs/pointSource"}}}
         }
-      }
+      ]
+    },
+    "sleepPoint": {
+      "allOf": [
+        {"$ref": "#/$defs/metricPoint"},
+        {"properties": {"unit": {"const": "min"}}}
+      ]
+    },
+    "stepsPoint": {
+      "allOf": [
+        {"$ref": "#/$defs/metricPoint"},
+        {"properties": {"unit": {"const": "count"}}}
+      ]
     },
     "checkinSeries": {
       "type": "object",
@@ -185,13 +198,15 @@
         "date": {"type": "string", "format": "date"},
         "value": {"type": ["integer", "null"], "minimum": 1, "maximum": 5},
         "unit": {"const": "score_1_5"},
-        "source": {
-          "anyOf": [
-            {"$ref": "#/$defs/pointSource"},
-            {"type": "null"}
-          ]
+        "source": {"type": ["object", "null"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"value": {"const": null}}},
+          "then": {"properties": {"source": {"const": null}}},
+          "else": {"properties": {"source": {"$ref": "#/$defs/pointSource"}}}
         }
-      }
+      ]
     }
   }
 }
