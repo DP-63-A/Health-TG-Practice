@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://health-tg.local/schemas/common.json",
+  "title": "CommonEnums",
+  "$defs": {
+    "Uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "DateTimeUtc": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Instant in UTC (RFC 3339)."
+    },
+    "LocalDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Calendar date YYYY-MM-DD in the user's IANA timezone."
+    },
+    "IanaTimezone": {
+      "type": "string",
+      "minLength": 1,
+      "examples": ["Europe/Warsaw"]
+    },
+    "EntryType": {
+      "type": "string",
+      "enum": ["meal", "metrics", "checkin", "note"]
+    },
+    "EntryStatus": {
+      "type": "string",
+      "enum": ["draft", "confirmed", "cancelled", "deleted"]
+    },
+    "SourceKind": {
+      "type": "string",
+      "enum": [
+        "text",
+        "food_photo",
+        "health_screenshot",
+        "watch_photo",
+        "quick_checkin",
+        "seed"
+      ]
+    },
+    "FieldOrigin": {
+      "type": "string",
+      "enum": ["reported", "extracted", "estimated", "computed"],
+      "description": "Confirmation does not promote estimated to a trusted origin."
+    },
+    "CheckinCategory": {
+      "type": "string",
+      "enum": [
+        "sleep_quality",
+        "digestion_comfort",
+        "wellbeing",
+        "mood"
+      ]
+    },
+    "MetricCode": {
+      "type": "string",
+      "enum": ["steps", "sleep_duration_min", "heart_rate"]
+    },
+    "NutrientsBasis": {
+      "type": "string",
+      "enum": ["per_100g", "per_serving", "unknown"]
+    },
+    "HeartRateQualifier": {
+      "type": ["string", "null"],
+      "enum": ["instant", "resting", null]
+    },
+    "NonNegativeNumber": {
+      "type": "number",
+      "minimum": 0
+    },
+    "PositiveInt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "Revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "Score1to5": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "NullableNumber": {
+      "type": ["number", "null"]
+    }
+  }
+}
