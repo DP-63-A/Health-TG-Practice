@@ -1,3 +1,4 @@
+import { analyticsFixture } from '../overview/fixtures/analytics.fixture'
 import { ApiError } from './errors'
 import type { ApiBodyRequestOptions, ApiClient, ApiRequestOptions, Entry, EntryFilters, EntryPatchRequest, ConfirmRequest, TelegramAuthResponse, User } from './types'
 
@@ -41,14 +42,42 @@ const entries: Entry[] = [
 ]
 
 export const fixtureApiClient: ApiClient = {
-  async get<TResponse>(path: string, options?: ApiRequestOptions) {
-    const pathname = normalizePath(path)
-    if (pathname === '/me') return clone(user) as TResponse
-    if (pathname === '/entries') return clone(listEntries(options?.query as EntryFilters | undefined)) as TResponse
-    const id = matchEntry(pathname)
-    if (id) return clone(findEntry(id)) as TResponse
-    throw routeError('GET', path, 404)
-  },
+  // async get<TResponse>(path: string, options?: ApiRequestOptions) {
+  //   const pathname = normalizePath(path)
+  //   if (pathname === '/me') return clone(user) as TResponse
+  //   if (pathname === '/entries') return clone(listEntries(options?.query as EntryFilters | undefined)) as TResponse
+  //   const id = matchEntry(pathname)
+  //   if (id) return clone(findEntry(id)) as TResponse
+  //   throw routeError('GET', path, 404)
+  // },
+
+  
+async get<TResponse>(path: string, options?: ApiRequestOptions) {
+  const pathname = normalizePath(path)
+
+  if (pathname === '/me') {
+    return clone(user) as TResponse
+  }
+
+  if (pathname === '/entries') {
+    return clone(
+      listEntries(options?.query as EntryFilters | undefined),
+    ) as TResponse
+  }
+
+  if (pathname === '/api/v1/analytics') {
+    return clone(analyticsFixture) as TResponse
+  }
+
+  const id = matchEntry(pathname)
+
+  if (id) {
+    return clone(findEntry(id)) as TResponse
+  }
+
+  throw routeError('GET', path, 404)
+},
+
   async post<TResponse, TBody>(path: string, options?: ApiBodyRequestOptions<TBody>) {
     const pathname = normalizePath(path)
     if (pathname === '/auth/telegram') return clone({ session_token: 'fixture-session', token_type: 'Bearer', expires_in: 3600, user } satisfies TelegramAuthResponse) as TResponse
