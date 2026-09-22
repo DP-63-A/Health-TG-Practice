@@ -20,10 +20,10 @@
         "description": "Oatmeal with berries",
         "mass_g": 200,
         "nutrients": {
-          "energy_kcal": 330,
-          "protein_g": 20,
-          "fat_g": 10,
-          "carbs_g": 40
+          "energy_kcal": 165,
+          "protein_g": 10,
+          "fat_g": 5,
+          "carbs_g": 20
         },
         "nutrients_basis": "per_100g"
       },

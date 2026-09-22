@@ -191,6 +191,7 @@ public final class ContractValidator {
         mapping.put("entry-meal.json", "entry.json");
         mapping.put("entry-draft-meal.json", "entry.json");
         mapping.put("entry-metrics.json", "entry.json");
+        mapping.put("entry-draft-metrics-incomplete.json", "entry.json");
         mapping.put("entry-metrics-zero-steps.json", "entry.json");
         mapping.put("entry-checkin.json", "entry.json");
         mapping.put("entry-note.json", "entry.json");
@@ -227,7 +228,7 @@ public final class ContractValidator {
         Set<String> required = Set.of(
                 "entry-unknown-status.json", "entry-unknown-type.json",
                 "entry-score-out-of-range.json", "entry-negative-steps.json",
-                "entry-negative-sleep.json");
+                "entry-negative-sleep.json", "entry-confirmed-metrics-incomplete.json");
         if (!Files.isDirectory(invalidDir)) {
             failures.add("Missing invalid examples directory");
             return failures;
