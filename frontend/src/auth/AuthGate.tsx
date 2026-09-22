@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import { StateView } from '../components/ui'
+import type { StateViewVariant } from '../components/ui'
 import { useAuth } from './AuthProvider'
 
 export function AuthGate({ children }: { children: ReactNode }) {
@@ -13,6 +15,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       <AuthStateScreen
         title="Загрузка"
         message="Проверяем состояние авторизации."
+        variant="loading"
       />
     )
   }
@@ -24,6 +27,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
         message={state.message}
         actionLabel="Проверить снова"
         onAction={retry}
+        variant="empty"
       />
     )
   }
@@ -35,6 +39,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
         message={state.message}
         actionLabel="Проверить снова"
         onAction={retry}
+        variant="sessionExpired"
       />
     )
   }
@@ -45,6 +50,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       message={state.message}
       actionLabel="Повторить"
       onAction={retry}
+      variant="error"
     />
   )
 }
@@ -54,23 +60,26 @@ function AuthStateScreen({
   message,
   actionLabel,
   onAction,
+  variant,
 }: {
   title: string
   message: string
   actionLabel?: string
   onAction?: () => void
+  variant: StateViewVariant
 }) {
   return (
     <main className="auth-screen">
-      <section className="auth-panel">
+      <section className="auth-panel" aria-label="Состояние входа">
         <p className="app-kicker">Health TG Practice</p>
-        <h1>{title}</h1>
-        <p>{message}</p>
-        {actionLabel && onAction ? (
-          <button type="button" onClick={onAction}>
-            {actionLabel}
-          </button>
-        ) : null}
+        <StateView
+          actionLabel={actionLabel}
+          onAction={onAction}
+          message={message}
+          title={title}
+          titleAs="h1"
+          variant={variant}
+        />
       </section>
     </main>
   )

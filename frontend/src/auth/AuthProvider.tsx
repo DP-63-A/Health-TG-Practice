@@ -50,7 +50,7 @@ export function AuthProvider({
     clearSessionToken()
     setState({
       status: 'sessionExpired',
-      message: 'Сессия истекла. Повторите вход через Telegram Mini App.',
+      message: 'Сессия истекла. Заново откройте кабинет из Telegram Mini App.',
     })
   }, [])
 

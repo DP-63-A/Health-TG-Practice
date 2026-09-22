@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Card, StateView } from '../components/ui'
 import { useRefreshSubscription } from '../refresh/RefreshProvider'
 
 function OverviewPage() {
@@ -11,12 +12,18 @@ function OverviewPage() {
   })
 
   return (
-    <section className="page-section">
-      <h2>Обзор</h2>
-      <p>Временная страница обзора. Аналитика будет добавлена позже.</p>
+    <Card
+      subtitle="Временная страница обзора. Аналитика будет добавлена позже."
+      title="Обзор"
+    >
+      <StateView
+        message="Базовая область обзора подключена к общим состояниям; аналитические виджеты добавит FE2."
+        title="Обзор готов"
+        variant="success"
+      />
       <p className="refresh-status">Обновлений: {refreshCount}</p>
       <p className="refresh-status">Последнее обновление: {lastRefreshLabel}</p>
-    </section>
+    </Card>
   )
 }
 

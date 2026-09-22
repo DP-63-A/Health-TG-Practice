@@ -4,6 +4,7 @@ import { ApiError } from '../api/client'
 import { entriesApi } from '../api/entries'
 import type { Entry, EntryFilters, EntryStatus, EntryType } from '../api/types'
 import { useAuth } from '../auth/AuthProvider'
+import { Card, EmptyState, ErrorState, FormField, LoadingState } from '../components/ui'
 import { useRefresh } from '../refresh/RefreshProvider'
 
 const typeLabels: Record<EntryType, string> = { meal: 'Приём пищи', metrics: 'Показатель', checkin: 'Самочувствие', note: 'Заметка' }
@@ -29,19 +30,18 @@ function DiaryPage() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { const controller = new AbortController(); void load(controller.signal); return () => controller.abort() }, [load, refreshVersion])
 
-  return <section className="page-section diary-page">
-    <div className="section-heading"><div><h2>Дневник</h2><p>Записи здоровья и черновики, ожидающие проверки.</p></div></div>
+  return <Card className="diary-page" subtitle="Записи здоровья и черновики, ожидающие проверки." title="Дневник">
     <form className="filters" aria-label="Фильтры дневника" onSubmit={(event) => event.preventDefault()}>
-      <label>С даты<input type="date" value={filters.from ?? ''} onChange={(e) => setFilters((v) => ({ ...v, from: e.target.value || undefined }))} /></label>
-      <label>По дату<input type="date" value={filters.to ?? ''} onChange={(e) => setFilters((v) => ({ ...v, to: e.target.value || undefined }))} /></label>
-      <label>Тип<select value={filters.type ?? ''} onChange={(e) => setFilters((v) => ({ ...v, type: (e.target.value || undefined) as EntryType | undefined }))}><option value="">Все</option>{Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-      <label>Статус<select value={filters.status ?? ''} onChange={(e) => setFilters((v) => ({ ...v, status: (e.target.value || undefined) as EntryStatus | undefined }))}><option value="">По умолчанию</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+      <FormField label="С даты"><input type="date" value={filters.from ?? ''} onChange={(e) => setFilters((v) => ({ ...v, from: e.target.value || undefined }))} /></FormField>
+      <FormField label="По дату"><input type="date" value={filters.to ?? ''} onChange={(e) => setFilters((v) => ({ ...v, to: e.target.value || undefined }))} /></FormField>
+      <FormField label="Тип"><select value={filters.type ?? ''} onChange={(e) => setFilters((v) => ({ ...v, type: (e.target.value || undefined) as EntryType | undefined }))}><option value="">Все</option>{Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></FormField>
+      <FormField label="Статус"><select value={filters.status ?? ''} onChange={(e) => setFilters((v) => ({ ...v, status: (e.target.value || undefined) as EntryStatus | undefined }))}><option value="">По умолчанию</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></FormField>
     </form>
-    {state === 'loading' && <p role="status" className="state-message">Загрузка записей…</p>}
-    {state === 'error' && <div role="alert" className="state-message error-message"><p>{error}</p><button type="button" onClick={() => { setState('loading'); void load() }}>Повторить</button></div>}
-    {state === 'ready' && entries.length === 0 && <p className="state-message">По выбранным фильтрам записей нет.</p>}
+    {state === 'loading' && <LoadingState title="Загрузка записей" message="Получаем дневник из API." />}
+    {state === 'error' && <ErrorState title="Не удалось загрузить записи" message={error} actionLabel="Повторить" onAction={() => { setState('loading'); return load() }} />}
+    {state === 'ready' && entries.length === 0 && <EmptyState title="Записей нет" message="По выбранным фильтрам ничего не найдено." />}
     {state === 'ready' && entries.length > 0 && <ul className="entry-list">{entries.map((entry) => <li key={entry.id}><Link to={`/diary/${entry.id}`}><span className="entry-title">{entryTitle(entry)}</span><span>{typeLabels[entry.type]} · {statusLabels[entry.status]}</span><time dateTime={entry.occurred_at}>{new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(entry.occurred_at))}</time></Link></li>)}</ul>}
-  </section>
+  </Card>
 }
 
 function entryTitle(entry: Entry) {
