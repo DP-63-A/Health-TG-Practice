@@ -161,4 +161,38 @@ class AnalyticsFunctionsTest {
         assertEquals(1, result.countedMeals());
         assertTrue(result.incomplete());
     }
+
+    @Test
+    void sleepWithoutWakeDateIsExcludedFromEveryDay() {
+        Entry sleep = new Entry(
+            "sleep-without-wake-date",
+            "metrics",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-18T22:30:00Z"),
+            null,
+            1L,
+            null,
+            null,
+            Metric.SLEEP_DURATION_MIN,
+            d("420"),
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+
+        assertTrue(sleepDate(sleep, WARSAW).isEmpty());
+
+        DailyResult result = dailyMetric(
+            List.of(sleep),
+            Metric.SLEEP_DURATION_MIN,
+            WEEK
+        );
+
+        assertTrue(result.values().isEmpty());
+        assertNull(result.aggregate().total());
+        assertNull(result.aggregate().average());
+        assertEquals(0, result.aggregate().daysWithData());
+    }
 }
