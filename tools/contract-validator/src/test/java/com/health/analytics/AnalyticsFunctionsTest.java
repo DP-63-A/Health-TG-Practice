@@ -114,4 +114,51 @@ class AnalyticsFunctionsTest {
         assertEquals("a", first.id());
         assertEquals("b", second.id());
     }
+
+    @Test
+    void completelyUnknownNutrientsReturnNullForEveryMetric() {
+        Entry meal = Entry.meal(
+            "unknown",
+            Status.CONFIRMED,
+            LocalDate.of(2026, 9, 19),
+            d("100"),
+            new Nutrients(null, null, null, null),
+            Basis.PER_100G
+        );
+
+        NutritionResult result = nutrition(List.of(meal), WEEK);
+
+        assertNull(result.energyKcal());
+        assertNull(result.proteinG());
+        assertNull(result.fatG());
+        assertNull(result.carbsG());
+        assertEquals(1, result.countedMeals());
+        assertTrue(result.incomplete());
+    }
+
+    @Test
+    void partiallyKnownNutrientsKeepKnownValuesAndReturnNullForUnknownValues() {
+        Entry meal = Entry.meal(
+            "partial",
+            Status.CONFIRMED,
+            LocalDate.of(2026, 9, 19),
+            d("200"),
+            new Nutrients(
+                    d("165"),
+                    null,
+                    d("5"),
+                    null
+            ),
+            Basis.PER_100G
+        );
+
+        NutritionResult result = nutrition(List.of(meal), WEEK);
+
+        assertEquals(d("330"), result.energyKcal());
+        assertNull(result.proteinG());
+        assertEquals(d("10"), result.fatG());
+        assertNull(result.carbsG());
+        assertEquals(1, result.countedMeals());
+        assertTrue(result.incomplete());
+    }
 }
