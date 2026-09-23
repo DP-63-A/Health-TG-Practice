@@ -1,0 +1,9 @@
+{
+  "timezone": "Europe/Warsaw",
+  "period": {"kind": "days_7", "from": "2026-09-13", "to": "2026-09-19"},
+  "records": [
+    {"id":"22222222-2222-4222-8222-222222222210","type":"meal","status":"confirmed","local_date":"2026-09-19","mass_g":null,"nutrients":{"energy_kcal":600,"protein_g":30,"fat_g":20,"carbs_g":70}},
+    {"id":"22222222-2222-4222-8222-222222222214","type":"metrics","status":"confirmed","code":"steps","value":3000,"occurred_at":"2026-09-19T12:00:00+02:00","updated_at":"2026-09-19T12:01:00+02:00"},
+    {"id":"22222222-2222-4222-8222-222222222215","type":"metrics","status":"confirmed","code":"steps","value":5000,"occurred_at":"2026-09-19T20:00:00+02:00","updated_at":"2026-09-19T20:01:00+02:00"}
+  ]
+}
