@@ -358,4 +358,11 @@ class AnalyticsFunctionsTest {
         assertEquals(5, result.get(CheckinCategory.WELLBEING).get(0).value());
         assertEquals(2, result.get(CheckinCategory.MOOD).get(0).value());
     }
+
+    @Test
+    void portionFactorScalesMassRelativeTo100Grams() {
+        assertEquals(d("2"), portionFactor(d("200")));
+        assertEquals(d("1.5"), portionFactor(d("150")));
+        assertEquals(d("0"), portionFactor(d("0")));
+    }
 }
