@@ -15,6 +15,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
@@ -157,6 +158,15 @@ class AuthHttpIntegrationTest {
         clock.set(START.plusSeconds(3600));
         expectError(get("/api/v1/me").header("Authorization", "Bearer " + token),
                 401, "UNAUTHORIZED");
+    }
+
+    @Test
+    void returnsServiceUnavailableWhenSessionStoreIsUnavailable() throws Exception {
+        when(sessionStore.findByTokenHash(any(String.class)))
+                .thenThrow(new DataAccessResourceFailureException("MongoDB unavailable"));
+
+        expectError(get("/api/v1/me").header("Authorization", "Bearer opaque-token"),
+                503, "SERVICE_UNAVAILABLE");
     }
 
     private String loginAndReadToken() throws Exception {
