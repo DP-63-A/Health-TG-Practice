@@ -59,11 +59,59 @@ class AnalyticsFunctionsTest {
         assertEquals(Qualifier.RESTING, latestHeartRate(List.of(pulse), WEEK).orElseThrow().qualifier());
     }
 
-    @Test void calculationDoesNotMutateOrDependOnInputOrder() {
-        Nutrients base = new Nutrients(d("165"), d("10"), d("5"), d("20"));
-        Entry meal = Entry.meal("meal", Status.CONFIRMED, LocalDate.of(2026,9,19), d("200"), base, Basis.PER_100G);
-        List<Entry> input = List.of(meal);
-        NutritionResult first = nutrition(input, WEEK), second = nutrition(List.of(meal), WEEK);
-        assertEquals(first, second); assertEquals(d("200"), meal.massGrams());
+    @Test
+    void calculationDoesNotMutateOrDependOnInputOrder() {
+        Instant occurredAt = Instant.parse("2026-09-19T10:00:00Z");
+        Instant updatedAt = Instant.parse("2026-09-19T10:05:00Z");
+
+        Entry first = new Entry(
+            "a",
+            "metrics",
+            Status.CONFIRMED,
+            occurredAt,
+            updatedAt,
+            1L,
+            null,
+            null,
+            Metric.STEPS,
+            d("3000"),
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+
+        Entry second = new Entry(
+            "b",
+            "metrics",
+            Status.CONFIRMED,
+            occurredAt,
+            updatedAt,
+            2L,
+            null,
+            null,
+            Metric.STEPS,
+            d("5000"),
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+
+        List<Entry> forward = List.of(first, second);
+        List<Entry> reverse = List.of(second, first);
+
+        DailyResult forwardResult = dailyMetric(forward, Metric.STEPS, WEEK);
+        DailyResult reverseResult = dailyMetric(reverse, Metric.STEPS, WEEK);
+
+        assertEquals(d("5000"), forwardResult.values().get(LocalDate.of(2026, 9, 19)));
+        assertEquals(forwardResult, reverseResult);
+
+        assertEquals(List.of(first, second), forward);
+        assertEquals(List.of(second, first), reverse);
+        assertEquals("a", first.id());
+        assertEquals("b", second.id());
     }
 }
