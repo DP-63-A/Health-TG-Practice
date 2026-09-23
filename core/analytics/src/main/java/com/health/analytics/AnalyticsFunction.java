@@ -272,19 +272,59 @@ public final class AnalyticsFunctions {
             ));
     }
 
-    /** One latest point per check-in category and date; absent values remain absent. */
-    public static Map<CheckinCategory, List<RatingPoint>> checkins(List<Entry> entries, Period period) {
-        Map<CheckinCategory, Map<LocalDate, Entry>> selected = new EnumMap<>(CheckinCategory.class);
-        for (Entry e : current(entries)) {
-            if (e.category() == null || e.score() == null || e.localDate() == null || !period.contains(e.localDate())) continue;
-            Comparator<Entry> checkinOrder = byOccurredUpdatedAndId();
+    /**
+     * One latest point per check-in category and local date.
+     * Entries are selected deterministically by occurredAt, updatedAt, then id.
+     */
+    public static Map<CheckinCategory, List<RatingPoint>> checkins(
+        List<Entry> entries,
+        Period period
+    ) {
+        Map<CheckinCategory, Map<LocalDate, Entry>> selected =
+            new EnumMap<>(CheckinCategory.class);
 
-            selected.computeIfAbsent(entry.category(), ignored -> new TreeMap<>())
-                .merge(entry.localDate(), entry, (first, second) -> checkinOrder.compare(first, second) <= 0 ? second : first);
+        Comparator<Entry> checkinOrder = byOccurredUpdatedAndId();
+
+        for (Entry entry : current(entries)) {
+            if (entry.category() == null
+                || entry.score() == null
+                || entry.localDate() == null
+                || !period.contains(entry.localDate())) {
+                    continue;
+                }
+
+            selected
+                .computeIfAbsent(
+                        entry.category(),
+                        ignored -> new TreeMap<>()
+                )
+                .merge(
+                        entry.localDate(),
+                        entry,
+                        (first, second) ->
+                                checkinOrder.compare(first, second) <= 0
+                                        ? second
+                                        : first
+                );
         }
-        Map<CheckinCategory, List<RatingPoint>> result = new EnumMap<>(CheckinCategory.class);
-        selected.forEach((category, days) -> result.put(category, days.entrySet().stream()
-                .map(x -> new RatingPoint(x.getKey(), x.getValue().score(), x.getValue().id())).toList()));
+
+        Map<CheckinCategory, List<RatingPoint>> result =
+            new EnumMap<>(CheckinCategory.class);
+
+        selected.forEach((category, days) ->
+            result.put(
+                    category,
+                    days.entrySet()
+                            .stream()
+                            .map(item -> new RatingPoint(
+                                    item.getKey(),
+                                    item.getValue().score(),
+                                    item.getValue().id()
+                            ))
+                            .toList()
+            )
+        );
+
         return Map.copyOf(result);
     }
 }
