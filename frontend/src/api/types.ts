@@ -32,8 +32,8 @@ export interface MealPayload {
 export interface MetricsPayload {
   code: 'steps' | 'sleep_duration_min' | 'heart_rate'
   value: number
-  unit: string
-  local_date: string
+  unit?: string | null
+  local_date?: string | null
   local_time?: string | null
   qualifier?: 'instant' | 'resting' | null
 }

@@ -1,0 +1,31 @@
+{
+  "_rejection": {
+    "reason": "Confirmed metrics require both unit and local_date",
+    "field": "payload",
+    "keyword": "required"
+  },
+  "id": "22222222-2222-4222-8222-222222222208",
+  "user_id": "11111111-1111-4111-8111-111111111101",
+  "type": "metrics",
+  "status": "confirmed",
+  "source_kind": "health_screenshot",
+  "source_ref": {
+    "file_id": "33333333-3333-4333-8333-333333333308",
+    "telegram_update_id": 9008,
+    "telegram_message_id": 49,
+    "label": "confirmed metrics without date and unit"
+  },
+  "occurred_at": "2026-09-16T11:30:00Z",
+  "created_at": "2026-09-16T11:31:00Z",
+  "updated_at": "2026-09-16T11:35:00Z",
+  "revision": 2,
+  "payload": {
+    "code": "steps",
+    "value": 5000
+  },
+  "field_origins": {
+    "code": "extracted",
+    "value": "reported"
+  },
+  "submission_id": "sub_metrics_incomplete"
+}
