@@ -195,4 +195,167 @@ class AnalyticsFunctionsTest {
         assertNull(result.aggregate().average());
         assertEquals(0, result.aggregate().daysWithData());
     }
+
+    @Test
+    void onlyConfirmedEntriesAreIncluded() {
+        Nutrients nutrients = new Nutrients(
+            d("165"),
+            d("10"),
+            d("5"),
+            d("20")
+        );
+
+        List<Entry> entries = List.of(
+            Entry.meal("confirmed", Status.CONFIRMED, LocalDate.of(2026, 9, 19),
+                    d("100"), nutrients, Basis.PER_100G),
+            Entry.meal("draft", Status.DRAFT, LocalDate.of(2026, 9, 19),
+                    d("100"), nutrients, Basis.PER_100G),
+            Entry.meal("cancelled", Status.CANCELLED, LocalDate.of(2026, 9, 19),
+                    d("100"), nutrients, Basis.PER_100G),
+            Entry.meal("deleted", Status.DELETED, LocalDate.of(2026, 9, 19),
+                    d("100"), nutrients, Basis.PER_100G)
+        );
+
+        NutritionResult result = nutrition(entries, WEEK);
+
+        assertEquals(d("165"), result.energyKcal());
+        assertEquals(1, result.countedMeals());
+    }
+
+    @Test
+    void perServingValuesAreNotScaledByMass() {
+        Entry meal = Entry.meal(
+            "serving",
+            Status.CONFIRMED,
+            LocalDate.of(2026, 9, 19),
+            d("500"),
+            new Nutrients(d("600"), d("30"), d("10"), d("80")),
+            Basis.PER_SERVING
+        );
+
+        NutritionResult result = nutrition(List.of(meal), WEEK);
+
+        assertEquals(d("600"), result.energyKcal());
+        assertEquals(d("30"), result.proteinG());
+        assertEquals(d("10"), result.fatG());
+        assertEquals(d("80"), result.carbsG());
+        assertFalse(result.incomplete());
+    }
+
+    @Test
+    void emptyDayHasNullAggregateAndZeroDaysWithData() {
+        DailyResult result = dailyMetric(
+            List.of(),
+            Metric.STEPS,
+            WEEK
+        );
+
+        assertTrue(result.values().isEmpty());
+        assertNull(result.aggregate().total());
+        assertNull(result.aggregate().average());
+        assertEquals(0, result.aggregate().daysWithData());
+    }
+
+    @Test
+    void periodBoundariesAndWarsawMidnightAreHandledCorrectly() {
+        Instant beforeWarsawDay = Instant.parse("2026-09-18T21:59:59Z");
+        Instant atWarsawDay = Instant.parse("2026-09-18T22:00:00Z");
+
+        assertEquals(
+            LocalDate.of(2026, 9, 18),
+            localDate(beforeWarsawDay, WARSAW)
+        );
+
+        assertEquals(
+            LocalDate.of(2026, 9, 19),
+            localDate(atWarsawDay, WARSAW)
+        );
+
+        Entry before = new Entry(
+            "before",
+            "metrics",
+            Status.CONFIRMED,
+            beforeWarsawDay,
+            null,
+            1L,
+            null,
+            null,
+            Metric.STEPS,
+            d("100"),
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+
+        Entry atBoundary = new Entry(
+            "at-boundary",
+            "metrics",
+            Status.CONFIRMED,
+            atWarsawDay,
+            null,
+            2L,
+            null,
+            null,
+            Metric.STEPS,
+            d("200"),
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+
+        Period oneDay = new Period(
+            LocalDate.of(2026, 9, 19),
+            LocalDate.of(2026, 9, 19),
+            WARSAW
+        );
+
+        DailyResult result = dailyMetric(
+            List.of(before, atBoundary),
+            Metric.STEPS,
+            oneDay
+        );
+
+        assertEquals(d("200"), result.aggregate().total());
+        assertEquals(1, result.aggregate().daysWithData());
+    }
+
+    @Test
+    void checkinsKeepAllCategoriesAndDoNotFillGaps() {
+        LocalDate date = LocalDate.of(2026, 9, 19);
+
+        List<Entry> entries = List.of(
+            new Entry("sleep-quality", "checkin", Status.CONFIRMED,
+                    Instant.parse("2026-09-19T08:00:00Z"), null, 1L,
+                    date, null, null, null, null,
+                    null, CheckinCategory.SLEEP_QUALITY, 4, null, null),
+
+            new Entry("digestion", "checkin", Status.CONFIRMED,
+                    Instant.parse("2026-09-19T09:00:00Z"), null, 1L,
+                    date, null, null, null, null,
+                    null, CheckinCategory.DIGESTION_COMFORT, 3, null, null),
+
+            new Entry("wellbeing", "checkin", Status.CONFIRMED,
+                    Instant.parse("2026-09-19T10:00:00Z"), null, 1L,
+                    date, null, null, null, null,
+                    null, CheckinCategory.WELLBEING, 5, null, null),
+
+            new Entry("mood", "checkin", Status.CONFIRMED,
+                    Instant.parse("2026-09-19T11:00:00Z"), null, 1L,
+                    date, null, null, null, null,
+                    null, CheckinCategory.MOOD, 2, null, null)
+        );
+
+        Map<CheckinCategory, List<RatingPoint>> result =
+            checkins(entries, WEEK);
+
+        assertEquals(4, result.size());
+        assertEquals(4, result.get(CheckinCategory.SLEEP_QUALITY).get(0).value());
+        assertEquals(3, result.get(CheckinCategory.DIGESTION_COMFORT).get(0).value());
+        assertEquals(5, result.get(CheckinCategory.WELLBEING).get(0).value());
+        assertEquals(2, result.get(CheckinCategory.MOOD).get(0).value());
+    }
 }
