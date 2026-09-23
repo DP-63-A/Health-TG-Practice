@@ -48,9 +48,7 @@ class AnalyticsContractTest {
         var config = SchemaValidatorsConfig.builder()
                 .formatAssertionsEnabled(true)
                 .build();
-        var factory = JsonSchemaFactory.getInstance(
-                SpecVersion.VersionFlag.V202012
-        );
+        var factory = localSchemaFactory();
         var schema = factory.getSchema(
                 schemaFile.toUri(),
                 JSON.readTree(Files.readString(schemaFile)),
@@ -85,7 +83,7 @@ class AnalyticsContractTest {
         ((com.fasterxml.jackson.databind.node.ObjectNode) wrongCheckinSource.at("/series/checkin/points/0")).putNull("source");
 
         Path schemaFile = Path.of("contracts/schemas/analytics.json");
-        var schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012)
+        var schema = localSchemaFactory()
                 .getSchema(schemaFile.toUri(), JSON.readTree(Files.readString(schemaFile)),
                         SchemaValidatorsConfig.builder().formatAssertionsEnabled(true).build());
 
@@ -98,7 +96,7 @@ class AnalyticsContractTest {
     void acceptedZoneIdsIncludeUtcAndOffsets() throws Exception {
         JsonNode normal = read("analytics_expected_normal.json");
         Path schemaFile = Path.of("contracts/schemas/analytics.json");
-        var schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012)
+        var schema = localSchemaFactory()
                 .getSchema(schemaFile.toUri(), JSON.readTree(Files.readString(schemaFile)),
                         SchemaValidatorsConfig.builder().formatAssertionsEnabled(true).build());
         for (String zone : new String[]{"America/Port-au-Prince", "Etc/GMT+3", "UTC"}) {
@@ -106,6 +104,25 @@ class AnalyticsContractTest {
             ((com.fasterxml.jackson.databind.node.ObjectNode) candidate.at("/period")).put("timezone", zone);
             assertTrue(schema.validate(candidate).isEmpty(), zone);
         }
+    }
+
+    private static JsonSchemaFactory localSchemaFactory() {
+        String prefix = Path.of("contracts/schemas")
+            .toAbsolutePath()
+            .normalize()
+            .toUri()
+            .toString();
+
+        String localPrefix = prefix.endsWith("/") ? prefix : prefix + "/";
+
+        return JsonSchemaFactory.getInstance(
+            SpecVersion.VersionFlag.V202012,
+            builder -> builder.schemaMappers(mappers ->
+                    mappers.mapPrefix(
+                            "https://health-tg.local/schemas/",
+                            localPrefix
+                    ))
+        );
     }
 
     private static JsonNode read(String name) throws Exception {
