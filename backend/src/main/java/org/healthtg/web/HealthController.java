@@ -1,5 +1,6 @@
 package org.healthtg.web;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.bson.Document;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +21,7 @@ public class HealthController {
     }
 
     @GetMapping("/healthz")
-    public ResponseEntity<HealthResponse> health() {
+    public ResponseEntity<?> health(HttpServletRequest request) {
         try {
             Document result = mongoTemplate.getDb().runCommand(new Document("ping", 1));
             Object ok = result.get("ok");
@@ -30,8 +31,9 @@ public class HealthController {
         } catch (RuntimeException ignored) {
             // Readiness responses intentionally contain no dependency details or secrets.
         }
+        String requestId = (String) request.getAttribute(RequestIdFilter.ATTRIBUTE);
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(new HealthResponse("degraded", Map.of("mongo", "fail")));
+                .body(new ApiError("SERVICE_UNAVAILABLE", "Required service is unavailable", requestId));
     }
 
     public record HealthResponse(String status, Map<String, String> checks) {

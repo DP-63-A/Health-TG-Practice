@@ -11,10 +11,11 @@ Implemented:
 - persistent named volume `health-tg-mongo-data`;
 - container healthcheck;
 - safe `.env.example` without credentials;
+- PowerShell launcher that loads root `.env` values into the backend process;
 - local environment run/restart/stop documentation;
 - real `/api/v1/healthz` MongoDB readiness check;
-- HTTP 503 degraded response when MongoDB is unavailable;
-- automated ready/degraded tests.
+- OpenAPI-compatible HTTP 503 error when MongoDB is unavailable;
+- automated HTTP ready/unavailable tests.
 
 ## Automated verification
 
@@ -47,8 +48,9 @@ Verified on 2026-09-23:
    manually started container with the Compose-managed container.
 3. `docker-compose ps` reported the MongoDB container as healthy.
 4. `/api/v1/healthz` returned HTTP 200 with `mongo=ok`.
-5. After `docker-compose stop mongo`, `/api/v1/healthz` returned HTTP 503 with
-   `mongo=fail` and no connection details.
+5. After `docker-compose stop mongo`, `/api/v1/healthz` returned HTTP 503 without
+   connection details. After the review fix, its body follows `ServiceUnavailable`:
+   `code`, `message`, and `request_id`.
 6. After `docker-compose start mongo`, readiness returned HTTP 200 again.
 
 ## Acceptance status for the early slice

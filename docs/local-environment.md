@@ -25,10 +25,18 @@ The database is bound to `127.0.0.1` and is not exposed on other host interfaces
 
 ## Run the backend
 
+The backend does not read `.env` by itself. Use the repository script to load
+the file into the backend process without printing its values:
+
 ```powershell
-$env:MONGODB_URI="mongodb://localhost:27017/health_tg"
-.\gradlew.bat :backend:bootRun --console=plain
+Copy-Item .env.example .env
+.\scripts\run-backend.ps1
 ```
+
+Edit `.env` before starting live Telegram authentication. The script fails with
+a clear error when the file is missing or contains a malformed `NAME=VALUE` line.
+Run it from the repository root; it starts Gradle from that root regardless of
+the caller's current directory.
 
 Readiness check:
 
@@ -42,7 +50,12 @@ Expected ready response:
 {"status":"ok","checks":{"mongo":"ok"}}
 ```
 
-MongoDB failure returns HTTP 503 with `status=degraded` and no connection details.
+MongoDB failure returns the OpenAPI `ServiceUnavailable` response without
+connection details:
+
+```json
+{"code":"SERVICE_UNAVAILABLE","message":"Required service is unavailable","request_id":"req_..."}
+```
 
 ## Restart without losing data
 
