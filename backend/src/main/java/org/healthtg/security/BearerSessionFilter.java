@@ -1,11 +1,16 @@
 package org.healthtg.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.healthtg.auth.AuthFailureException;
 import org.healthtg.session.SessionService;
+import org.healthtg.web.ApiError;
+import org.healthtg.web.RequestIdFilter;
+import org.springframework.dao.DataAccessException;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -18,9 +23,11 @@ import java.util.UUID;
 @Component
 public class BearerSessionFilter extends OncePerRequestFilter {
     private final SessionService sessionService;
+    private final ObjectMapper objectMapper;
 
-    public BearerSessionFilter(SessionService sessionService) {
+    public BearerSessionFilter(SessionService sessionService, ObjectMapper objectMapper) {
         this.sessionService = sessionService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -39,6 +46,14 @@ public class BearerSessionFilter extends OncePerRequestFilter {
                             new UsernamePasswordAuthenticationToken(principal, null, List.of()));
                 } catch (AuthFailureException exception) {
                     request.setAttribute(AuthFailureException.class.getName(), exception);
+                } catch (DataAccessException exception) {
+                    SecurityContextHolder.clearContext();
+                    response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    String requestId = (String) request.getAttribute(RequestIdFilter.ATTRIBUTE);
+                    objectMapper.writeValue(response.getOutputStream(), new ApiError(
+                            "SERVICE_UNAVAILABLE", "Required service is unavailable", requestId));
+                    return;
                 }
             }
         }
