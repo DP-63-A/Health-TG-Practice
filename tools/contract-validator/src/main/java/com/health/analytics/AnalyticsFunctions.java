@@ -92,107 +92,146 @@ public final class AnalyticsFunctions {
     }
 
     public static NutritionResult nutrition(List<Entry> entries, Period period) {
-    BigDecimal energyKcal = BigDecimal.ZERO;
-    BigDecimal proteinG = BigDecimal.ZERO;
-    BigDecimal fatG = BigDecimal.ZERO;
-    BigDecimal carbsG = BigDecimal.ZERO;
+        BigDecimal energyKcal = BigDecimal.ZERO;
+        BigDecimal proteinG = BigDecimal.ZERO;
+        BigDecimal fatG = BigDecimal.ZERO;
+        BigDecimal carbsG = BigDecimal.ZERO;
 
-    boolean hasEnergyKcal = false;
-    boolean hasProteinG = false;
-    boolean hasFatG = false;
-    boolean hasCarbsG = false;
-    boolean incomplete = false;
-    int countedMeals = 0;
+        boolean hasEnergyKcal = false;
+        boolean hasProteinG = false;
+        boolean hasFatG = false;
+        boolean hasCarbsG = false;
+        boolean incomplete = false;
+        int countedMeals = 0;
 
-    for (Entry entry : current(entries)) {
-        if (!"meal".equals(entry.type()) || !period.contains(entry.localDate())) {
-            continue;
-        }
+        for (Entry entry : current(entries)) {
+            if (!"meal".equals(entry.type()) || !period.contains(entry.localDate())) {
+                continue;
+            }
 
-        countedMeals++;
+            countedMeals++;
 
-        Nutrients nutrients = entry.nutrients();
-        if (nutrients == null) {
-            incomplete = true;
-            continue;
-        }
-
-        BigDecimal factor = BigDecimal.ONE;
-
-        if (entry.basis() == Basis.PER_100G) {
-            if (entry.massGrams() == null) {
+            Nutrients nutrients = entry.nutrients();
+            if (nutrients == null) {
                 incomplete = true;
                 continue;
             }
 
-            factor = portion(nutrients, entry.massGrams());
-        } else if (entry.basis() == null || entry.basis() == Basis.UNKNOWN) {
-            incomplete = true;
-            continue;
+            BigDecimal factor = BigDecimal.ONE;
+
+            if (entry.basis() == Basis.PER_100G) {
+                if (entry.massGrams() == null) {
+                    incomplete = true;
+                    continue;
+                }
+
+                factor = portion(nutrients, entry.massGrams());
+            } else if (entry.basis() == null || entry.basis() == Basis.UNKNOWN) {
+                incomplete = true;
+                continue;
+            }
+
+            BigDecimal energy = nutrients.energyKcal();
+            BigDecimal protein = nutrients.proteinG();
+            BigDecimal fat = nutrients.fatG();
+            BigDecimal carbs = nutrients.carbsG();
+
+            if (energy == null) {
+                incomplete = true;
+            } else {
+                energyKcal = energyKcal.add(energy.multiply(factor));
+                hasEnergyKcal = true;
+            }
+
+            if (protein == null) {
+                incomplete = true;
+            } else {
+                proteinG = proteinG.add(protein.multiply(factor));
+                hasProteinG = true;
+            }
+
+            if (fat == null) {
+                incomplete = true;
+            } else {
+                fatG = fatG.add(fat.multiply(factor));
+                hasFatG = true;
+            }
+
+            if (carbs == null) {
+                incomplete = true;
+            } else {
+                carbsG = carbsG.add(carbs.multiply(factor));
+                hasCarbsG = true;
+            }
         }
 
-        BigDecimal energy = nutrients.energyKcal();
-        BigDecimal protein = nutrients.proteinG();
-        BigDecimal fat = nutrients.fatG();
-        BigDecimal carbs = nutrients.carbsG();
-
-        if (energy == null) {
-            incomplete = true;
-        } else {
-            energyKcal = energyKcal.add(energy.multiply(factor));
-            hasEnergyKcal = true;
-        }
-
-        if (protein == null) {
-            incomplete = true;
-        } else {
-            proteinG = proteinG.add(protein.multiply(factor));
-            hasProteinG = true;
-        }
-
-        if (fat == null) {
-            incomplete = true;
-        } else {
-            fatG = fatG.add(fat.multiply(factor));
-            hasFatG = true;
-        }
-
-        if (carbs == null) {
-            incomplete = true;
-        } else {
-            carbsG = carbsG.add(carbs.multiply(factor));
-            hasCarbsG = true;
-        }
-    }
-
-    return new NutritionResult(
+        return new NutritionResult(
             hasEnergyKcal ? energyKcal : null,
             hasProteinG ? proteinG : null,
             hasFatG ? fatG : null,
             hasCarbsG ? carbsG : null,
             countedMeals,
             incomplete
-    );
-}
+        );
+    }
 
-    /** Selects one latest daily total by occurredAt, updatedAt, then id; never sums duplicates. */
     public static DailyResult dailyMetric(List<Entry> entries, Metric metric, Period period) {
         Map<LocalDate, Entry> selected = new TreeMap<>();
-        Comparator<Entry> order = Comparator.comparing(Entry::occurredAt, Comparator.nullsFirst(Comparator.naturalOrder()))
-                .thenComparing(Entry::updatedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
-                .thenComparing(Entry::id);
-        for (Entry e : current(entries)) {
-            if (e.metric() != metric || e.value() == null || e.occurredAt() == null) continue;
-            LocalDate date = localDate(e.occurredAt(), period.zone());
-            if (metric == Metric.SLEEP_DURATION_MIN && e.wakeDate() != null) date = e.wakeDate();
-            if (!period.contains(date)) continue;
-            selected.merge(date, e, (a, b) -> order.compare(a, b) <= 0 ? b : a);
+
+        Comparator<Entry> order = Comparator
+            .comparing(Entry::occurredAt, Comparator.nullsFirst(Comparator.naturalOrder()))
+            .thenComparing(Entry::updatedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
+            .thenComparing(Entry::id);
+
+        for (Entry entry : current(entries)) {
+            if (entry.metric() != metric || entry.value() == null) {continue;}
+
+            Optional<LocalDate> date;
+
+            if (metric == Metric.SLEEP_DURATION_MIN) {
+                date = sleepDate(entry, period.zone());
+            } else {
+                if (entry.occurredAt() == null) {continue;}
+
+                date = Optional.of(localDate(entry.occurredAt(), period.zone()));
+            }
+
+            if (date.isEmpty() || !period.contains(date.get())) {
+                continue;
+            }
+
+            selected.merge(
+                date.get(),
+                entry,
+                (first, second) -> order.compare(first, second) <= 0
+                        ? second
+                        : first
+            );
         }
+
         Map<LocalDate, BigDecimal> values = new TreeMap<>();
-        selected.forEach((date, e) -> values.put(date, e.value()));
-        BigDecimal total = values.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal average = values.isEmpty() ? null : total.divide(BigDecimal.valueOf(values.size()), 12, RoundingMode.HALF_UP);
-        return new DailyResult(Map.copyOf(values), new AggregateResult(values.isEmpty() ? null : total, average, values.size()));
+        selected.forEach((date, entry) -> values.put(date, entry.value()));
+
+        BigDecimal total = values.values()
+            .stream()
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal average = values.isEmpty()
+            ? null
+            : total.divide(
+                    BigDecimal.valueOf(values.size()),
+                    12,
+                    RoundingMode.HALF_UP
+            );
+
+        return new DailyResult(
+            Map.copyOf(values),
+            new AggregateResult(
+                    values.isEmpty() ? null : total,
+                    average,
+                    values.size()
+            )
+        );
     }
 
     /** Returns the latest confirmed heart-rate sample; no daily average is invented. */
