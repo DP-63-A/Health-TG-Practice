@@ -11,11 +11,13 @@ public final class RuntimeSettings {
     private final String token;
     private final Set<Long> allowedUserIds;
     private final URI miniAppUrl;
+    private final boolean fixture;
 
-    private RuntimeSettings(String token, Set<Long> allowedUserIds, URI miniAppUrl) {
+    private RuntimeSettings(String token, Set<Long> allowedUserIds, URI miniAppUrl, boolean fixture) {
         this.token = token;
         this.allowedUserIds = Set.copyOf(allowedUserIds);
         this.miniAppUrl = miniAppUrl;
+        this.fixture = fixture;
     }
 
     public static RuntimeSettings from(Map<String, String> environment) {
@@ -39,10 +41,13 @@ public final class RuntimeSettings {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("MINI_APP_URL должен быть HTTPS-адресом без логина и пароля.");
         }
-        return new RuntimeSettings(token, ids, url);
+        String mode = environment.getOrDefault("CHECKIN_MODE", "unavailable").trim();
+        if (!mode.equals("fixture") && !mode.equals("unavailable")) throw new IllegalArgumentException("CHECKIN_MODE: допустимы fixture или unavailable.");
+        return new RuntimeSettings(token, ids, url, mode.equals("fixture"));
     }
 
     public String token() { return token; }
+    public boolean fixture() { return fixture; }
     public BotSettings forUsername(String username) { return new BotSettings(allowedUserIds, username, miniAppUrl); }
     @Override public String toString() { return "RuntimeSettings[redacted]"; }
 }

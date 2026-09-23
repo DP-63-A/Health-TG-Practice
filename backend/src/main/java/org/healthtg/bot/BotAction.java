@@ -4,7 +4,12 @@ import java.net.URI;
 import java.util.List;
 
 /** Intent for a future Telegram adapter; returning an action does not send anything. */
-public sealed interface BotAction permits BotAction.SendMessage, BotAction.SetMenuButton {
+public sealed interface BotAction permits BotAction.SendMessage, BotAction.SetMenuButton, BotAction.InlineMessage, BotAction.AnswerCallback {
+    record Button(String text, String data) {}
+    record InlineMessage(long chatId, String text, List<List<Button>> rows) implements BotAction {
+        public InlineMessage { rows = rows.stream().map(List::copyOf).toList(); }
+    }
+    record AnswerCallback(String callbackId) implements BotAction {}
     record ReplyKeyboard(List<String> buttons, boolean persistent, boolean resize) {
         public ReplyKeyboard { buttons = List.copyOf(buttons); }
     }

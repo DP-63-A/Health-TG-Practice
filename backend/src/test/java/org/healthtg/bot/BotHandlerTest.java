@@ -88,7 +88,7 @@ class BotHandlerTest {
             List<BotUpdate> denied = new ArrayList<>();
             for (var chat : BotUpdate.ChatType.values()) if (chat != BotUpdate.ChatType.PRIVATE)
                 denied.add(new BotUpdate(BotUpdate.Kind.MESSAGE, chat, USER, USER, false, text, entities));
-            for (var kind : BotUpdate.Kind.values()) if (kind != BotUpdate.Kind.MESSAGE)
+            for (var kind : BotUpdate.Kind.values()) if (kind != BotUpdate.Kind.MESSAGE && kind != BotUpdate.Kind.CALLBACK)
                 denied.add(new BotUpdate(kind, BotUpdate.ChatType.PRIVATE, USER, USER, false, text, entities));
             denied.add(new BotUpdate(BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE, 2002, 2002L, false, text, entities));
             denied.add(new BotUpdate(BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE, USER, null, false, text, entities));
