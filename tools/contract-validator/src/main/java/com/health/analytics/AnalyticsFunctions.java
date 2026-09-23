@@ -85,10 +85,20 @@ public final class AnalyticsFunctions {
         return Optional.of(entry.wakeDate());
     }
 
-    public static BigDecimal portion(Nutrients per100g, BigDecimal massGrams) {
-        if (per100g == null || massGrams == null) return null;
-        if (massGrams.signum() < 0) throw new IllegalArgumentException("mass must be non-negative");
-        return massGrams.divide(BigDecimal.valueOf(100), 12, RoundingMode.HALF_UP);
+    public static BigDecimal portionFactor(BigDecimal massGrams) {
+        if (massGrams == null) {
+            return null;
+        }
+
+        if (massGrams.signum() < 0) {
+            throw new IllegalArgumentException("mass must be non-negative");
+        }
+
+        return massGrams.divide(
+            BigDecimal.valueOf(100),
+            12,
+            RoundingMode.HALF_UP
+        );
     }
 
     public static NutritionResult nutrition(List<Entry> entries, Period period) {
@@ -125,7 +135,7 @@ public final class AnalyticsFunctions {
                     continue;
                 }
 
-                factor = portion(nutrients, entry.massGrams());
+                factor = portionFactor(entry.massGrams());
             } else if (entry.basis() == null || entry.basis() == Basis.UNKNOWN) {
                 incomplete = true;
                 continue;
