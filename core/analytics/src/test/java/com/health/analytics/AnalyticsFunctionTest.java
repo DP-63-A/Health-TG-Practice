@@ -365,4 +365,62 @@ class AnalyticsFunctionsTest {
         assertEquals(d("1.5"), portionFactor(d("150")));
         assertEquals(d("0"), portionFactor(d("0")));
     }
+
+    @Test
+    void checkinsAreIndependentOfInputOrderAndUseDeterministicTieBreak() {
+        Instant occurredAt = Instant.parse("2026-09-19T10:00:00Z");
+        Instant updatedAt = Instant.parse("2026-09-19T10:05:00Z");
+
+        Entry first = new Entry(
+            "a",
+            "checkin",
+            Status.CONFIRMED,
+            occurredAt,
+            updatedAt,
+            1L,
+            LocalDate.of(2026, 9, 19),
+            null,
+            null,
+            null,
+            null,
+            null,
+            CheckinCategory.MOOD,
+            2,
+            null,
+            null
+        );
+
+        Entry second = new Entry(
+            "b",
+            "checkin",
+            Status.CONFIRMED,
+            occurredAt,
+            updatedAt,
+            2L,
+            LocalDate.of(2026, 9, 19),
+            null,
+            null,
+            null,
+            null,
+            null,
+            CheckinCategory.MOOD,
+            5,
+            null,
+            null
+        );
+
+        Map<CheckinCategory, List<RatingPoint>> forward =
+            checkins(List.of(first, second), WEEK);
+
+        Map<CheckinCategory, List<RatingPoint>> reverse =
+            checkins(List.of(second, first), WEEK);
+
+        assertEquals(forward, reverse);
+
+        RatingPoint selected =
+            forward.get(CheckinCategory.MOOD).get(0);
+
+        assertEquals("b", selected.entryId());
+        assertEquals(5, selected.value());
+    }
 }
