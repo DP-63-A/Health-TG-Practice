@@ -49,8 +49,8 @@ Linux/macOS:
 
 ```sh
 java -version
-./gradlew --version
-./gradlew :backend:test :backend:bootJar validateContracts :contract-validator:validate --console=plain
+sh ./gradlew --version
+sh ./gradlew :backend:test :backend:bootJar validateContracts :contract-validator:validate --console=plain
 ```
 
 `:backend:test` запускает backend-тесты, `:backend:bootJar` собирает запускаемый JAR,
