@@ -175,13 +175,18 @@ public final class AnalyticsFunctions {
         );
     }
 
-    public static DailyResult dailyMetric(List<Entry> entries, Metric metric, Period period) {
-        Map<LocalDate, Entry> selected = new TreeMap<>();
-
-        Comparator<Entry> order = Comparator
+    private static Comparator<Entry> byOccurredUpdatedAndId() {
+    return Comparator
             .comparing(Entry::occurredAt, Comparator.nullsFirst(Comparator.naturalOrder()))
             .thenComparing(Entry::updatedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
             .thenComparing(Entry::id);
+    }
+
+
+    public static DailyResult dailyMetric(List<Entry> entries, Metric metric, Period period) {
+        Map<LocalDate, Entry> selected = new TreeMap<>();
+
+        Comparator<Entry> order = byOccurredUpdatedAndId();
 
         for (Entry entry : current(entries)) {
             if (entry.metric() != metric || entry.value() == null) {continue;}
@@ -234,12 +239,29 @@ public final class AnalyticsFunctions {
         );
     }
 
-    /** Returns the latest confirmed heart-rate sample; no daily average is invented. */
-    public static Optional<HeartRateResult> latestHeartRate(List<Entry> entries, Period period) {
-        return current(entries).stream().filter(e -> e.metric() == Metric.HEART_RATE && e.value() != null && e.occurredAt() != null)
-                .filter(e -> period.contains(localDate(e.occurredAt(), period.zone())))
-                .max(Comparator.comparing(Entry::occurredAt).thenComparing(Entry::updatedAt, Comparator.nullsFirst(Comparator.naturalOrder())))
-                .map(e -> new HeartRateResult(e.value(), e.occurredAt(), e.qualifier(), e.id()));
+    /**
+     * Returns the latest confirmed heart-rate sample.
+     * Ordering is deterministic for equal timestamps.
+     */
+    public static Optional<HeartRateResult> latestHeartRate(
+        List<Entry> entries,
+        Period period
+    ) {
+        return current(entries)
+            .stream()
+            .filter(entry -> entry.metric() == Metric.HEART_RATE)
+            .filter(entry -> entry.value() != null)
+            .filter(entry -> entry.occurredAt() != null)
+            .filter(entry -> period.contains(
+                    localDate(entry.occurredAt(), period.zone())
+            ))
+            .max(byOccurredUpdatedAndId())
+            .map(entry -> new HeartRateResult(
+                    entry.value(),
+                    entry.occurredAt(),
+                    entry.qualifier(),
+                    entry.id()
+            ));
     }
 
     /** One latest point per check-in category and date; absent values remain absent. */
@@ -247,9 +269,10 @@ public final class AnalyticsFunctions {
         Map<CheckinCategory, Map<LocalDate, Entry>> selected = new EnumMap<>(CheckinCategory.class);
         for (Entry e : current(entries)) {
             if (e.category() == null || e.score() == null || e.localDate() == null || !period.contains(e.localDate())) continue;
-            selected.computeIfAbsent(e.category(), ignored -> new TreeMap<>()).merge(e.localDate(), e,
-                    (a, b) -> Comparator.comparing(Entry::updatedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
-                            .thenComparing(Entry::id).compare(a, b) <= 0 ? b : a);
+            Comparator<Entry> checkinOrder = byOccurredUpdatedAndId();
+
+            selected.computeIfAbsent(entry.category(), ignored -> new TreeMap<>())
+                .merge(entry.localDate(), entry, (first, second) -> checkinOrder.compare(first, second) <= 0 ? second : first);
         }
         Map<CheckinCategory, List<RatingPoint>> result = new EnumMap<>(CheckinCategory.class);
         selected.forEach((category, days) -> result.put(category, days.entrySet().stream()
