@@ -70,10 +70,19 @@ public final class AnalyticsFunctions {
         return Objects.requireNonNull(instant).atZone(Objects.requireNonNull(zone)).toLocalDate();
     }
 
-    /** A sleep record belongs to its wake date; missing wakeDate is deliberately excluded. */
+    /**
+     * A sleep record belongs only to its wake date.
+     * Missing wakeDate means that the record cannot be assigned to a calendar day.
+     */
     public static Optional<LocalDate> sleepDate(Entry entry, ZoneId zone) {
-        if (entry.wakeDate() != null) return Optional.of(entry.wakeDate());
-        return entry.occurredAt() == null ? Optional.empty() : Optional.of(localDate(entry.occurredAt(), zone));
+        Objects.requireNonNull(entry, "entry");
+        Objects.requireNonNull(zone, "zone");
+
+        if (entry.wakeDate() == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(entry.wakeDate());
     }
 
     public static BigDecimal portion(Nutrients per100g, BigDecimal massGrams) {
