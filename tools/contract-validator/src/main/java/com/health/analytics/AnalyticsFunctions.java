@@ -83,30 +83,88 @@ public final class AnalyticsFunctions {
     }
 
     public static NutritionResult nutrition(List<Entry> entries, Period period) {
-        BigDecimal e = BigDecimal.ZERO, p = BigDecimal.ZERO, f = BigDecimal.ZERO, c = BigDecimal.ZERO;
-        int count = 0; boolean incomplete = false;
-        for (Entry entry : current(entries)) {
-            if (!"meal".equals(entry.type()) || !period.contains(entry.localDate())) continue;
-            count++;
-            Nutrients n = entry.nutrients();
-            if (n == null) { incomplete = true; continue; }
-            BigDecimal factor = BigDecimal.ONE;
-            if (entry.basis() == Basis.PER_100G) {
-                if (entry.massGrams() == null) { incomplete = true; continue; }
-                factor = portion(n, entry.massGrams());
-            } else if (entry.basis() == Basis.UNKNOWN || entry.basis() == null) {
-                incomplete = true; continue;
-            }
-            BigDecimal[] values = {n.energyKcal(), n.proteinG(), n.fatG(), n.carbsG()};
-            if (java.util.Arrays.stream(values).anyMatch(Objects::isNull)) incomplete = true;
-            if (values[0] != null) e = e.add(values[0].multiply(factor));
-            if (values[1] != null) p = p.add(values[1].multiply(factor));
-            if (values[2] != null) f = f.add(values[2].multiply(factor));
-            if (values[3] != null) c = c.add(values[3].multiply(factor));
+    BigDecimal energyKcal = BigDecimal.ZERO;
+    BigDecimal proteinG = BigDecimal.ZERO;
+    BigDecimal fatG = BigDecimal.ZERO;
+    BigDecimal carbsG = BigDecimal.ZERO;
+
+    boolean hasEnergyKcal = false;
+    boolean hasProteinG = false;
+    boolean hasFatG = false;
+    boolean hasCarbsG = false;
+    boolean incomplete = false;
+    int countedMeals = 0;
+
+    for (Entry entry : current(entries)) {
+        if (!"meal".equals(entry.type()) || !period.contains(entry.localDate())) {
+            continue;
         }
-        return new NutritionResult(count == 0 ? null : e, count == 0 ? null : p, count == 0 ? null : f,
-                count == 0 ? null : c, count, incomplete);
+
+        countedMeals++;
+
+        Nutrients nutrients = entry.nutrients();
+        if (nutrients == null) {
+            incomplete = true;
+            continue;
+        }
+
+        BigDecimal factor = BigDecimal.ONE;
+
+        if (entry.basis() == Basis.PER_100G) {
+            if (entry.massGrams() == null) {
+                incomplete = true;
+                continue;
+            }
+
+            factor = portion(nutrients, entry.massGrams());
+        } else if (entry.basis() == null || entry.basis() == Basis.UNKNOWN) {
+            incomplete = true;
+            continue;
+        }
+
+        BigDecimal energy = nutrients.energyKcal();
+        BigDecimal protein = nutrients.proteinG();
+        BigDecimal fat = nutrients.fatG();
+        BigDecimal carbs = nutrients.carbsG();
+
+        if (energy == null) {
+            incomplete = true;
+        } else {
+            energyKcal = energyKcal.add(energy.multiply(factor));
+            hasEnergyKcal = true;
+        }
+
+        if (protein == null) {
+            incomplete = true;
+        } else {
+            proteinG = proteinG.add(protein.multiply(factor));
+            hasProteinG = true;
+        }
+
+        if (fat == null) {
+            incomplete = true;
+        } else {
+            fatG = fatG.add(fat.multiply(factor));
+            hasFatG = true;
+        }
+
+        if (carbs == null) {
+            incomplete = true;
+        } else {
+            carbsG = carbsG.add(carbs.multiply(factor));
+            hasCarbsG = true;
+        }
     }
+
+    return new NutritionResult(
+            hasEnergyKcal ? energyKcal : null,
+            hasProteinG ? proteinG : null,
+            hasFatG ? fatG : null,
+            hasCarbsG ? carbsG : null,
+            countedMeals,
+            incomplete
+    );
+}
 
     /** Selects one latest daily total by occurredAt, updatedAt, then id; never sums duplicates. */
     public static DailyResult dailyMetric(List<Entry> entries, Metric metric, Period period) {
