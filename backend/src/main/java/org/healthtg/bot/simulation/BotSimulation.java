@@ -39,6 +39,8 @@ public final class BotSimulation {
         }
         for (BotAction action : actions) {
             switch (action) {
+                case BotAction.InlineMessage message -> System.out.println("Бот: " + message.text());
+                case BotAction.AnswerCallback ignored -> System.out.println("Нажатие обработано.");
                 case BotAction.SendMessage message -> {
                     System.out.println("Бот: " + message.text());
                     if (message.keyboard() != null) {

@@ -45,7 +45,10 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
             }
             var me = client.execute(new GetMe());
             if (me == null || !Boolean.TRUE.equals(me.getIsBot())) throw new TelegramApiException("Missing bot identity");
-            BotHandler handler = new BotHandler(settings.forUsername(me.getUserName()), QuickCheckin.unavailable());
+            QuickCheckin checkin = settings.fixture()
+                    ? new CheckinDialogue(new CheckinStore.Fixture(), java.time.Clock.systemUTC())
+                    : QuickCheckin.unavailable();
+            BotHandler handler = new BotHandler(settings.forUsername(me.getUserName()), checkin);
             client.execute(SetMyCommands.builder().scope(new BotCommandScopeAllPrivateChats())
                     .commands(List.of(new BotCommand("start", "Открыть учебный дневник"),
                             new BotCommand("state", "Отметить состояние"))).build());
@@ -72,7 +75,7 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
                 List<org.telegram.telegrambots.meta.api.objects.Update> updates;
                 try {
                     updates = client.execute(GetUpdates.builder().offset(offset).timeout(30).limit(100)
-                            .allowedUpdates(List.of("message")).build());
+                            .allowedUpdates(List.of("message", "callback_query")).build());
                     networkFailures = 0;
                 } catch (TelegramApiException e) {
                     if (fatal(e)) { LOG.error("Telegram отклонил polling. Проверьте токен и что бот запущен только в одном месте."); break; }

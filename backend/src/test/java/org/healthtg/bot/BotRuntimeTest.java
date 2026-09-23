@@ -82,7 +82,7 @@ class BotRuntimeTest {
             verify(client).execute(requests.capture());
             assertEquals(0, requests.getValue().getOffset());
             assertTrue(requests.getValue().getTimeout() > 0);
-            assertEquals(List.of("message"), requests.getValue().getAllowedUpdates());
+            assertEquals(List.of("message", "callback_query"), requests.getValue().getAllowedUpdates());
         }
         assertTrue(cancelled.await(5, TimeUnit.SECONDS));
         assertFalse(runtime.isRunning()); assertEquals(1, closed.get()); runtime.close(); assertEquals(1, closed.get());

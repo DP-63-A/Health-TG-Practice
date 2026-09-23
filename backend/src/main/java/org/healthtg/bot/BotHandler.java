@@ -17,12 +17,13 @@ public final class BotHandler {
     }
 
     public List<BotAction> handle(BotUpdate update) {
-        if (update == null || update.kind() != BotUpdate.Kind.MESSAGE
+        if (update == null || (update.kind() != BotUpdate.Kind.MESSAGE && update.kind() != BotUpdate.Kind.CALLBACK)
                 || update.chatType() != BotUpdate.ChatType.PRIVATE || update.senderIsBot()
                 || update.senderId() == null || update.chatId() != update.senderId()
                 || !settings.allowedUserIds().contains(update.senderId())) {
             return List.of(); // Deny before dispatch, including future checkin calls.
         }
+        if (update.kind() == BotUpdate.Kind.CALLBACK) return checkin.callback(update);
         String text = update.text();
         if (text == null) return List.of();
         String command = command(update);
@@ -36,7 +37,7 @@ public final class BotHandler {
                     new BotAction.SendMessage(update.chatId(), welcome, KEYBOARD));
         }
         if ("/state".equals(command) || CHECKIN_BUTTON.equals(text)) {
-            return List.of(new BotAction.SendMessage(update.chatId(), checkin.begin(update.senderId()), KEYBOARD));
+            return checkin.begin(update);
         }
         return List.of(); // Other commands/media belong to later issues.
     }
