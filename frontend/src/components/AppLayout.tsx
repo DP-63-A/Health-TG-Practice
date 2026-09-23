@@ -15,7 +15,7 @@ function AppLayout() {
         </div>
         {apiMode === 'fixture' ? <Badge tone="neutral">Режим: fixture</Badge> : null}
         <div className="app-actions">
-          <Button onClick={requestRefresh}>
+          <Button onClick={() => requestRefresh()}>
             Обновить
           </Button>
           <nav className="app-nav" aria-label="Основная навигация">

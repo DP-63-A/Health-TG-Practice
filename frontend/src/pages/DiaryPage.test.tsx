@@ -104,6 +104,22 @@ describe('FE1-03 diary', () => {
     expect(screen.queryByText('Old async meal')).not.toBeInTheDocument()
   })
 
+  it('keeps the newest response when a refresh overtakes an older list request', async () => {
+    const responses: Array<(value: EntryListResponse) => void> = []
+    const list = vi.spyOn(entriesApi, 'list').mockImplementation(() => new Promise<EntryListResponse>((resolve) => { responses.push(resolve) }))
+    renderRoute('/diary')
+
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(1))
+    fireEvent.click(screen.getByRole('button', { name: 'Обновить' }))
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+
+    await act(async () => responses[1]({ items: [entryFixture({ id: 'fresh', payload: { description: 'Fresh after refresh' } })], next_cursor: null }))
+    expect(await screen.findByText('Fresh after refresh')).toBeInTheDocument()
+    await act(async () => responses[0]({ items: [entryFixture({ id: 'stale', payload: { description: 'Stale before refresh' } })], next_cursor: null }))
+    expect(screen.getByText('Fresh after refresh')).toBeInTheDocument()
+    expect(screen.queryByText('Stale before refresh')).not.toBeInTheDocument()
+  })
+
   it('revokes protected file object URL if file loading finishes after unmount', async () => {
     const originalRevokeObjectURL = URL.revokeObjectURL
     const revokeObjectURL = vi.fn()

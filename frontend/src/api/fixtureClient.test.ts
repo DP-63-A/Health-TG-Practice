@@ -45,4 +45,18 @@ describe('FE1-04 fixture transitions', () => {
     expect(cancelled.revision).toBe(before.revision + 1)
     expect((await api.list({ status: 'confirmed', limit: 100 })).items.some((item) => item.id === id)).toBe(false)
   })
+
+  it('rejects stale or unquoted DELETE and excludes a logically deleted entry', async () => {
+    const id = '22222222-2222-4222-8222-222222222201'
+    const before = await api.get(id)
+    await expect(fixtureApiClient.delete(`/entries/${id}`, { headers: { 'If-Match': String(before.revision) } }))
+      .rejects.toMatchObject({ status: 422, code: 'VALIDATION_ERROR' })
+    await expect(api.delete(id, before.revision - 1)).rejects.toMatchObject({ status: 409, code: 'VERSION_CONFLICT' })
+    expect((await api.get(id)).status).toBe('confirmed')
+
+    const removed = await api.delete(id, before.revision)
+    expect(removed).toMatchObject({ id, status: 'deleted', revision: before.revision + 1 })
+    expect((await api.list({ status: 'confirmed', limit: 100 })).items.some((item) => item.id === id)).toBe(false)
+    await expect(api.delete(id, removed.revision)).rejects.toMatchObject({ status: 409, code: 'INVALID_STATUS_TRANSITION' })
+  })
 })
