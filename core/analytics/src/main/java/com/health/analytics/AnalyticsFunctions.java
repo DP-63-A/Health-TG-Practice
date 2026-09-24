@@ -210,8 +210,14 @@ public final class AnalyticsFunctions {
         Objects.requireNonNull(metric, "metric");
         Objects.requireNonNull(period, "period");
 
-        Map<LocalDate, Entry> selected = new TreeMap<>();
-        Comparator<Entry> order = byOccurredUpdatedAndId();
+        if (metric == Metric.HEART_RATE) {
+            throw new IllegalArgumentException(
+                "Heart rate must be queried through latestHeartRate"
+            );
+        }
+
+    Map<LocalDate, Entry> selected = new TreeMap<>();
+    Comparator<Entry> order = byOccurredUpdatedAndId();
 
         for (Entry entry : current(entries)) {
             if (!"metrics".equals(entry.type())) {
