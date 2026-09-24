@@ -1,0 +1,50 @@
+
+.meal-count-card {
+  padding: 20px;
+  border-radius: 16px;
+
+  background: var(
+    --tg-theme-secondary-bg-color,
+    #f5f5f5
+  );
+
+  color: var(
+    --tg-theme-text-color,
+    #222
+  );
+}
+
+.meal-count-card__title {
+  margin: 0 0 20px;
+
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.meal-count-card__label {
+  margin: 0 0 8px;
+
+  font-size: 13px;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.meal-count-card__total {
+  margin: 0;
+
+  font-size: 28px;
+  font-weight: 700;
+}
+
+@media (max-width: 360px) {
+  .meal-count-card {
+    padding: 14px;
+  }
+
+  .meal-count-card__total {
+    font-size: 24px;
+  }
+}

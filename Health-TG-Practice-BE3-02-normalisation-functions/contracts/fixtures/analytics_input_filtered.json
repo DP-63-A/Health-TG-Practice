@@ -1,0 +1,7 @@
+{
+  "timezone": "Europe/Warsaw",
+  "period": {"kind": "days_7", "from": "2026-09-13", "to": "2026-09-19"},
+  "records": [
+    {"id":"22222222-2222-4222-8222-222222222226","type":"meal","status":"confirmed","local_date":"2026-09-19","mass_g":null,"nutrients":{"energy_kcal":300,"protein_g":15,"fat_g":10,"carbs_g":35}}
+  ]
+}
