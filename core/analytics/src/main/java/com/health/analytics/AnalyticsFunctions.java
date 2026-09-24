@@ -190,23 +190,39 @@ public final class AnalyticsFunctions {
             .thenComparing(Entry::id);
     }
 
+    public static DailyResult dailyMetric(
+        List<Entry> entries,
+        Metric metric,
+        Period period
+    ) {
+        Objects.requireNonNull(entries, "entries");
+        Objects.requireNonNull(metric, "metric");
+        Objects.requireNonNull(period, "period");
 
-    public static DailyResult dailyMetric(List<Entry> entries, Metric metric, Period period) {
         Map<LocalDate, Entry> selected = new TreeMap<>();
-
         Comparator<Entry> order = byOccurredUpdatedAndId();
 
         for (Entry entry : current(entries)) {
-            if (entry.metric() != metric || entry.value() == null) {continue;}
+            if (!"metrics".equals(entry.type())) {
+                continue;
+            }
+
+            if (entry.metric() != metric || entry.value() == null) {
+            continue;
+            }
 
             Optional<LocalDate> date;
 
             if (metric == Metric.SLEEP_DURATION_MIN) {
                 date = sleepDate(entry, period.zone());
             } else {
-                if (entry.occurredAt() == null) {continue;}
+                if (entry.occurredAt() == null) {
+                    continue;
+                }
 
-                date = Optional.of(localDate(entry.occurredAt(), period.zone()));
+                date = Optional.of(
+                    localDate(entry.occurredAt(), period.zone())
+                );
             }
 
             if (date.isEmpty() || !period.contains(date.get())) {
@@ -216,14 +232,18 @@ public final class AnalyticsFunctions {
             selected.merge(
                 date.get(),
                 entry,
-                (first, second) -> order.compare(first, second) <= 0
+                (first, second) ->
+                    order.compare(first, second) <= 0
                         ? second
                         : first
             );
         }
 
         Map<LocalDate, BigDecimal> values = new TreeMap<>();
-        selected.forEach((date, entry) -> values.put(date, entry.value()));
+
+        selected.forEach((date, entry) ->
+            values.put(date, entry.value())
+        );
 
         BigDecimal total = values.values()
             .stream()
@@ -232,17 +252,17 @@ public final class AnalyticsFunctions {
         BigDecimal average = values.isEmpty()
             ? null
             : total.divide(
-                    BigDecimal.valueOf(values.size()),
-                    12,
-                    RoundingMode.HALF_UP
+                BigDecimal.valueOf(values.size()),
+                12,
+                RoundingMode.HALF_UP
             );
 
         return new DailyResult(
             Map.copyOf(values),
             new AggregateResult(
-                    values.isEmpty() ? null : total,
-                    average,
-                    values.size()
+                values.isEmpty() ? null : total,
+                average,
+                values.size()
             )
         );
     }
