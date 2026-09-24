@@ -92,11 +92,22 @@ public final class AnalyticsFunctions {
             throw new IllegalArgumentException("mass must be non-negative");
         }
 
-        return massGrams.divide(
+        return normalize(massGrams.divide(
             BigDecimal.valueOf(100),
             12,
             RoundingMode.HALF_UP
-        );
+        ));
+    }
+
+    private static BigDecimal normalize(BigDecimal value) {
+        if (value == null) {
+            return null;
+        }
+
+        BigDecimal normalized = value.stripTrailingZeros();
+        return normalized.scale() < 0
+            ? normalized.setScale(0)
+            : normalized;
     }
 
     public static NutritionResult nutrition(List<Entry> entries, Period period) {
@@ -174,10 +185,10 @@ public final class AnalyticsFunctions {
         }
 
         return new NutritionResult(
-            hasEnergyKcal ? energyKcal : null,
-            hasProteinG ? proteinG : null,
-            hasFatG ? fatG : null,
-            hasCarbsG ? carbsG : null,
+            hasEnergyKcal ? normalize(energyKcal) : null,
+            hasProteinG ? normalize(proteinG) : null,
+            hasFatG ? normalize(fatG) : null,
+            hasCarbsG ? normalize(carbsG) : null,
             countedMeals,
             incomplete
         );
@@ -242,20 +253,20 @@ public final class AnalyticsFunctions {
         Map<LocalDate, BigDecimal> values = new TreeMap<>();
 
         selected.forEach((date, entry) ->
-            values.put(date, entry.value())
+            values.put(date, normalize(entry.value()))
         );
 
-        BigDecimal total = values.values()
+        BigDecimal total = normalize(values.values()
             .stream()
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+            .reduce(BigDecimal.ZERO, BigDecimal::add));
 
         BigDecimal average = values.isEmpty()
             ? null
-            : total.divide(
+            : normalize(total.divide(
                 BigDecimal.valueOf(values.size()),
                 12,
                 RoundingMode.HALF_UP
-            );
+            ));
 
         return new DailyResult(
             Map.copyOf(values),
