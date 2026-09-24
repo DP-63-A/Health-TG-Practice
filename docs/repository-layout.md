@@ -12,7 +12,7 @@ Health-TG-Practice/
 |-- backend/                  Два отдельных запуска одного Java-приложения
 |   |-- api/                  HTTP API и его тесты
 |   `-- bot/                  Telegram-бот и его тесты
-|-- frontend/                 Telegram Mini App (пока документация)
+|-- frontend/                 React/TypeScript Mini App, код и тесты
 |-- contracts/                OpenAPI, JSON-схемы, примеры и отчёты
 |-- tools/contract-validator/ Java-инструмент проверки контрактов
 |-- fixtures/                 общие синтетические данные
@@ -32,7 +32,7 @@ Health-TG-Practice/
 - `contract-validator` — проверка OpenAPI, JSON-схем и контрактных примеров.
 
 Версия Gradle задаётся Wrapper: 8.11.1. Все Java-модули используют toolchain Java 21.
-Frontend пока не подключён к сборке.
+Frontend собирается отдельно через npm в каталоге `frontend/` и не входит в Gradle-сборку. Команды запуска, тестов и проверки типов определены в `frontend/package.json`; настройки fixture/live описаны в [README frontend](../frontend/README.md).
 
 ## Код и проверки
 
