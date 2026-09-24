@@ -2,6 +2,19 @@ package com.health.analytics;
 
 import org.junit.jupiter.api.Test;
 
+import com.health.analytics.AnalyticsFunctions.Basis;
+import com.health.analytics.AnalyticsFunctions.CheckinCategory;
+import com.health.analytics.AnalyticsFunctions.DailyResult;
+import com.health.analytics.AnalyticsFunctions.Entry;
+import com.health.analytics.AnalyticsFunctions.HeartRateResult;
+import com.health.analytics.AnalyticsFunctions.Metric;
+import com.health.analytics.AnalyticsFunctions.Nutrients;
+import com.health.analytics.AnalyticsFunctions.NutritionResult;
+import com.health.analytics.AnalyticsFunctions.Period;
+import com.health.analytics.AnalyticsFunctions.Qualifier;
+import com.health.analytics.AnalyticsFunctions.RatingPoint;
+import com.health.analytics.AnalyticsFunctions.Status;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
