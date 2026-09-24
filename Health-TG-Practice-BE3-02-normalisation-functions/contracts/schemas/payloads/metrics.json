@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://health-tg.local/schemas/payloads/metrics.json",
+  "title": "MetricsPayload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "value"],
+  "properties": {
+    "code": { "$ref": "../common.json#/$defs/MetricCode" },
+    "value": {
+      "type": "number",
+      "description": "Must be >= 0 for steps and sleep_duration_min (enforced here). Unknown is not represented as negative."
+    },
+    "unit": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 32,
+      "examples": ["count", "min", "bpm"],
+      "description": "May be omitted or null while a draft is awaiting clarification; required for confirmed metrics."
+    },
+    "local_date": {
+      "anyOf": [
+        { "$ref": "../common.json#/$defs/LocalDate" },
+        { "type": "null" }
+      ],
+      "description": "May be omitted or null while a draft is awaiting clarification; required for confirmed metrics."
+    },
+    "local_time": {
+      "type": ["string", "null"],
+      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$",
+      "description": "Local wall time; null if unknown."
+    },
+    "qualifier": { "$ref": "../common.json#/$defs/HeartRateQualifier" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "code": { "const": "steps" } },
+        "required": ["code"]
+      },
+      "then": {
+        "properties": { "value": { "type": "number", "minimum": 0 } }
+      }
+    },
+    {
+      "if": {
+        "properties": { "code": { "const": "sleep_duration_min" } },
+        "required": ["code"]
+      },
+      "then": {
+        "properties": { "value": { "type": "number", "minimum": 0 } }
+      }
+    }
+  ]
+}

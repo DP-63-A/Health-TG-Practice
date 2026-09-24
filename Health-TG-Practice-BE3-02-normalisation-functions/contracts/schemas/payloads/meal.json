@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://health-tg.local/schemas/payloads/meal.json",
+  "title": "MealPayload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["description"],
+  "properties": {
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "mass_g": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "description": "null = unknown mass; 0 is an explicit zero mass (unusual but distinct from null)."
+    },
+    "nutrients": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Values use the basis declared by nutrients_basis. With per_100g they describe 100 g, not the whole portion; with per_serving they describe the whole recorded portion.",
+      "properties": {
+        "energy_kcal": { "type": ["number", "null"], "minimum": 0 },
+        "protein_g": { "type": ["number", "null"], "minimum": 0 },
+        "fat_g": { "type": ["number", "null"], "minimum": 0 },
+        "carbs_g": { "type": ["number", "null"], "minimum": 0 }
+      }
+    },
+    "nutrients_basis": {
+      "$ref": "../common.json#/$defs/NutrientsBasis",
+      "description": "Defines how nutrient values are interpreted and recalculated when mass_g changes."
+    }
+  }
+}

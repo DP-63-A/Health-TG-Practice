@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://health-tg.local/schemas/payloads/checkin.json",
+  "title": "CheckinPayload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["category", "score"],
+  "properties": {
+    "category": { "$ref": "../common.json#/$defs/CheckinCategory" },
+    "score": { "$ref": "../common.json#/$defs/Score1to5" }
+  }
+}
