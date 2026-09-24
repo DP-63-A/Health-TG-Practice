@@ -82,7 +82,8 @@ class AnalyticsFunctionsTest {
             null,
             null,
             null,
-            null
+            null,
+            Basis (null)
         );
 
         Entry second = new Entry(
@@ -100,7 +101,8 @@ class AnalyticsFunctionsTest {
             null,
             null,
             null,
-            null
+            null,
+            Basis (null)
         );
 
         List<Entry> forward = List.of(first, second);
