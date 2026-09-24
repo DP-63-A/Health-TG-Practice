@@ -23,8 +23,8 @@
 Из корня репозитория:
 
 ```bash
-./gradlew validateContracts
-./gradlew :contract-validator:validate
+sh ./gradlew validateContracts
+sh ./gradlew :contract-validator:validate
 ```
 
 Windows:

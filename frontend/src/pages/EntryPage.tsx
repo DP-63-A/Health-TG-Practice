@@ -16,7 +16,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { Badge, Button, Card, ErrorState, FormField, LoadingState } from '../components/ui'
 import { useRefresh } from '../refresh/RefreshProvider'
 
-type BusyAction = 'save' | 'confirm' | 'cancel'
+type BusyAction = 'save' | 'confirm' | 'cancel' | 'delete'
 type FieldErrors = Record<string, string>
 
 interface EntryFormState {
@@ -90,7 +90,7 @@ export default function EntryPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const { markSessionExpired, state: authState } = useAuth()
-  const { requestRefresh } = useRefresh()
+  const { refreshReason, refreshVersion, requestRefresh } = useRefresh()
   const timezone = authState.status === 'authenticated'
     ? authState.user.timezone
     : 'Europe/Warsaw'
@@ -103,30 +103,83 @@ export default function EntryPage() {
   const [busyAction, setBusyAction] = useState<BusyAction | null>(null)
   const [sourceFile, setSourceFile] = useState({ fileId: '', url: '', error: '' })
   const [conflictEntry, setConflictEntry] = useState<Entry | null>(null)
+  const [conflictActive, setConflictActive] = useState(false)
+  const [freshError, setFreshError] = useState('')
+  const [replaceRequested, setReplaceRequested] = useState(false)
+  const [acceptingFresh, setAcceptingFresh] = useState(false)
+  const [deleteRequested, setDeleteRequested] = useState(false)
   const requestIdRef = useRef(0)
+  const currentEntryRef = useRef<Entry | null>(null)
+  const latestSnapshotRef = useRef<Entry | null>(null)
+  const freshRequestRef = useRef<AbortController | null>(null)
+  const acceptLockRef = useRef(false)
   const mutationLockRef = useRef(false)
   const submissionRef = useRef<{ entryId: string; value: string } | null>(null)
   const dateInputRef = useRef<HTMLInputElement>(null)
   const activeIdRef = useRef(id)
   const mountedRef = useRef(true)
 
-  useEffect(() => { activeIdRef.current = id }, [id])
+  useEffect(() => {
+    activeIdRef.current = id
+    return () => { freshRequestRef.current?.abort() }
+  }, [id])
 
   useEffect(() => {
     mountedRef.current = true
-    return () => { mountedRef.current = false }
+    return () => {
+      mountedRef.current = false
+      freshRequestRef.current?.abort()
+    }
   }, [])
 
   const applyEntry = useCallback((value: Entry) => {
+    currentEntryRef.current = value
+    latestSnapshotRef.current = null
     setEntry(value)
     setForm(createForm(value, timezone))
     setFieldErrors({})
     setConflictEntry(null)
+    setConflictActive(false)
+    setFreshError('')
+    setReplaceRequested(false)
+    setDeleteRequested(false)
     setState('ready')
   }, [timezone])
 
+  const readLatest = useCallback(async (entryId: string, reason: 'conflict' | 'refresh') => {
+    freshRequestRef.current?.abort()
+    const controller = new AbortController()
+    freshRequestRef.current = controller
+    setFreshError('')
+    try {
+      const fresh = await entriesApi.get(entryId, controller.signal)
+      if (controller.signal.aborted || !mountedRef.current || activeIdRef.current !== entryId) return
+      const current = currentEntryRef.current
+      if (current && fresh.revision <= current.revision && fresh.status === current.status) {
+        if (reason === 'conflict') setFreshError('Сервер пока не вернул новую версию. Повторите чтение.')
+        return
+      }
+      const previous = latestSnapshotRef.current
+      if (previous?.id === entryId && fresh.revision < previous.revision) return
+      if (!previous || previous.id !== entryId || JSON.stringify(previous) !== JSON.stringify(fresh)) setReplaceRequested(false)
+      latestSnapshotRef.current = fresh
+      setConflictEntry(fresh)
+      setConflictActive(true)
+      if (reason === 'refresh') setMessage('На сервере появилась новая версия записи. Ваш ввод сохранён; сравните версии перед продолжением.')
+    } catch (cause) {
+      if (controller.signal.aborted || !mountedRef.current || activeIdRef.current !== entryId) return
+      if (cause instanceof ApiError && cause.status === 401) {
+        markSessionExpired()
+        return
+      }
+      setFreshError(cause instanceof Error ? cause.message : 'Не удалось перечитать запись.')
+    } finally {
+      if (freshRequestRef.current === controller) freshRequestRef.current = null
+    }
+  }, [markSessionExpired])
+
   const load = useCallback(async (signal?: AbortSignal) => {
-    if (authState.status === 'loading') return
+    if (authState.status !== 'authenticated') return
 
     const requestId = requestIdRef.current + 1
     requestIdRef.current = requestId
@@ -154,6 +207,12 @@ export default function EntryPage() {
       requestIdRef.current += 1
     }
   }, [load])
+
+  useEffect(() => {
+    if (refreshVersion === 0 || refreshReason === 'mutation') return
+    const current = currentEntryRef.current
+    if (current?.id === id) void readLatest(id, 'refresh')
+  }, [id, readLatest, refreshReason, refreshVersion])
 
   useEffect(() => {
     const fileId = entry?.source_ref.file_id
@@ -203,12 +262,12 @@ export default function EntryPage() {
   function updateForm(patch: Partial<EntryFormState>) {
     setForm((value) => ({ ...value, ...patch }))
     setFieldErrors({})
-    setMessage('')
+    if (!conflictActive) setMessage('')
   }
 
   async function save(event?: FormEvent) {
     event?.preventDefault()
-    if (!entry || (entry.status !== 'draft' && entry.status !== 'confirmed') || busyAction || mutationLockRef.current) return null
+    if (!entry || (entry.status !== 'draft' && entry.status !== 'confirmed') || conflictActive || busyAction || mutationLockRef.current) return null
     mutationLockRef.current = true
     try {
       return await saveCurrentEntry(entry, false)
@@ -232,19 +291,19 @@ export default function EntryPage() {
     try {
       const updated = await entriesApi.patch(currentEntry.id, result.body)
       if (mountedRef.current && activeIdRef.current === currentEntry.id) applyEntry(updated)
-      requestRefresh()
+      requestRefresh('mutation')
       if (!silent && mountedRef.current && activeIdRef.current === currentEntry.id) setMessage('Изменения сохранены.')
       return updated
     } catch (cause) {
       await handleMutationError(cause, currentEntry.id)
       return null
     } finally {
-      setBusyAction(null)
+      if (mountedRef.current) setBusyAction(null)
     }
   }
 
   async function confirmDraft() {
-    if (!entry || busyAction || mutationLockRef.current || entry.status !== 'draft') return
+    if (!entry || conflictActive || busyAction || mutationLockRef.current || entry.status !== 'draft') return
     mutationLockRef.current = true
 
     let currentEntry = entry
@@ -279,18 +338,18 @@ export default function EntryPage() {
         submission_id: getSubmissionId(currentEntry),
       })
       if (mountedRef.current && activeIdRef.current === currentEntry.id) applyEntry(updated)
-      requestRefresh()
+      requestRefresh('mutation')
       if (mountedRef.current && activeIdRef.current === currentEntry.id) setMessage('Запись подтверждена.')
     } catch (cause) {
       await handleMutationError(cause, currentEntry.id)
     } finally {
-      setBusyAction(null)
+      if (mountedRef.current) setBusyAction(null)
       mutationLockRef.current = false
     }
   }
 
   async function cancelDraft() {
-    if (!entry || busyAction || mutationLockRef.current || entry.status !== 'draft') return
+    if (!entry || conflictActive || busyAction || mutationLockRef.current || entry.status !== 'draft') return
     mutationLockRef.current = true
 
     setBusyAction('cancel')
@@ -299,13 +358,72 @@ export default function EntryPage() {
 
     try {
       await entriesApi.cancel(entry.id)
-      requestRefresh()
+      requestRefresh('mutation')
       if (mountedRef.current && activeIdRef.current === entry.id) navigate('/diary', { replace: true })
     } catch (cause) {
       await handleMutationError(cause, entry.id)
     } finally {
-      setBusyAction(null)
+      if (mountedRef.current) setBusyAction(null)
       mutationLockRef.current = false
+    }
+  }
+
+  async function removeConfirmed() {
+    if (!entry || entry.status !== 'confirmed' || !deleteRequested || conflictActive || busyAction || mutationLockRef.current) return
+    mutationLockRef.current = true
+    setBusyAction('delete')
+    setMessage('')
+    try {
+      const removed = await entriesApi.delete(entry.id, entry.revision)
+      if (mountedRef.current && activeIdRef.current === entry.id) {
+        applyEntry(removed)
+        setMessage('Запись убрана из дневника.')
+      }
+      requestRefresh('mutation')
+    } catch (cause) {
+      await handleMutationError(cause, entry.id)
+    } finally {
+      if (mountedRef.current) setBusyAction(null)
+      mutationLockRef.current = false
+    }
+  }
+
+  async function acceptFreshSnapshot() {
+    if (!conflictEntry || !replaceRequested || acceptLockRef.current || busyAction) return
+    const snapshot = conflictEntry
+    acceptLockRef.current = true
+    setAcceptingFresh(true)
+    setFreshError('')
+    freshRequestRef.current?.abort()
+    const controller = new AbortController()
+    freshRequestRef.current = controller
+    try {
+      const verified = await entriesApi.get(snapshot.id, controller.signal)
+      if (controller.signal.aborted || !mountedRef.current || activeIdRef.current !== snapshot.id) return
+      const newer = latestSnapshotRef.current
+      if (verified.revision < snapshot.revision || (newer && newer.revision > verified.revision)) {
+        setFreshError('Сервер пока не вернул самую новую версию. Повторите чтение.')
+        setReplaceRequested(false)
+        return
+      }
+      if (JSON.stringify(verified) !== JSON.stringify(snapshot)) {
+        latestSnapshotRef.current = verified
+        setConflictEntry(verified)
+        setReplaceRequested(false)
+        setMessage('Серверная версия снова изменилась. Сравните её перед заменой ввода.')
+        return
+      }
+      applyEntry(verified)
+      setMessage('Серверная версия загружена. Проверьте запись перед новым действием.')
+    } catch (cause) {
+      if (controller.signal.aborted || !mountedRef.current || activeIdRef.current !== snapshot.id) return
+      if (cause instanceof ApiError && cause.status === 401) markSessionExpired()
+      else setFreshError(cause instanceof Error ? cause.message : 'Не удалось проверить серверную версию.')
+      setReplaceRequested(false)
+    } finally {
+      if (freshRequestRef.current === controller) freshRequestRef.current = null
+      if (mountedRef.current) setAcceptingFresh(false)
+      acceptLockRef.current = false
     }
   }
 
@@ -318,13 +436,15 @@ export default function EntryPage() {
     }
 
     if (cause instanceof ApiError && cause.status === 409) {
-      setMessage('Конфликт версий: запись изменилась на сервере. Ваш ввод сохранён на экране; проверьте свежую версию перед повтором.')
-      try {
-        const fresh = await entriesApi.get(entryId)
-        if (mountedRef.current && activeIdRef.current === entryId) setConflictEntry(fresh)
-      } catch {
-        if (mountedRef.current && activeIdRef.current === entryId) setConflictEntry(null)
-      }
+      setConflictActive(true)
+      setConflictEntry(null)
+      latestSnapshotRef.current = null
+      setReplaceRequested(false)
+      setDeleteRequested(false)
+      setMessage(cause.code === 'INVALID_STATUS_TRANSITION'
+        ? 'Действие больше недоступно: статус записи изменился. Ваш ввод сохранён; проверьте серверную версию.'
+        : 'Конфликт версий: запись изменилась на сервере. Ваш ввод сохранён; сравните версии перед повтором.')
+      await readLatest(entryId, 'conflict')
       return
     }
 
@@ -365,8 +485,9 @@ export default function EntryPage() {
     )
   }
 
-  const isBusy = busyAction !== null
+  const isBusy = busyAction !== null || acceptingFresh
   const canEdit = entry.status === 'draft' || entry.status === 'confirmed'
+  const actionsBlocked = isBusy || conflictActive
 
   return (
     <Card className="entry-detail">
@@ -416,11 +537,28 @@ export default function EntryPage() {
         )}
       </section>
 
-      {conflictEntry && (
+      {conflictActive && (
         <section className="source-card conflict-panel" aria-label="Свежая серверная версия">
           <h3>Свежая серверная версия</h3>
-          <p>Ревизия: {conflictEntry.revision}. Локальный ввод выше не заменён автоматически.</p>
-          <pre>{JSON.stringify(conflictEntry.payload, null, 2)}</pre>
+          {conflictEntry ? (
+            <>
+              <p>Статус: {conflictEntry.status}. Ревизия: {conflictEntry.revision}. Локальный ввод ниже не заменён.</p>
+              <pre>{JSON.stringify(conflictEntry.payload, null, 2)}</pre>
+              {!replaceRequested ? (
+                <Button onClick={() => setReplaceRequested(true)} variant="secondary">Использовать серверную версию</Button>
+              ) : (
+                <div>
+                  <p>Несохранённый ввод в форме будет заменён серверной версией.</p>
+                  <div className="form-actions">
+                    <Button disabled={acceptingFresh} isLoading={acceptingFresh} onClick={() => void acceptFreshSnapshot()} variant="danger">Да, заменить ввод</Button>
+                    <Button disabled={acceptingFresh} onClick={() => setReplaceRequested(false)} variant="secondary">Оставить мой ввод</Button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : <p>Свежую версию пока не удалось получить. Ваш ввод остаётся в форме.</p>}
+          {freshError && <p role="alert">{freshError}</p>}
+          <Button disabled={acceptingFresh} onClick={() => void readLatest(entry.id, 'conflict')} variant="secondary">Перечитать серверную версию</Button>
         </section>
       )}
 
@@ -448,7 +586,7 @@ export default function EntryPage() {
 
         <div className="form-actions">
           {canEdit && (
-            <Button disabled={isBusy} isLoading={busyAction === 'save'} type="submit">
+            <Button disabled={actionsBlocked} isLoading={busyAction === 'save'} type="submit">
               Сохранить
             </Button>
           )}
@@ -457,15 +595,29 @@ export default function EntryPage() {
               <Button disabled={isBusy} onClick={() => dateInputRef.current?.focus()} variant="secondary">
                 Изменить
               </Button>
-              <Button disabled={isBusy} isLoading={busyAction === 'confirm'} onClick={() => void confirmDraft()} variant="secondary">
+              <Button disabled={actionsBlocked} isLoading={busyAction === 'confirm'} onClick={() => void confirmDraft()} variant="secondary">
                 Подтвердить
               </Button>
-              <Button disabled={isBusy} isLoading={busyAction === 'cancel'} onClick={() => void cancelDraft()} variant="danger">
+              <Button disabled={actionsBlocked} isLoading={busyAction === 'cancel'} onClick={() => void cancelDraft()} variant="danger">
                 Не сохранять
               </Button>
             </>
           )}
+          {entry.status === 'confirmed' && !deleteRequested && (
+            <Button disabled={actionsBlocked} onClick={() => setDeleteRequested(true)} variant="danger">
+              Убрать из дневника
+            </Button>
+          )}
         </div>
+        {entry.status === 'confirmed' && deleteRequested && (
+          <div className="delete-confirmation" role="group" aria-label="Подтверждение удаления">
+            <p>Запись исчезнет из дневника и аналитики.</p>
+            <div className="form-actions">
+              <Button disabled={actionsBlocked} isLoading={busyAction === 'delete'} onClick={() => void removeConfirmed()} variant="danger">Да, убрать</Button>
+              <Button disabled={isBusy} onClick={() => setDeleteRequested(false)} variant="secondary">Оставить запись</Button>
+            </div>
+          </div>
+        )}
       </form>
     </Card>
   )

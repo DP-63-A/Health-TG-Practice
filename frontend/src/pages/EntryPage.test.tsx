@@ -5,6 +5,7 @@ import { ApiError } from '../api/client'
 import { entriesApi } from '../api/entries'
 import type { Entry, EntryPayload, EntryType } from '../api/types'
 import { AuthProvider } from '../auth/AuthProvider'
+import { AuthGate } from '../auth/AuthGate'
 import { RefreshProvider, useRefreshSubscription } from '../refresh/RefreshProvider'
 import { appRoutes } from '../router/router'
 
@@ -488,15 +489,305 @@ describe('FE1-04 entry review and correction', () => {
     expect(screen.getByLabelText(/Описание/)).toBeDisabled()
     expect(patch).not.toHaveBeenCalled()
   })
+
+  it('deletes a confirmed entry only after explicit confirmation and one successful API response', async () => {
+    const entry = entryFixture({ status: 'confirmed', revision: 5 })
+    const refresh = vi.fn()
+    let resolveDelete: (value: Entry) => void = () => undefined
+    const remove = vi.spyOn(entriesApi, 'delete').mockImplementation(() => new Promise<Entry>((resolve) => { resolveDelete = resolve }))
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    renderRoute(`/diary/${entry.id}`, refresh)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Убрать из дневника' }))
+    expect(remove).not.toHaveBeenCalled()
+    const confirm = screen.getByRole('button', { name: 'Да, убрать' })
+    fireEvent.click(confirm)
+    fireEvent.click(confirm)
+    expect(remove).toHaveBeenCalledTimes(1)
+    expect(remove).toHaveBeenCalledWith(entry.id, 5)
+    expect(screen.getByText('Статус: confirmed')).toBeInTheDocument()
+    expect(screen.queryByText('Запись убрана из дневника.')).not.toBeInTheDocument()
+    expect(refresh).not.toHaveBeenCalled()
+
+    await act(async () => resolveDelete({ ...entry, status: 'deleted', revision: 6 }))
+    expect(await screen.findByText('Запись убрана из дневника.')).toBeInTheDocument()
+    expect(screen.getByText('Статус: deleted')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Убрать из дневника' })).not.toBeInTheDocument()
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a confirmed entry visible and retryable after DELETE network failure', async () => {
+    const entry = entryFixture({ status: 'confirmed' })
+    const refresh = vi.fn()
+    const remove = vi.spyOn(entriesApi, 'delete').mockRejectedValue(new Error('Network down'))
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    renderRoute(`/diary/${entry.id}`, refresh)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Убрать из дневника' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Да, убрать' }))
+    expect(await screen.findByText('Network down')).toBeInTheDocument()
+    expect(screen.getByText('Статус: confirmed')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Да, убрать' })).toBeEnabled()
+    expect(screen.queryByText('Запись убрана из дневника.')).not.toBeInTheDocument()
+    expect(remove).toHaveBeenCalledTimes(1)
+    expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it('uses shared session handling for DELETE 401 without success or invalidation', async () => {
+    const entry = entryFixture({ status: 'confirmed' })
+    const refresh = vi.fn()
+    const get = vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    vi.spyOn(entriesApi, 'delete').mockRejectedValue(new ApiError({ code: 'UNAUTHORIZED', message: 'Session expired', request_id: 'req_401' }, 401))
+    renderRoute(`/diary/${entry.id}`, refresh, true)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Убрать из дневника' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Да, убрать' }))
+    expect(await screen.findByRole('heading', { name: 'Сессия истекла' })).toBeInTheDocument()
+    expect(screen.queryByText('Запись убрана из дневника.')).not.toBeInTheDocument()
+    expect(refresh).not.toHaveBeenCalled()
+    expect(get).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows fresh status on stale DELETE and retries only after consciously adopting revision', async () => {
+    const entry = entryFixture({ status: 'confirmed', revision: 2, payload: { description: 'Old value', mass_g: 200 } })
+    const fresh = entryFixture({ ...entry, revision: 3, payload: { description: 'Server value', mass_g: 175 } })
+    const get = vi.spyOn(entriesApi, 'get').mockResolvedValueOnce(clone(entry)).mockResolvedValue(clone(fresh))
+    const remove = vi.spyOn(entriesApi, 'delete')
+      .mockRejectedValueOnce(new ApiError({ code: 'VERSION_CONFLICT', message: 'stale', request_id: 'req_409' }, 409))
+      .mockResolvedValueOnce({ ...fresh, status: 'deleted', revision: 4 })
+    const refresh = vi.fn()
+    renderRoute(`/diary/${entry.id}`, refresh)
+
+    fireEvent.change(await screen.findByLabelText(/Описание/), { target: { value: 'My unsaved text' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Убрать из дневника' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Да, убрать' }))
+    expect(await screen.findByText(/Конфликт версий/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Описание/)).toHaveValue('My unsaved text')
+    expect(await screen.findByRole('region', { name: 'Свежая серверная версия' })).toHaveTextContent('Server value')
+    expect(screen.getByRole('region', { name: 'Свежая серверная версия' })).toHaveTextContent('Ревизия: 3')
+    expect(remove).toHaveBeenCalledTimes(1)
+    expect(remove).toHaveBeenCalledWith(entry.id, 2)
+    expect(refresh).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Убрать из дневника' })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Использовать серверную версию' }))
+    expect(screen.getByLabelText(/Описание/)).toHaveValue('My unsaved text')
+    fireEvent.click(screen.getByRole('button', { name: 'Да, заменить ввод' }))
+    await waitFor(() => expect(screen.getByLabelText(/Описание/)).toHaveValue('Server value'))
+    fireEvent.click(screen.getByRole('button', { name: 'Убрать из дневника' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Да, убрать' }))
+    await waitFor(() => expect(remove).toHaveBeenCalledTimes(2))
+    expect(remove).toHaveBeenLastCalledWith(entry.id, 3)
+    expect(get).toHaveBeenCalledTimes(3)
+  })
+
+  it('shows current status after stale cancel without another cancel request', async () => {
+    const entry = entryFixture({ status: 'draft', revision: 2, submission_id: null })
+    const fresh = { ...entry, status: 'confirmed' as const, revision: 3 }
+    vi.spyOn(entriesApi, 'get').mockResolvedValueOnce(clone(entry)).mockResolvedValue(clone(fresh))
+    const cancel = vi.spyOn(entriesApi, 'cancel').mockRejectedValue(new ApiError({ code: 'INVALID_STATUS_TRANSITION', message: 'already confirmed', request_id: 'req_409' }, 409))
+    renderRoute(`/diary/${entry.id}`)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Не сохранять' }))
+    expect(await screen.findByText(/Действие больше недоступно/)).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Свежая серверная версия' })).toHaveTextContent('Статус: confirmed')
+    expect(cancel).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Не сохранять' })).toBeDisabled()
+  })
+
+  it('does not treat a lagging GET as the fresh version after 409', async () => {
+    const entry = entryFixture({ status: 'confirmed', revision: 2 })
+    const fresh = { ...entry, revision: 3 }
+    const get = vi.spyOn(entriesApi, 'get')
+      .mockResolvedValueOnce(clone(entry))
+      .mockResolvedValueOnce(clone(entry))
+      .mockResolvedValueOnce(clone(fresh))
+    const patch = vi.spyOn(entriesApi, 'patch').mockRejectedValue(new ApiError({ code: 'VERSION_CONFLICT', message: 'stale', request_id: 'req' }, 409))
+    renderRoute(`/diary/${entry.id}`)
+
+    fireEvent.change(await screen.findByLabelText(/Масса/), { target: { value: '150' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByText('Сервер пока не вернул новую версию. Повторите чтение.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Использовать серверную версию' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/Масса/)).toHaveValue('150')
+    expect(patch).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Перечитать серверную версию' }))
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(3))
+    expect(await screen.findByRole('button', { name: 'Использовать серверную версию' })).toBeInTheDocument()
+    expect(patch).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows deleted server status after stale DELETE and cannot delete it again', async () => {
+    const entry = entryFixture({ status: 'confirmed', revision: 2 })
+    const fresh = { ...entry, status: 'deleted' as const, revision: 3 }
+    vi.spyOn(entriesApi, 'get').mockResolvedValueOnce(clone(entry)).mockResolvedValue(clone(fresh))
+    const remove = vi.spyOn(entriesApi, 'delete').mockRejectedValue(new ApiError({ code: 'INVALID_STATUS_TRANSITION', message: 'already deleted', request_id: 'req' }, 409))
+    renderRoute(`/diary/${entry.id}`)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Убрать из дневника' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Да, убрать' }))
+    expect(await screen.findByRole('region', { name: 'Свежая серверная версия' })).toHaveTextContent('Статус: deleted')
+    expect(remove).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Использовать серверную версию' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Да, заменить ввод' }))
+    expect(await screen.findByText('Статус: deleted')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Убрать из дневника' })).not.toBeInTheDocument()
+    expect(remove).toHaveBeenCalledTimes(1)
+  })
+
+  it('revokes consent to replace input when a newer snapshot arrives before acceptance', async () => {
+    const entry = entryFixture({ status: 'confirmed', revision: 2 })
+    const fresh3 = entryFixture({ ...entry, revision: 3, payload: { description: 'Server N+1' } })
+    const fresh4 = entryFixture({ ...entry, revision: 4, payload: { description: 'Server N+2' } })
+    const get = vi.spyOn(entriesApi, 'get')
+      .mockResolvedValueOnce(clone(entry))
+      .mockResolvedValueOnce(clone(fresh3))
+      .mockResolvedValueOnce(clone(fresh4))
+    const patch = vi.spyOn(entriesApi, 'patch').mockRejectedValue(new ApiError({ code: 'VERSION_CONFLICT', message: 'stale', request_id: 'req' }, 409))
+    renderRoute(`/diary/${entry.id}`)
+
+    fireEvent.change(await screen.findByLabelText(/Описание/), { target: { value: 'My unsaved text' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByRole('region', { name: 'Свежая серверная версия' })).toHaveTextContent('Server N+1')
+    fireEvent.click(screen.getByRole('button', { name: 'Использовать серверную версию' }))
+    expect(screen.getByRole('button', { name: 'Да, заменить ввод' })).toBeInTheDocument()
+
+    fireEvent(window, new Event('blur'))
+    fireEvent(window, new Event('focus'))
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(3))
+    expect(await screen.findByRole('region', { name: 'Свежая серверная версия' })).toHaveTextContent('Server N+2')
+    expect(screen.queryByRole('button', { name: 'Да, заменить ввод' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/Описание/)).toHaveValue('My unsaved text')
+    expect(patch).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps draft input on confirm 409 without retrying confirmation', async () => {
+    const entry = entryFixture({ status: 'draft', revision: 2, submission_id: null })
+    const fresh = entryFixture({ ...entry, revision: 4, payload: { description: 'Bot changed it' } })
+    const get = vi.spyOn(entriesApi, 'get').mockResolvedValueOnce(clone(entry)).mockResolvedValue(clone(fresh))
+    const patch = vi.spyOn(entriesApi, 'patch').mockResolvedValue({ ...entry, revision: 3, payload: { description: 'My edited draft' } })
+    const confirm = vi.spyOn(entriesApi, 'confirm').mockRejectedValue(new ApiError({ code: 'VERSION_CONFLICT', message: 'stale', request_id: 'req' }, 409))
+    const refresh = vi.fn()
+    renderRoute(`/diary/${entry.id}`, refresh)
+
+    fireEvent.change(await screen.findByLabelText(/Описание/), { target: { value: 'My edited draft' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить' }))
+    expect(await screen.findByRole('region', { name: 'Свежая серверная версия' })).toHaveTextContent('Bot changed it')
+    expect(screen.getByLabelText(/Описание/)).toHaveValue('My edited draft')
+    expect(patch).toHaveBeenCalledTimes(1)
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(confirm).toHaveBeenCalledWith(entry.id, expect.objectContaining({ expected_revision: 3, submission_id: expect.any(String) }))
+    expect(get).toHaveBeenCalledTimes(2)
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Подтвердить' })).toBeDisabled()
+  })
+
+  it('does not accept a snapshot that changes during the verification GET', async () => {
+    const entry = entryFixture({ status: 'confirmed', revision: 2 })
+    const fresh3 = entryFixture({ ...entry, revision: 3, payload: { description: 'Server N+1' } })
+    const fresh4 = entryFixture({ ...entry, revision: 4, payload: { description: 'Server N+2' } })
+    let resolveVerification: (value: Entry) => void = () => undefined
+    const get = vi.spyOn(entriesApi, 'get')
+      .mockResolvedValueOnce(clone(entry))
+      .mockResolvedValueOnce(clone(fresh3))
+      .mockImplementationOnce(() => new Promise<Entry>((resolve) => { resolveVerification = resolve }))
+    const remove = vi.spyOn(entriesApi, 'delete').mockRejectedValue(new ApiError({ code: 'VERSION_CONFLICT', message: 'stale', request_id: 'req' }, 409))
+    renderRoute(`/diary/${entry.id}`)
+
+    fireEvent.change(await screen.findByLabelText(/Описание/), { target: { value: 'My unsaved text' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Убрать из дневника' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Да, убрать' }))
+    expect(await screen.findByRole('region', { name: 'Свежая серверная версия' })).toHaveTextContent('Server N+1')
+    fireEvent.click(screen.getByRole('button', { name: 'Использовать серверную версию' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Да, заменить ввод' }))
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(3))
+    expect(screen.getByLabelText(/Описание/)).toHaveValue('My unsaved text')
+    expect(screen.getByLabelText(/Описание/)).toBeDisabled()
+    await act(async () => resolveVerification(clone(fresh4)))
+    expect(screen.getByLabelText(/Описание/)).toHaveValue('My unsaved text')
+    expect(screen.getByRole('region', { name: 'Свежая серверная версия' })).toHaveTextContent('Server N+2')
+    expect(screen.queryByRole('button', { name: 'Да, заменить ввод' })).not.toBeInTheDocument()
+    expect(remove).toHaveBeenCalledTimes(1)
+  })
+
+  it('rereads after app focus without replacing unsaved form input', async () => {
+    const entry = entryFixture({ status: 'confirmed', revision: 1, payload: { description: 'Original', mass_g: 200 } })
+    const fresh = entryFixture({ ...entry, revision: 2, payload: { description: 'Server changed', mass_g: 175 } })
+    const get = vi.spyOn(entriesApi, 'get').mockResolvedValueOnce(clone(entry)).mockResolvedValue(clone(fresh))
+    const patch = vi.spyOn(entriesApi, 'patch')
+    renderRoute(`/diary/${entry.id}`)
+
+    fireEvent.change(await screen.findByLabelText(/Описание/), { target: { value: 'My unsaved text' } })
+    fireEvent(window, new Event('blur'))
+    fireEvent(window, new Event('focus'))
+
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
+    expect(await screen.findByRole('region', { name: 'Свежая серверная версия' })).toHaveTextContent('Server changed')
+    expect(screen.getByLabelText(/Описание/)).toHaveValue('My unsaved text')
+    expect(patch).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Сохранить' })).toBeDisabled()
+  })
+
+  it('does not create a conflict on lifecycle refresh with unchanged revision', async () => {
+    const entry = entryFixture({ status: 'confirmed', revision: 2 })
+    const get = vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    renderRoute(`/diary/${entry.id}`)
+    fireEvent.change(await screen.findByLabelText(/Описание/), { target: { value: 'Local draft text' } })
+    fireEvent(window, new Event('blur'))
+    fireEvent(window, new Event('focus'))
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
+    expect(screen.getByLabelText(/Описание/)).toHaveValue('Local draft text')
+    expect(screen.queryByRole('region', { name: 'Свежая серверная версия' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Сохранить' })).toBeEnabled()
+  })
+
+  it('ignores a stale lifecycle GET that finishes after a successful PATCH', async () => {
+    const entry = entryFixture({ status: 'confirmed', revision: 1 })
+    let resolveRefresh: (value: Entry) => void = () => undefined
+    vi.spyOn(entriesApi, 'get')
+      .mockResolvedValueOnce(clone(entry))
+      .mockImplementationOnce(() => new Promise<Entry>((resolve) => { resolveRefresh = resolve }))
+    vi.spyOn(entriesApi, 'patch').mockResolvedValue({ ...entry, revision: 2, payload: { ...entry.payload, mass_g: 150 } })
+    renderRoute(`/diary/${entry.id}`)
+
+    fireEvent.change(await screen.findByLabelText(/Масса/), { target: { value: '150' } })
+    fireEvent(window, new Event('blur'))
+    fireEvent(window, new Event('focus'))
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByText('Изменения сохранены.')).toBeInTheDocument()
+
+    await act(async () => resolveRefresh(clone(entry)))
+    expect(screen.getByLabelText(/Масса/)).toHaveValue('150')
+    expect(screen.queryByRole('region', { name: 'Свежая серверная версия' })).not.toBeInTheDocument()
+  })
+
+  it('does not apply an old DELETE response to another entry or leave it busy', async () => {
+    const first = entryFixture({ status: 'confirmed' })
+    const second = entryFixture({ id: '66666666-6666-4666-8666-666666666666', status: 'confirmed', payload: { description: 'Second entry' } })
+    let resolveDelete: (value: Entry) => void = () => undefined
+    vi.spyOn(entriesApi, 'get').mockImplementation(async (id) => clone(id === first.id ? first : second))
+    vi.spyOn(entriesApi, 'delete').mockImplementation(() => new Promise<Entry>((resolve) => { resolveDelete = resolve }))
+    const { router } = renderRoute(`/diary/${first.id}`)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Убрать из дневника' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Да, убрать' }))
+    await act(async () => { await router.navigate(`/diary/${second.id}`) })
+    expect(await screen.findByLabelText(/Описание/)).toHaveValue('Second entry')
+    await act(async () => resolveDelete({ ...first, status: 'deleted', revision: 2 }))
+    expect(screen.getByLabelText(/Описание/)).toHaveValue('Second entry')
+    expect(screen.getByRole('button', { name: 'Убрать из дневника' })).toBeEnabled()
+    expect(screen.queryByText('Запись убрана из дневника.')).not.toBeInTheDocument()
+  })
 })
 
-function renderRoute(path: string, onRefresh = vi.fn()) {
+function renderRoute(path: string, onRefresh = vi.fn(), withGate = false) {
   const router = createMemoryRouter(appRoutes, { initialEntries: [path] })
   const view = render(
     <AuthProvider>
       <RefreshProvider>
         <RefreshProbe onRefresh={onRefresh} />
-        <RouterProvider router={router} />
+        {withGate ? <AuthGate><RouterProvider router={router} /></AuthGate> : <RouterProvider router={router} />}
       </RefreshProvider>
     </AuthProvider>,
   )

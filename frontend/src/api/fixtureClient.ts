@@ -137,7 +137,11 @@ async get<TResponse>(path: string, options?: ApiRequestOptions) {
   async delete<TResponse>(path: string, options?: ApiRequestOptions) {
     const id = matchEntry(normalizePath(path)); if (!id) throw routeError('DELETE', path, 404)
     const entry = findEntry(id)
-    const revision = Number(String(new Headers(options?.headers).get('If-Match')).replaceAll('"', ''))
+    const ifMatch = new Headers(options?.headers).get('If-Match')
+    if (!ifMatch || !/^"[1-9][0-9]*"$/.test(ifMatch)) {
+      throw new ApiError({ code: 'VALIDATION_ERROR', message: 'If-Match must be a quoted revision', request_id: 'fixture-validation' }, 422)
+    }
+    const revision = Number(ifMatch.slice(1, -1))
     if (entry.status !== 'confirmed') throw invalidStatus(entry)
     checkRevision(entry, revision); entry.status = 'deleted'; bump(entry); return clone(entry) as TResponse
   },
