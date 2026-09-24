@@ -182,17 +182,18 @@ class AnalyticsFunctionsTest {
             null,
             null,
             null,
-            null
+            null,
+            (Basis) null
         );
-
+    
         assertTrue(sleepDate(sleep, WARSAW).isEmpty());
-
+    
         DailyResult result = dailyMetric(
             List.of(sleep),
             Metric.SLEEP_DURATION_MIN,
             WEEK
         );
-
+    
         assertTrue(result.values().isEmpty());
         assertNull(result.aggregate().total());
         assertNull(result.aggregate().average());
@@ -263,17 +264,17 @@ class AnalyticsFunctionsTest {
     void periodBoundariesAndWarsawMidnightAreHandledCorrectly() {
         Instant beforeWarsawDay = Instant.parse("2026-09-18T21:59:59Z");
         Instant atWarsawDay = Instant.parse("2026-09-18T22:00:00Z");
-
+    
         assertEquals(
             LocalDate.of(2026, 9, 18),
             localDate(beforeWarsawDay, WARSAW)
         );
-
+    
         assertEquals(
             LocalDate.of(2026, 9, 19),
             localDate(atWarsawDay, WARSAW)
         );
-
+    
         Entry before = new Entry(
             "before",
             "metrics",
@@ -289,9 +290,10 @@ class AnalyticsFunctionsTest {
             null,
             null,
             null,
-            null
+            null,
+            (Basis) null
         );
-
+    
         Entry atBoundary = new Entry(
             "at-boundary",
             "metrics",
@@ -307,21 +309,22 @@ class AnalyticsFunctionsTest {
             null,
             null,
             null,
-            null
+            null,
+            (Basis) null
         );
-
+    
         Period oneDay = new Period(
             LocalDate.of(2026, 9, 19),
             LocalDate.of(2026, 9, 19),
             WARSAW
         );
-
+    
         DailyResult result = dailyMetric(
             List.of(before, atBoundary),
             Metric.STEPS,
             oneDay
         );
-
+    
         assertEquals(d("200"), result.aggregate().total());
         assertEquals(1, result.aggregate().daysWithData());
     }
@@ -329,39 +332,114 @@ class AnalyticsFunctionsTest {
     @Test
     void checkinsKeepAllCategoriesAndDoNotFillGaps() {
         LocalDate date = LocalDate.of(2026, 9, 19);
-
+    
         List<Entry> entries = List.of(
-            new Entry("sleep-quality", "checkin", Status.CONFIRMED,
-                    Instant.parse("2026-09-19T08:00:00Z"), null, 1L,
-                    date, null, null, null, null,
-                    null, CheckinCategory.SLEEP_QUALITY, 4, null, null),
-
-            new Entry("digestion", "checkin", Status.CONFIRMED,
-                    Instant.parse("2026-09-19T09:00:00Z"), null, 1L,
-                    date, null, null, null, null,
-                    null, CheckinCategory.DIGESTION_COMFORT, 3, null, null),
-
-            new Entry("wellbeing", "checkin", Status.CONFIRMED,
-                    Instant.parse("2026-09-19T10:00:00Z"), null, 1L,
-                    date, null, null, null, null,
-                    null, CheckinCategory.WELLBEING, 5, null, null),
-
-            new Entry("mood", "checkin", Status.CONFIRMED,
-                    Instant.parse("2026-09-19T11:00:00Z"), null, 1L,
-                    date, null, null, null, null,
-                    null, CheckinCategory.MOOD, 2, null, null)
+            new Entry(
+                "sleep-quality",
+                "checkin",
+                Status.CONFIRMED,
+                Instant.parse("2026-09-19T08:00:00Z"),
+                null,
+                1L,
+                date,
+                null,
+                null,
+                null,
+                null,
+                CheckinCategory.SLEEP_QUALITY,
+                4,
+                null,
+                null,
+                (Basis) null
+            ),
+    
+            new Entry(
+                "digestion",
+                "checkin",
+                Status.CONFIRMED,
+                Instant.parse("2026-09-19T09:00:00Z"),
+                null,
+                1L,
+                date,
+                null,
+                null,
+                null,
+                null,
+                CheckinCategory.DIGESTION_COMFORT,
+                3,
+                null,
+                null,
+                (Basis) null
+            ),
+    
+            new Entry(
+                "wellbeing",
+                "checkin",
+                Status.CONFIRMED,
+                Instant.parse("2026-09-19T10:00:00Z"),
+                null,
+                1L,
+                date,
+                null,
+                null,
+                null,
+                null,
+                CheckinCategory.WELLBEING,
+                5,
+                null,
+                null,
+                (Basis) null
+            ),
+    
+            new Entry(
+                "mood",
+                "checkin",
+                Status.CONFIRMED,
+                Instant.parse("2026-09-19T11:00:00Z"),
+                null,
+                1L,
+                date,
+                null,
+                null,
+                null,
+                null,
+                CheckinCategory.MOOD,
+                2,
+                null,
+                null,
+                (Basis) null
+            )
         );
-
+    
         Map<CheckinCategory, List<RatingPoint>> result =
             checkins(entries, WEEK);
-
+    
         assertEquals(4, result.size());
-        assertEquals(4, result.get(CheckinCategory.SLEEP_QUALITY).get(0).value());
-        assertEquals(3, result.get(CheckinCategory.DIGESTION_COMFORT).get(0).value());
-        assertEquals(5, result.get(CheckinCategory.WELLBEING).get(0).value());
-        assertEquals(2, result.get(CheckinCategory.MOOD).get(0).value());
+        assertEquals(
+            4,
+            result.get(CheckinCategory.SLEEP_QUALITY)
+                .get(0)
+                .value()
+        );
+        assertEquals(
+            3,
+            result.get(CheckinCategory.DIGESTION_COMFORT)
+                .get(0)
+                .value()
+        );
+        assertEquals(
+            5,
+            result.get(CheckinCategory.WELLBEING)
+                .get(0)
+                .value()
+        );
+        assertEquals(
+            2,
+            result.get(CheckinCategory.MOOD)
+                .get(0)
+                .value()
+        );
     }
-
     @Test
     void portionFactorScalesMassRelativeTo100Grams() {
         assertEquals(d("2"), portionFactor(d("200")));
@@ -373,7 +451,7 @@ class AnalyticsFunctionsTest {
     void checkinsAreIndependentOfInputOrderAndUseDeterministicTieBreak() {
         Instant occurredAt = Instant.parse("2026-09-19T10:00:00Z");
         Instant updatedAt = Instant.parse("2026-09-19T10:05:00Z");
-
+    
         Entry first = new Entry(
             "a",
             "checkin",
@@ -386,13 +464,13 @@ class AnalyticsFunctionsTest {
             null,
             null,
             null,
-            null,
             CheckinCategory.MOOD,
             2,
             null,
-            null
+            null,
+            (Basis) null
         );
-
+    
         Entry second = new Entry(
             "b",
             "checkin",
@@ -405,24 +483,24 @@ class AnalyticsFunctionsTest {
             null,
             null,
             null,
-            null,
             CheckinCategory.MOOD,
             5,
             null,
-            null
+            null,
+            (Basis) null
         );
-
+    
         Map<CheckinCategory, List<RatingPoint>> forward =
             checkins(List.of(first, second), WEEK);
-
+    
         Map<CheckinCategory, List<RatingPoint>> reverse =
             checkins(List.of(second, first), WEEK);
-
+    
         assertEquals(forward, reverse);
-
+    
         RatingPoint selected =
             forward.get(CheckinCategory.MOOD).get(0);
-
+    
         assertEquals("b", selected.entryId());
         assertEquals(5, selected.value());
     }
@@ -444,15 +522,16 @@ class AnalyticsFunctionsTest {
             null,
             null,
             null,
-            null
+            null,
+            (Basis) null
         );
-
+    
         DailyResult result = dailyMetric(
             List.of(invalidMeal),
             Metric.STEPS,
             WEEK
         );
-
+    
         assertTrue(result.values().isEmpty());
         assertNull(result.aggregate().total());
         assertNull(result.aggregate().average());
@@ -476,14 +555,15 @@ class AnalyticsFunctionsTest {
             CheckinCategory.MOOD,
             5,
             null,
-            null
+            null,
+            (Basis) null
         );
-
+    
         Optional<HeartRateResult> result = latestHeartRate(
             List.of(invalidCheckin),
             WEEK
         );
-
+    
         assertTrue(result.isEmpty());
     }
 
@@ -504,14 +584,13 @@ class AnalyticsFunctionsTest {
             CheckinCategory.MOOD,
             5,
             null,
-            null
+            null,
+            (Basis) null
         );
-
-        Map<CheckinCategory, List<RatingPoint>> result = checkins(
-            List.of(invalidMetrics),
-            WEEK
-        );
-
+    
+        Map<CheckinCategory, List<RatingPoint>> result =
+            checkins(List.of(invalidMetrics), WEEK);
+    
         assertTrue(result.isEmpty());
     }
 
@@ -532,14 +611,13 @@ class AnalyticsFunctionsTest {
             CheckinCategory.MOOD,
             5,
             d("100"),
+            null,
             Basis.PER_100G
         );
-
-        Map<CheckinCategory, List<RatingPoint>> result = checkins(
-            List.of(invalidMeal),
-            WEEK
-        );
-
+    
+        Map<CheckinCategory, List<RatingPoint>> result =
+            checkins(List.of(invalidMeal), WEEK);
+    
         assertTrue(result.isEmpty());
     }
 
@@ -592,7 +670,8 @@ class AnalyticsFunctionsTest {
             null,
             null,
             null,
-            null
+            null,
+            (Basis) null
         );
 
         Entry secondSteps = new Entry(
@@ -610,7 +689,8 @@ class AnalyticsFunctionsTest {
             null,
             null,
             null,
-            null
+            null,
+            (Basis) null
         );
 
         Entry firstSleep = new Entry(
@@ -628,7 +708,8 @@ class AnalyticsFunctionsTest {
             null,
             null,
             null,
-            null
+            null,
+            (Basis) null
         );
 
         Entry secondSleep = new Entry(
@@ -646,7 +727,8 @@ class AnalyticsFunctionsTest {
             null,
             null,
             null,
-            null
+            null,
+            (Basis) null
         );
     
         List<Entry> entries = List.of(
@@ -787,22 +869,23 @@ class AnalyticsFunctionsTest {
     @Test
     void be301GapsFixtureKeepsMissingDaysMissing() {
         Entry sleep = new Entry(
-            "sleep-day-one",
-            "metrics",
-            Status.CONFIRMED,
-            Instant.parse("2026-09-14T07:00:00Z"),
-            null,
-            1L,
-            null,
-            LocalDate.of(2026, 9, 14),
-            Metric.SLEEP_DURATION_MIN,
-            d("420"),
-            null,
-            null,
-            null,
-            null,
-            null
-        );
+        "sleep-day-one",
+        "metrics",
+        Status.CONFIRMED,
+        Instant.parse("2026-09-14T07:00:00Z"),
+        null,
+        1L,
+        null,
+        LocalDate.of(2026, 9, 14),
+        Metric.SLEEP_DURATION_MIN,
+        d("420"),
+        null,
+        null,
+        null,
+        null,
+        null,
+        (Basis) null
+    );
 
         DailyResult result = dailyMetric(
             List.of(sleep),
