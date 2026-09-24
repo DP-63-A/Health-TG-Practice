@@ -33,6 +33,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -176,6 +177,20 @@ class CoreStorageIntegrationTest {
                 Map.of("description", "meal", "mass_g", -1), Map.of(), null,
                 new TelegramUpdateKey("main", 26));
         assertThrows(IllegalArgumentException.class, () -> entries.createDraft(negativeMeal));
+
+        Map<String, Object> nullBasisPayload = new LinkedHashMap<>();
+        nullBasisPayload.put("description", "meal");
+        nullBasisPayload.put("nutrients_basis", null);
+        CreateDraftCommand nullBasis = new CreateDraftCommand(secondOwner, EntryType.MEAL, SourceKind.TEXT,
+                Map.of(), Instant.parse("2026-09-23T08:00:00Z"), nullBasisPayload, Map.of(), null,
+                new TelegramUpdateKey("main", 27));
+        assertThrows(IllegalArgumentException.class, () -> entries.createDraft(nullBasis));
+
+        OwnerContext thirdOwner = new OwnerContext(UUID.randomUUID());
+        CreateDraftCommand omittedBasis = new CreateDraftCommand(thirdOwner, EntryType.MEAL, SourceKind.TEXT,
+                Map.of(), Instant.parse("2026-09-23T08:00:00Z"), Map.of("description", "meal"), Map.of(), null,
+                new TelegramUpdateKey("main", 28));
+        assertFalse(entries.createDraft(omittedBasis).entry().payload().containsKey("nutrients_basis"));
     }
 
     @Test
@@ -223,6 +238,33 @@ class CoreStorageIntegrationTest {
         assertEquals(completed, repeatedOld);
         assertEquals("completed", dialogs.find(owner).orElseThrow().step());
         assertEquals(2, dialogs.find(owner).orElseThrow().revision());
+    }
+
+    @Test
+    void legacyDialogStateRejectsOlderUpdateAndMigratesHighWaterMark() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        mongoTemplate.getCollection("dialog_states").insertOne(new org.bson.Document()
+                .append("_id", owner.userId().toString())
+                .append("activeEntryId", null)
+                .append("step", "completed")
+                .append("context", new org.bson.Document())
+                .append("revision", 2L)
+                .append("updatedAt", java.util.Date.from(Instant.parse("2026-09-23T08:00:00Z")))
+                .append("telegramUpdateKey", "review:202")
+                .append("mongoVersion", 0L));
+
+        DialogState repeatedOld = dialogs.save(new SaveDialogStateCommand(owner, null, "awaiting_score", Map.of(),
+                new TelegramUpdateKey("review", 201)));
+        assertEquals("completed", repeatedOld.step());
+        assertEquals(2, repeatedOld.revision());
+
+        DialogState advanced = dialogs.save(new SaveDialogStateCommand(owner, null, "next", Map.of(),
+                new TelegramUpdateKey("review", 203)));
+        assertEquals("next", advanced.step());
+        assertEquals(3, advanced.revision());
+        assertEquals(203L, mongoTemplate.getCollection("dialog_states")
+                .find(new org.bson.Document("_id", owner.userId().toString()))
+                .first().get("processedUpdateIds", org.bson.Document.class).getLong("review"));
     }
 
     @Test
@@ -276,15 +318,14 @@ class CoreStorageIntegrationTest {
                 Instant.parse("2026-09-19T09:00:00Z"), Map.of("text", "cancelled")));
         entryStore.save(stored(owner, EntryStatus.DELETED, EntryType.NOTE, "deleted-506",
                 Instant.parse("2026-09-19T10:00:00Z"), Map.of("text", "deleted")));
-        Entry metricByLocalDate = entryStore.save(stored(owner, EntryStatus.CONFIRMED, EntryType.METRICS,
+        entryStore.save(stored(owner, EntryStatus.CONFIRMED, EntryType.METRICS,
                 "metric-507", Instant.parse("2026-09-10T10:00:00Z"),
                 Map.of("code", "steps", "value", 3000, "unit", "count", "local_date", "2026-09-19")));
 
         List<Entry> allTypes = entries.listConfirmedEntries(new ListConfirmedEntriesQuery(owner,
                 LocalDate.of(2026, 9, 19), LocalDate.of(2026, 9, 19), warsaw, Set.of()));
 
-        assertEquals(List.of(metricByLocalDate.id(), boundary.id()),
-                allTypes.stream().map(Entry::id).toList());
+        assertEquals(List.of(boundary.id()), allTypes.stream().map(Entry::id).toList());
         assertTrue(allTypes.stream().allMatch(entry -> entry.ownerId().equals(owner.userId())));
         assertTrue(allTypes.stream().allMatch(entry -> entry.status() == EntryStatus.CONFIRMED));
 

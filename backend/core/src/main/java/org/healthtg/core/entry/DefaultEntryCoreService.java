@@ -113,9 +113,6 @@ class DefaultEntryCoreService implements EntryCoreService {
     }
 
     private static LocalDate localDate(Entry entry, ListConfirmedEntriesQuery query) {
-        Object payloadDate = entry.payload().get("local_date");
-        if (payloadDate instanceof LocalDate date) return date;
-        if (payloadDate instanceof String date) return LocalDate.parse(date);
         return entry.occurredAt().atZone(query.timezone()).toLocalDate();
     }
 

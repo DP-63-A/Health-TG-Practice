@@ -21,9 +21,9 @@ Draft callers may additionally supply a stable `submissionId` for idempotency ac
 
 BE3 consumers pass trusted owner context, inclusive `from`/`to` dates, an explicit IANA timezone and
 an optional set of entry types. The service returns only that owner's `confirmed` entries. Draft,
-cancelled and deleted entries are excluded at the storage boundary. A payload `local_date`, when
-present, is authoritative; otherwise `occurredAt` is converted from UTC with the requested timezone.
-Results are ordered by occurrence time and entry id.
+cancelled and deleted entries are excluded at the storage boundary. Period membership is calculated
+from `occurredAt` in the requested timezone; payload `local_date` does not override that rule. Results
+are ordered by occurrence time and entry id.
 
 ## Errors
 

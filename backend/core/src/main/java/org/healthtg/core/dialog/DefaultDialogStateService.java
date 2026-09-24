@@ -14,6 +14,7 @@ import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -46,8 +47,7 @@ class DefaultDialogStateService implements DialogStateService {
             long revision = current.map(value -> value.revision() + 1).orElse(1L);
             Long mongoVersion = current.map(MongoDialogStateDocument::mongoVersion).orElse(null);
             Map<String, Long> processedUpdateIds = current
-                    .map(MongoDialogStateDocument::processedUpdateIds)
-                    .map(HashMap::new)
+                    .map(DefaultDialogStateService::processedUpdateIds)
                     .orElseGet(HashMap::new);
             processedUpdateIds.merge(command.updateKey().botKey(), command.updateKey().updateId(), Math::max);
 
@@ -80,12 +80,27 @@ class DefaultDialogStateService implements DialogStateService {
     }
 
     private static boolean alreadyProcessed(MongoDialogStateDocument state, SaveDialogStateCommand command) {
-        Map<String, Long> processed = state.processedUpdateIds();
-        if (processed != null) {
-            Long highest = processed.get(command.updateKey().botKey());
-            if (highest != null) return command.updateKey().updateId() <= highest;
+        Long highest = processedUpdateIds(state).get(command.updateKey().botKey());
+        if (highest != null) return command.updateKey().updateId() <= highest;
+        return Objects.equals(state.telegramUpdateKey(), command.updateKey().storageKey());
+    }
+
+    private static Map<String, Long> processedUpdateIds(MongoDialogStateDocument state) {
+        Map<String, Long> processed = state.processedUpdateIds() == null
+                ? new HashMap<>()
+                : new HashMap<>(state.processedUpdateIds());
+        String legacyKey = state.telegramUpdateKey();
+        int separator = legacyKey == null ? -1 : legacyKey.lastIndexOf(':');
+        if (separator > 0 && separator < legacyKey.length() - 1) {
+            try {
+                String botKey = legacyKey.substring(0, separator);
+                long updateId = Long.parseLong(legacyKey.substring(separator + 1));
+                processed.merge(botKey, updateId, Math::max);
+            } catch (NumberFormatException ignored) {
+                // Exact-key comparison in alreadyProcessed still handles malformed legacy keys.
+            }
         }
-        return state.telegramUpdateKey().equals(command.updateKey().storageKey());
+        return processed;
     }
 
     private static DialogState toDomain(MongoDialogStateDocument document) {
