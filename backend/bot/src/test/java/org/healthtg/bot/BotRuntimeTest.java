@@ -150,7 +150,9 @@ class BotRuntimeTest {
         try (var runtime = runtime()) {
             runtime.start(); assertTrue(delivered.await(8, TimeUnit.SECONDS));
             assertTrue(runtime.isRunning());
-            assertEquals(List.of(0, 0), offsets.subList(0, 2));
+            assertTrue(offsets.size() >= 2);
+            assertEquals(0, offsets.get(0));
+            assertEquals(0, offsets.get(1));
             verify(client).execute(any(SendMessage.class));
         }
         assertEquals(1, closed.get());
