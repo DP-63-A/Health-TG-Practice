@@ -40,16 +40,16 @@ class AnalyticsFunctionsTest {
     @Test void dailyTotalsDeduplicateAndTieBreak() {
         Instant occurred = Instant.parse("2026-09-19T10:00:00Z");
         Entry old = new Entry("a", "metrics", Status.CONFIRMED, occurred, Instant.parse("2026-09-19T10:01:00Z"), 1L,
-                null, null, Metric.STEPS, d("3000"), null, null, null, null, null);
+                null, null, Metric.STEPS, d("3000"), null, null, null, null, null, Basis (null));
         Entry latest = new Entry("b", "metrics", Status.CONFIRMED, occurred, Instant.parse("2026-09-19T10:02:00Z"), 2L,
-                null, null, Metric.STEPS, d("5000"), null, null, null, null, null);
+                null, null, Metric.STEPS, d("5000"), null, null, null, null, null, (Basis) null);
         DailyResult result = dailyMetric(List.of(latest, old), Metric.STEPS, WEEK);
         assertEquals(d("5000"), result.aggregate().total()); assertEquals(1, result.aggregate().daysWithData());
     }
 
     @Test void sleepUsesWakeDateAndAverageUsesDaysWithData() {
         Entry sleep = new Entry("sleep", "metrics", Status.CONFIRMED, Instant.parse("2026-09-18T22:30:00Z"), null, 1L,
-                null, LocalDate.of(2026,9,19), Metric.SLEEP_DURATION_MIN, d("420"), null, null, null, null, null);
+                null, LocalDate.of(2026,9,19), Metric.SLEEP_DURATION_MIN, d("420"), null, null, null, null, null, Basis (null));
         DailyResult result = dailyMetric(List.of(sleep), Metric.SLEEP_DURATION_MIN, WEEK);
         assertEquals(d("420"), result.values().get(LocalDate.of(2026,9,19)));
         assertEquals(d("420"), result.aggregate().average()); assertEquals(1, result.aggregate().daysWithData());
@@ -58,7 +58,7 @@ class AnalyticsFunctionsTest {
     @Test void timezoneAndHeartRateContextArePreserved() {
         assertEquals(LocalDate.of(2026,9,19), localDate(Instant.parse("2026-09-18T22:30:00Z"), WARSAW));
         Entry pulse = new Entry("pulse", "metrics", Status.CONFIRMED, Instant.parse("2026-09-19T10:15:00Z"), null, 1L,
-                null, null, Metric.HEART_RATE, d("72"), Qualifier.RESTING, null, null, null, null);
+                null, null, Metric.HEART_RATE, d("72"), Qualifier.RESTING, null, null, null, null, Basis (null));
         assertEquals(Qualifier.RESTING, latestHeartRate(List.of(pulse), WEEK).orElseThrow().qualifier());
     }
 
