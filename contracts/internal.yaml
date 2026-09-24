@@ -187,7 +187,7 @@ components:
     ListConfirmedRequest:
       type: object
       additionalProperties: false
-      required: [owner, from, to]
+      required: [owner, from, to, timezone]
       properties:
         owner:
           $ref: "#/components/schemas/OwnerContext"
@@ -197,6 +197,11 @@ components:
         to:
           type: string
           format: date
+        timezone:
+          type: string
+          minLength: 1
+          example: Europe/Warsaw
+          description: IANA timezone used to interpret the inclusive local dates from and to.
         types:
           type: array
           items:

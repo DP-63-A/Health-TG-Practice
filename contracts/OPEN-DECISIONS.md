@@ -2,6 +2,10 @@
 
 Статус: **PROPOSED** — ждут согласования FE1 / BE2 / BE3. Пока потребитель не подтвердил, значения ниже нельзя считать принятыми.
 
+## Принятые части решений
+
+- **D9 / timezone — ACCEPTED 2026-09-21 (BE1, FE2):** `timezone` является необязательным query-параметром `GET /analytics`; при отсутствии сервер использует `Europe/Warsaw`. FE2 передаёт timezone явно. Подтверждение получено в обсуждении команды; финальная схема ответа `/analytics` остаётся `PROPOSED` до завершения review BE3-01.
+
 Фиксированные ТЗ (не обсуждаются): `Europe/Warsaw` по умолчанию; initData ≤ 15 мин; сессия 60 мин; статусы `draft|confirmed|cancelled|deleted`; типы `meal|metrics|checkin|note`; источники `text|food_photo|health_screenshot|watch_photo|quick_checkin|seed`; origins `reported|extracted|estimated|computed`; префикс `/api/v1`; без публичного create entry.
 
 | # | Вопрос | Вариант A (черновик контракта) | Вариант B | Согласовать с |

@@ -1,25 +1,12 @@
-plugins {
-    java
-    id("org.springframework.boot") version "3.5.6"
+// Backend groups two independent applications; it has no Java sources or runtime.
+plugins { base }
+
+tasks.named("check") {
+    dependsOn(":backend:api:check", ":backend:bot:check")
 }
-
-group = "org.healthtg"
-version = "0.1.0"
-
-java { toolchain { languageVersion.set(JavaLanguageVersion.of(21)) } }
-repositories { mavenCentral() }
-
-dependencies {
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:3.5.6"))
-    implementation("org.springframework.boot:spring-boot-starter")
-    implementation("org.telegram:telegrambots-client:9.2.0")
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+tasks.named("assemble") {
+    dependsOn(":backend:api:assemble", ":backend:bot:assemble")
 }
-
-tasks.withType<JavaCompile>().configureEach {
-    options.encoding = "UTF-8"
-    options.release.set(21)
+tasks.named("clean") {
+    dependsOn(":backend:api:clean", ":backend:bot:clean")
 }
-tasks.test { useJUnitPlatform() }
-springBoot { mainClass.set("org.healthtg.bot.BotApplication") }

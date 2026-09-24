@@ -85,6 +85,26 @@
       }
     },
     {
+      "if": {
+        "properties": {
+          "type": { "const": "metrics" },
+          "status": { "const": "confirmed" }
+        },
+        "required": ["type", "status"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": ["unit", "local_date"],
+            "properties": {
+              "unit": { "type": "string", "minLength": 1 },
+              "local_date": { "$ref": "common.json#/$defs/LocalDate" }
+            }
+          }
+        }
+      }
+    },
+    {
       "if": { "properties": { "type": { "const": "checkin" } }, "required": ["type"] },
       "then": {
         "properties": {
