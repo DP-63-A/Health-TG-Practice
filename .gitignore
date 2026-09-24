@@ -1,6 +1,9 @@
 .gradle/
 **/build/
 **/bin/
+.env
+.env.local
+.env.*.local
 !gradle/wrapper/gradle-wrapper.jar
 
 # Local configuration and secrets

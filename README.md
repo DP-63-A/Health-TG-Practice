@@ -11,7 +11,7 @@
 | Бот | Spring Boot 3.5.6, TelegramBots 9.2.0 | Отдельный запуск, long polling, закрытый доступ, команды и кнопки; сохранение отметок пока не реализовано |
 | Миграции | Liquibase | Входит в согласованный стек, пока не подключён |
 | Frontend | React, TypeScript, Vite | Реализованы страницы дневника, записи и обзора; API-клиент поддерживает fixture и live, сборка через npm |
-| Окружение | Docker Compose, GitHub Actions | Полная конфигурация пока не добавлена |
+| Окружение | Docker Compose, GitHub Actions | Compose для локальной MongoDB и API readiness реализованы; полный Compose-стек и CI ещё не добавлены |
 
 В репозитории также находятся OpenAPI, JSON-схемы, примеры и Java-инструмент проверки контрактов.
 Наличие контрактов и тестовых данных само по себе не подтверждает работу полного HTTP API.
@@ -71,6 +71,7 @@ JSON-схемы и примеры. MongoDB-интеграционные тест
 ## Документация
 
 - [Структура репозитория](docs/repository-layout.md)
+- [Локальная MongoDB и запуск API](docs/local-environment.md)
 - [Рабочий процесс](WORKFLOW.md)
 - [Зависимости задач](DEPENDENCIES.md)
 - [Проектные решения](DECISIONS.md)

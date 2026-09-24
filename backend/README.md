@@ -4,7 +4,7 @@ Backend состоит из двух отдельных приложений о�
 
 | Модуль | Назначение | Инструкция |
 |---|---|---|
-| `:backend:api` | HTTP API: Telegram-аутентификация, сессии, `/api/v1/me`, проверка владельца и MongoDB persistence | [API](api/README.md) |
+| `:backend:api` | HTTP API: Telegram-аутентификация, сессии, `/api/v1/me`, проверка владельца, MongoDB persistence и readiness `/api/v1/healthz` | [API](api/README.md) |
 | `:backend:bot` | Telegram-бот: long polling, закрытый доступ, `/start`, `/state`, кнопки | [Бот](bot/README.md) |
 
 У каждого приложения свои зависимости, `application.properties`, запускаемый JAR и процесс.
@@ -39,7 +39,10 @@ MongoDB-интеграционные тесты API требуют Docker; те�
 ```
 
 API требует доступную MongoDB; бот — токен и список разрешённых пользователей. Настройки и
-границы каждой реализации описаны по ссылкам выше. Файлы `.env` автоматически не читаются.
+границы каждой реализации описаны по ссылкам выше. Прямой запуск через Gradle, JAR или IDEA
+не читает `.env` автоматически. Для API скрипт `scripts/run-backend.ps1` явно загружает этот
+файл и запускает только `:backend:api:bootRun`. См. [локальное окружение](../docs/local-environment.md):
+Compose запускает MongoDB, `/api/v1/healthz` проверяет её доступность из API.
 Для одного и того же Telegram-бота задавайте обоим приложениям одинаковые токен и allowlist.
 
 После обновления структуры выполните Reload All Gradle Projects в IDEA. Для существующей
