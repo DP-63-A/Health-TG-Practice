@@ -7,9 +7,12 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static com.health.analytics.AnalyticsFunctions.*;
 import static org.junit.jupiter.api.Assertions.*;
+
 
 class AnalyticsFunctionsTest {
     private static final ZoneId WARSAW = ZoneId.of("Europe/Warsaw");
@@ -422,5 +425,398 @@ class AnalyticsFunctionsTest {
 
         assertEquals("b", selected.entryId());
         assertEquals(5, selected.value());
+    }
+
+    @Test
+    void dailyMetricIgnoresMealWithMetricField() {
+        Entry invalidMeal = new Entry(
+            "invalid-meal-metrics",
+            "meal",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-19T10:00:00Z"),
+            Instant.parse("2026-09-19T10:01:00Z"),
+            1L,
+            LocalDate.of(2026, 9, 19),
+            null,
+            Metric.STEPS,
+            d("9999"),
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+
+        DailyResult result = dailyMetric(
+            List.of(invalidMeal),
+            Metric.STEPS,
+            WEEK
+        );
+
+        assertTrue(result.values().isEmpty());
+        assertNull(result.aggregate().total());
+        assertNull(result.aggregate().average());
+        assertEquals(0, result.aggregate().daysWithData());
+    }
+
+    @Test
+    void latestHeartRateIgnoresCheckinWithHeartRateMetric() {
+        Entry invalidCheckin = new Entry(
+            "invalid-checkin-heart-rate",
+            "checkin",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-19T10:00:00Z"),
+            Instant.parse("2026-09-19T10:01:00Z"),
+            1L,
+            LocalDate.of(2026, 9, 19),
+            null,
+            Metric.HEART_RATE,
+            d("220"),
+            Qualifier.RESTING,
+            CheckinCategory.MOOD,
+            5,
+            null,
+            null
+        );
+
+        Optional<HeartRateResult> result = latestHeartRate(
+            List.of(invalidCheckin),
+            WEEK
+        );
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void checkinsIgnoreMetricsWithCheckinFields() {
+        Entry invalidMetrics = new Entry(
+            "invalid-metrics-checkin",
+            "metrics",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-19T10:00:00Z"),
+            Instant.parse("2026-09-19T10:01:00Z"),
+            1L,
+            LocalDate.of(2026, 9, 19),
+            null,
+            null,
+            null,
+            null,
+            CheckinCategory.MOOD,
+            5,
+            null,
+            null
+        );
+
+        Map<CheckinCategory, List<RatingPoint>> result = checkins(
+            List.of(invalidMetrics),
+            WEEK
+        );
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void checkinsIgnoreMealWithCheckinFields() {
+        Entry invalidMeal = new Entry(
+            "invalid-meal-checkin",
+            "meal",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-19T10:00:00Z"),
+            Instant.parse("2026-09-19T10:01:00Z"),
+            1L,
+            LocalDate.of(2026, 9, 19),
+            null,
+            null,
+            null,
+            null,
+            CheckinCategory.MOOD,
+            5,
+            d("100"),
+            Basis.PER_100G
+        );
+
+        Map<CheckinCategory, List<RatingPoint>> result = checkins(
+            List.of(invalidMeal),
+            WEEK
+        );
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void be301NormalFixtureProduces930Calories5000StepsAnd900SleepMinutes() {
+        Nutrients firstMealNutrients = new Nutrients(
+            d("600"),
+            d("30"),
+            d("20"),
+            d("70")
+        );
+
+        Nutrients secondMealNutrients = new Nutrients(
+            d("165"),
+            d("10"),
+            d("5"),
+            d("20")
+        );
+
+        Entry firstMeal = Entry.meal(
+            "22222222-2222-4222-8222-222222222210",
+            Status.CONFIRMED,
+            LocalDate.of(2026, 9, 19),
+            null,
+            firstMealNutrients,
+            Basis.PER_SERVING
+        );
+
+        Entry secondMeal = Entry.meal(
+            "22222222-2222-4222-8222-222222222211",
+            Status.CONFIRMED,
+            LocalDate.of(2026, 9, 19),
+            d("200"),
+            secondMealNutrients,
+            Basis.PER_100G
+        );
+
+        Entry firstSteps = new Entry(
+            "22222222-2222-4222-8222-222222222214",
+            "metrics",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-19T10:00:00Z"),
+            Instant.parse("2026-09-19T10:01:00Z"),
+            1L,
+            null,
+            null,
+            Metric.STEPS,
+            d("3000"),
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+
+        Entry secondSteps = new Entry(
+            "22222222-2222-4222-8222-222222222215",
+            "metrics",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-19T18:00:00Z"),
+            Instant.parse("2026-09-19T18:01:00Z"),
+            2L,
+            null,
+            null,
+            Metric.STEPS,
+            d("5000"),
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+
+        Entry firstSleep = new Entry(
+            "22222222-2222-4222-8222-222222222216",
+            "metrics",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-14T07:00:00Z"),
+            null,
+            1L,
+            null,
+            LocalDate.of(2026, 9, 14),
+            Metric.SLEEP_DURATION_MIN,
+            d("420"),
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+
+        Entry secondSleep = new Entry(
+            "22222222-2222-4222-8222-222222222217",
+            "metrics",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-16T07:00:00Z"),
+            null,
+            1L,
+            null,
+            LocalDate.of(2026, 9, 16),
+            Metric.SLEEP_DURATION_MIN,
+            d("480"),
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+    
+        List<Entry> entries = List.of(
+            firstMeal,
+            secondMeal,
+            firstSteps,
+            secondSteps,
+            firstSleep,
+            secondSleep
+        );
+
+        NutritionResult nutritionResult = nutrition(entries, WEEK);
+
+        assertEquals(d("930"), nutritionResult.energyKcal());
+        assertEquals(2, nutritionResult.countedMeals());
+        assertFalse(nutritionResult.incomplete());
+
+        DailyResult stepsResult = dailyMetric(
+            entries,
+            Metric.STEPS,
+            WEEK
+        );
+    
+        assertEquals(d("5000"), stepsResult.aggregate().total());
+        assertEquals(d("5000"), stepsResult.aggregate().average());
+        assertEquals(1, stepsResult.aggregate().daysWithData());
+
+        DailyResult sleepResult = dailyMetric(
+            entries,
+            Metric.SLEEP_DURATION_MIN,
+            WEEK
+        );
+
+        assertEquals(d("900"), sleepResult.aggregate().total());
+        assertEquals(d("450"), sleepResult.aggregate().average());
+        assertEquals(2, sleepResult.aggregate().daysWithData());
+    }
+
+    @Test
+    void be301MassChangedFixtureProduces847Point5Calories() {
+        Nutrients firstMealNutrients = new Nutrients(
+            d("600"),
+            d("30"),
+            d("20"),
+            d("70")
+        );
+
+        Nutrients changedMealNutrients = new Nutrients(
+            d("165"),
+            d("10"),
+            d("5"),
+            d("20")
+        );
+    
+        Entry firstMeal = Entry.meal(
+            "first-meal",
+            Status.CONFIRMED,
+            LocalDate.of(2026, 9, 19),
+            null,
+            firstMealNutrients,
+            Basis.PER_SERVING
+        );
+
+        Entry changedMeal = Entry.meal(
+            "changed-meal",
+            Status.CONFIRMED,
+            LocalDate.of(2026, 9, 19),
+            d("150"),
+            changedMealNutrients,
+            Basis.PER_100G
+        );
+
+        NutritionResult result = nutrition(
+            List.of(firstMeal, changedMeal),
+            WEEK
+        );
+
+        assertEquals(d("847.5"), result.energyKcal());
+        assertEquals(2, result.countedMeals());
+        assertFalse(result.incomplete());
+    }
+
+    @Test
+    void be301FilteredFixtureIgnoresCancelledDeletedAndDraftEntries() {
+        Nutrients nutrients = new Nutrients(
+            d("600"),
+            d("30"),
+            d("20"),
+            d("70")
+        );
+
+        Entry confirmed = Entry.meal(
+            "confirmed",
+            Status.CONFIRMED,
+            LocalDate.of(2026, 9, 19),
+            null,
+            nutrients,
+            Basis.PER_SERVING
+        );
+
+        Entry cancelled = Entry.meal(
+            "cancelled",
+            Status.CANCELLED,
+            LocalDate.of(2026, 9, 19),
+            null,
+            new Nutrients(d("999"), d("999"), d("999"), d("999")),
+            Basis.PER_SERVING
+        );
+
+        Entry deleted = Entry.meal(
+            "deleted",
+            Status.DELETED,
+            LocalDate.of(2026, 9, 19),
+            null,
+            new Nutrients(d("999"), d("999"), d("999"), d("999")),
+            Basis.PER_SERVING
+        );
+
+        Entry draft = Entry.meal(
+            "draft",
+            Status.DRAFT,
+            LocalDate.of(2026, 9, 19),
+            null,
+            new Nutrients(d("999"), d("999"), d("999"), d("999")),
+            Basis.PER_SERVING
+        );
+
+        NutritionResult result = nutrition(
+            List.of(confirmed, cancelled, deleted, draft),
+            WEEK
+        );
+
+        assertEquals(d("600"), result.energyKcal());
+        assertEquals(1, result.countedMeals());
+        assertFalse(result.incomplete());
+    }
+
+    @Test
+    void be301GapsFixtureKeepsMissingDaysMissing() {
+        Entry sleep = new Entry(
+            "sleep-day-one",
+            "metrics",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-14T07:00:00Z"),
+            null,
+            1L,
+            null,
+            LocalDate.of(2026, 9, 14),
+            Metric.SLEEP_DURATION_MIN,
+            d("420"),
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+
+        DailyResult result = dailyMetric(
+            List.of(sleep),
+            Metric.SLEEP_DURATION_MIN,
+            WEEK
+        );
+
+        assertEquals(1, result.values().size());
+        assertEquals(d("420"), result.values().get(LocalDate.of(2026, 9, 14)));
+        assertEquals(d("420"), result.aggregate().total());
+        assertEquals(d("420"), result.aggregate().average());
+        assertEquals(1, result.aggregate().daysWithData());
+
+        assertFalse(result.values().containsKey(LocalDate.of(2026, 9, 15)));
+        assertFalse(result.values().containsKey(LocalDate.of(2026, 9, 16)));
     }
 }
