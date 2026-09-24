@@ -267,64 +267,67 @@ public final class AnalyticsFunctions {
         );
     }
 
-    /**
-     * Returns the latest confirmed heart-rate sample.
-     * Ordering is deterministic for equal timestamps.
-     */
     public static Optional<HeartRateResult> latestHeartRate(
         List<Entry> entries,
         Period period
     ) {
+        Objects.requireNonNull(entries, "entries");
+        Objects.requireNonNull(period, "period");
+
         return current(entries)
             .stream()
+            .filter(entry -> "metrics".equals(entry.type()))
             .filter(entry -> entry.metric() == Metric.HEART_RATE)
             .filter(entry -> entry.value() != null)
             .filter(entry -> entry.occurredAt() != null)
             .filter(entry -> period.contains(
-                    localDate(entry.occurredAt(), period.zone())
+                localDate(entry.occurredAt(), period.zone())
             ))
             .max(byOccurredUpdatedAndId())
             .map(entry -> new HeartRateResult(
-                    entry.value(),
-                    entry.occurredAt(),
-                    entry.qualifier(),
-                    entry.id()
+                entry.value(),
+                entry.occurredAt(),
+                entry.qualifier(),
+                entry.id()
             ));
     }
 
-    /**
-     * One latest point per check-in category and local date.
-     * Entries are selected deterministically by occurredAt, updatedAt, then id.
-     */
     public static Map<CheckinCategory, List<RatingPoint>> checkins(
         List<Entry> entries,
         Period period
     ) {
+        Objects.requireNonNull(entries, "entries");
+        Objects.requireNonNull(period, "period");
+
         Map<CheckinCategory, Map<LocalDate, Entry>> selected =
             new EnumMap<>(CheckinCategory.class);
 
         Comparator<Entry> checkinOrder = byOccurredUpdatedAndId();
 
         for (Entry entry : current(entries)) {
+            if (!"checkin".equals(entry.type())) {
+                continue;
+            }
+
             if (entry.category() == null
                 || entry.score() == null
                 || entry.localDate() == null
                 || !period.contains(entry.localDate())) {
-                    continue;
-                }
+                continue;
+            }
 
             selected
                 .computeIfAbsent(
-                        entry.category(),
-                        ignored -> new TreeMap<>()
+                    entry.category(),
+                    ignored -> new TreeMap<>()
                 )
                 .merge(
-                        entry.localDate(),
-                        entry,
-                        (first, second) ->
-                                checkinOrder.compare(first, second) <= 0
-                                        ? second
-                                        : first
+                    entry.localDate(),
+                    entry,
+                    (first, second) ->
+                        checkinOrder.compare(first, second) <= 0
+                            ? second
+                            : first
                 );
         }
 
@@ -333,15 +336,15 @@ public final class AnalyticsFunctions {
 
         selected.forEach((category, days) ->
             result.put(
-                    category,
-                    days.entrySet()
-                            .stream()
-                            .map(item -> new RatingPoint(
-                                    item.getKey(),
-                                    item.getValue().score(),
-                                    item.getValue().id()
-                            ))
-                            .toList()
+                category,
+                days.entrySet()
+                    .stream()
+                    .map(item -> new RatingPoint(
+                        item.getKey(),
+                        item.getValue().score(),
+                        item.getValue().id()
+                    ))
+                    .toList()
             )
         );
 
