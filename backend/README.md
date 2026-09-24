@@ -1,51 +1,45 @@
 # Backend
 
-Backend на Java 21 и Spring Boot 3.5.6 подключён к общей Gradle-сборке как модуль `backend`.
-Используются Spring Web, Spring Security и Spring Data MongoDB. Liquibase входит в согласованный
-стек проекта, но пока не подключён.
+Backend consists of two independently launched applications and one shared Java library on Java 21:
 
-BE1-02 реализует вход через Telegram Mini App, непрозрачные сессии на 60 минут,
-`POST /api/v1/auth/telegram`, `GET /api/v1/me` и общий механизм проверки владельца.
+| Module | Purpose | Documentation |
+|---|---|---|
+| `:backend:core` | Shared entry, draft, check-in, dialog-state and MongoDB persistence services | [BE1-03 storage](../docs/BE1-03-CORE-STORAGE.md) |
+| `:backend:api` | HTTP API, Telegram authentication, sessions, ownership checks and readiness | [API](api/README.md) |
+| `:backend:bot` | Telegram long polling, closed access, commands and keyboards | [Bot](bot/README.md) |
 
-## Конфигурация
+`api` depends on `core` and provides its Spring/MongoDB runtime. The bot remains isolated from MongoDB
+until BE2-02/05 wires it to the public `EntryCoreService` and `DialogStateService` interfaces. Consumers
+must not access Spring Data repositories directly. The `core` module is a library: it has no `main`, HTTP
+port or independent process. API and bot remain separate applications and neither starts the other.
 
-```text
-TELEGRAM_BOT_TOKEN=<secret bot token>
-TELEGRAM_ALLOWED_USER_IDS=<comma-separated numeric ids>
-MONGODB_URI=mongodb://localhost:27017/health_tg
-CORS_ALLOWED_ORIGINS=http://localhost:5173
-```
+## Build and tests
 
-Секреты и реальные Telegram ID нельзя коммитить или включать в отчёты. Значения по умолчанию
-для локальной разработки находятся в `src/main/resources/application.properties`.
-
-## Сборка и проверка
-
-Команды выполняются из корня репозитория:
+From the repository root on Java 21:
 
 ```powershell
-.\gradlew.bat :backend:test
-.\gradlew.bat :backend:bootJar
-.\gradlew.bat :backend:test :backend:bootJar validateContracts :contract-validator:validate --console=plain
+.\gradlew.bat :backend:core:test :backend:api:test :backend:bot:test :backend:api:bootJar :backend:bot:bootJar
 ```
 
-Интеграционные тесты MongoDB используют Testcontainers и требуют запущенный Docker. При отсутствии
-Docker они пропускаются; для итоговой проверки задачи их необходимо выполнить с доступным Docker.
+On Linux/macOS use `sh ./gradlew` instead of `.\gradlew.bat`. MongoDB integration tests in the API
+module require Docker; bot tests require neither a token nor network access. The aggregate
+`:backend:build` task checks all three modules.
 
-## Запуск
+## Separate application startup
 
-Для запуска нужен доступный MongoDB и обязательные переменные Telegram-конфигурации:
+Start the API and bot in different terminals:
 
 ```powershell
-.\gradlew.bat :backend:bootRun
+.\gradlew.bat :backend:api:bootRun
 ```
 
-Общий owner guard предназначен для BE1-04, BE1-05 и BE3-03. Негативные проверки на реальных
-маршрутах выполняются после появления этих маршрутов. Java-тесты backend находятся в
-`backend/src/test/java`; общие сквозные сценарии относятся к [`tests`](../tests/README.md).
+```powershell
+.\gradlew.bat :backend:bot:bootRun
+```
 
-## Core storage
+API requires MongoDB. Bot requires its token and allowlist. Direct Gradle, JAR and IDEA launches do not
+load `.env` automatically. `scripts/run-backend.ps1` loads the root `.env` and starts only the API.
+See [local environment](../docs/local-environment.md).
 
-BE2 consumers use `EntryCoreService` and `DialogStateService`; they must not use
-Mongo repositories directly. The early BE1-03 interface and persistence rules are
-documented in [`../docs/BE1-03-CORE-STORAGE.md`](../docs/BE1-03-CORE-STORAGE.md).
+After changing the structure, reload all Gradle projects in IDEA. Use classpath `backend.api.main` for
+`HealthTgApplication` and `backend.bot.main` for `BotApplication`. Never commit local secrets or IDs.

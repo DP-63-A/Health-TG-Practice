@@ -11,14 +11,15 @@ Implemented:
 - persistent named volume `health-tg-mongo-data`;
 - container healthcheck;
 - safe `.env.example` without credentials;
+- PowerShell launcher that loads root `.env` values into the backend process;
 - local environment run/restart/stop documentation;
 - real `/api/v1/healthz` MongoDB readiness check;
-- HTTP 503 degraded response when MongoDB is unavailable;
-- automated ready/degraded tests.
+- OpenAPI-compatible HTTP 503 error when MongoDB is unavailable;
+- automated HTTP ready/unavailable tests.
 
 ## Automated verification
 
-Command executed on 2026-09-23:
+Historical command executed on 2026-09-23, before the API/bot module split:
 
 ```powershell
 .\gradlew.bat clean :backend:test :backend:bootJar validateContracts :contract-validator:validate --rerun-tasks --no-build-cache --no-daemon --console=plain
@@ -26,6 +27,17 @@ Command executed on 2026-09-23:
 
 Result: `BUILD SUCCESSFUL`. Backend tests, executable JAR creation, and BE1-01
 contract validation passed.
+
+The historical result above belongs to the original `:backend` module. With the
+current split, the equivalent API checks use the following command (this is the
+updated command, not a claim of another test run):
+
+```powershell
+.\gradlew.bat :backend:api:clean :backend:api:test :backend:api:bootJar validateContracts :contract-validator:validate --rerun-tasks --no-build-cache --no-daemon --console=plain
+```
+
+The launcher now starts `:backend:api:bootRun`; the Telegram bot remains a separate
+application. See [local environment](local-environment.md) and [API instructions](../backend/api/README.md).
 
 Compose validation:
 
@@ -47,8 +59,9 @@ Verified on 2026-09-23:
    manually started container with the Compose-managed container.
 3. `docker-compose ps` reported the MongoDB container as healthy.
 4. `/api/v1/healthz` returned HTTP 200 with `mongo=ok`.
-5. After `docker-compose stop mongo`, `/api/v1/healthz` returned HTTP 503 with
-   `mongo=fail` and no connection details.
+5. After `docker-compose stop mongo`, `/api/v1/healthz` returned HTTP 503 without
+   connection details. After the review fix, its body follows `ServiceUnavailable`:
+   `code`, `message`, and `request_id`.
 6. After `docker-compose start mongo`, readiness returned HTTP 200 again.
 
 ## Acceptance status for the early slice

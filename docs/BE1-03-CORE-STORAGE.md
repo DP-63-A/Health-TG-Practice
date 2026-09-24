@@ -98,8 +98,8 @@ to BE2-02/05, BE1-04 and FE1-03. They must not be reported as completed by this 
 The core integration test and full Java 21 build were executed successfully on 2026-09-24:
 
 ```powershell
-.\gradlew.bat :backend:test --tests org.healthtg.persistence.CoreStorageIntegrationTest --rerun-tasks --no-build-cache --no-daemon --console=plain
-.\gradlew.bat clean :backend:test :backend:bootJar validateContracts :contract-validator:validate --rerun-tasks --no-build-cache --no-daemon --console=plain
+.\gradlew.bat :backend:api:test --tests org.healthtg.persistence.CoreStorageIntegrationTest --rerun-tasks --no-build-cache --no-daemon --console=plain
+.\gradlew.bat clean :backend:core:test :backend:api:test :backend:bot:test :backend:api:bootJar :backend:bot:bootJar validateContracts :contract-validator:validate --rerun-tasks --no-build-cache --no-daemon --console=plain
 ```
 
 The verified commit must be recorded in the PR description after these changes are committed.
