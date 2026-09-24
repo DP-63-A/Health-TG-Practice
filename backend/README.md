@@ -1,45 +1,53 @@
 # Backend
 
-Backend на Java 21 и Spring Boot 3.5.6 подключён к общей Gradle-сборке как модуль `backend`.
-Используются Spring Web, Spring Security и Spring Data MongoDB. Liquibase входит в согласованный
-стек проекта, но пока не подключён.
+Backend состоит из двух отдельных приложений одной Gradle-сборки на Java 21 и Spring Boot 3.5.6:
 
-BE1-02 реализует вход через Telegram Mini App, непрозрачные сессии на 60 минут,
-`POST /api/v1/auth/telegram`, `GET /api/v1/me` и общий механизм проверки владельца.
+| Модуль | Назначение | Инструкция |
+|---|---|---|
+| `:backend:api` | HTTP API: Telegram-аутентификация, сессии, `/api/v1/me`, проверка владельца, MongoDB persistence и readiness `/api/v1/healthz` | [API](api/README.md) |
+| `:backend:bot` | Telegram-бот: long polling, закрытый доступ, `/start`, `/state`, кнопки | [Бот](bot/README.md) |
 
-## Конфигурация
+У каждого приложения свои зависимости, `application.properties`, запускаемый JAR и процесс.
+Между модулями нет зависимости: запуск API не запускает Telegram polling; бот не запускает
+HTTP-сервер и не подключается к MongoDB. Общие классы пока не выделены: совместное хранение
+и сценарий сохранения отметок относятся к следующим задачам. Liquibase пока не подключён.
 
-```text
-TELEGRAM_BOT_TOKEN=<secret bot token>
-TELEGRAM_ALLOWED_USER_IDS=<comma-separated numeric ids>
-MONGODB_URI=mongodb://localhost:27017/health_tg
-CORS_ALLOWED_ORIGINS=http://localhost:5173
-```
+## Сборка и тесты
 
-Секреты и реальные Telegram ID нельзя коммитить или включать в отчёты. Значения по умолчанию
-для локальной разработки находятся в `src/main/resources/application.properties`.
-
-## Сборка и проверка
-
-Команды выполняются из корня репозитория:
+Из корня репозитория на Java 21:
 
 ```powershell
-.\gradlew.bat :backend:test
-.\gradlew.bat :backend:bootJar
-.\gradlew.bat :backend:test :backend:bootJar validateContracts :contract-validator:validate --console=plain
+.\gradlew.bat :backend:api:test :backend:bot:test :backend:api:bootJar :backend:bot:bootJar
 ```
 
-Интеграционные тесты MongoDB используют Testcontainers и требуют запущенный Docker. При отсутствии
-Docker они пропускаются; для итоговой проверки задачи их необходимо выполнить с доступным Docker.
+Linux/macOS: те же задачи с `sh ./gradlew` вместо `.\gradlew.bat`.
+Для Windows с кириллицей в пути добавьте `'-Dorg.gradle.jvmargs=-Dfile.encoding=COMPAT'`.
+MongoDB-интеграционные тесты API требуют Docker; тесты бота работают без сети и токена.
+Общая задача `:backend:build` собирает и проверяет оба приложения, `:backend:clean` очищает их результаты.
+Отчёты находятся в `backend/api/build/reports/tests/test/` и `backend/bot/build/reports/tests/test/`.
 
-## Запуск
+## Отдельный запуск
 
-Для запуска нужен доступный MongoDB и обязательные переменные Telegram-конфигурации:
+В двух терминалах с нужными переменными окружения:
 
 ```powershell
-.\gradlew.bat :backend:bootRun
+.\gradlew.bat :backend:api:bootRun
 ```
 
-Общий owner guard предназначен для BE1-04, BE1-05 и BE3-03. Негативные проверки на реальных
-маршрутах выполняются после появления этих маршрутов. Java-тесты backend находятся в
-`backend/src/test/java`; общие сквозные сценарии относятся к [`tests`](../tests/README.md).
+```powershell
+.\gradlew.bat :backend:bot:bootRun
+```
+
+API требует доступную MongoDB; бот — токен и список разрешённых пользователей. Настройки и
+границы каждой реализации описаны по ссылкам выше. Прямой запуск через Gradle, JAR или IDEA
+не читает `.env` автоматически. Для API скрипт `scripts/run-backend.ps1` явно загружает этот
+файл и запускает только `:backend:api:bootRun`. См. [локальное окружение](../docs/local-environment.md):
+Compose запускает MongoDB, `/api/v1/healthz` проверяет её доступность из API.
+Для одного и того же Telegram-бота задавайте обоим приложениям одинаковые токен и allowlist.
+
+После обновления структуры выполните Reload All Gradle Projects в IDEA. Для существующей
+конфигурации BotApplication выберите classpath `backend.bot.main` (название может иметь префикс
+проекта); локальные переменные окружения сохраните. Для HealthTgApplication используйте
+`backend.api.main`. Не сохраняйте секреты в общих файлах конфигурации запуска.
+
+Настоящую работу в Telegram и открытие Mini App проверяет человек по [чеклисту бота](bot/README.md#ручная-приёмка).

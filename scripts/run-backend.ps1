@@ -37,7 +37,7 @@ foreach ($line in Get-Content -LiteralPath $EnvFile) {
 
 Push-Location $repoRoot
 try {
-    & (Join-Path $repoRoot "gradlew.bat") :backend:bootRun --console=plain
+    & (Join-Path $repoRoot "gradlew.bat") :backend:api:bootRun --console=plain
     $exitCode = $LASTEXITCODE
 } finally {
     Pop-Location

@@ -19,7 +19,7 @@ Implemented:
 
 ## Automated verification
 
-Command executed on 2026-09-23:
+Historical command executed on 2026-09-23, before the API/bot module split:
 
 ```powershell
 .\gradlew.bat clean :backend:test :backend:bootJar validateContracts :contract-validator:validate --rerun-tasks --no-build-cache --no-daemon --console=plain
@@ -27,6 +27,17 @@ Command executed on 2026-09-23:
 
 Result: `BUILD SUCCESSFUL`. Backend tests, executable JAR creation, and BE1-01
 contract validation passed.
+
+The historical result above belongs to the original `:backend` module. With the
+current split, the equivalent API checks use the following command (this is the
+updated command, not a claim of another test run):
+
+```powershell
+.\gradlew.bat :backend:api:clean :backend:api:test :backend:api:bootJar validateContracts :contract-validator:validate --rerun-tasks --no-build-cache --no-daemon --console=plain
+```
+
+The launcher now starts `:backend:api:bootRun`; the Telegram bot remains a separate
+application. See [local environment](local-environment.md) and [API instructions](../backend/api/README.md).
 
 Compose validation:
 

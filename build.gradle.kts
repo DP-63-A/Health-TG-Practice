@@ -1,5 +1,5 @@
 plugins {
-    // Root aggregator; real build lives in :contract-validator
+    // Root aggregator; applications live in :backend:api and :backend:bot.
 }
 
 tasks.register("validateContracts") {
