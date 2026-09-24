@@ -1,0 +1,82 @@
+
+.nutrition-card {
+  padding: 20px;
+  border-radius: 16px;
+
+  background: var(
+    --tg-theme-secondary-bg-color,
+    #f5f5f5
+  );
+
+  color: var(
+    --tg-theme-text-color,
+    #222
+  );
+}
+
+.nutrition-card__title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.nutrition-card__energy {
+  margin: 0 0 20px;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.nutrition-card__nutrients {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.nutrition-card__nutrients div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nutrition-card__nutrients span {
+  font-size: 13px;
+  color: var(--tg-theme-hint-color, #777);
+}
+
+.nutrition-card__nutrients strong {
+  font-size: 15px;
+}
+
+.nutrition-card__meals {
+  margin-top: 20px;
+  padding-top: 16px;
+
+  border-top: 1px solid
+    var(--tg-theme-hint-color, #ddd);
+
+  font-size: 13px;
+}
+
+.nutrition-card__meals p {
+  margin: 0 0 8px;
+}
+
+.nutrition-card__warning {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: #b45309;
+}
+
+@media (max-width: 360px) {
+  .nutrition-card {
+    padding: 14px;
+  }
+
+  .nutrition-card__nutrients {
+    gap: 8px;
+  }
+
+  .nutrition-card__nutrients strong {
+    font-size: 13px;
+  }
+}
