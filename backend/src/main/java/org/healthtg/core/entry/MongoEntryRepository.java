@@ -2,6 +2,7 @@ package org.healthtg.core.entry;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 interface MongoEntryRepository extends MongoRepository<MongoEntryDocument, String> {
@@ -10,4 +11,6 @@ interface MongoEntryRepository extends MongoRepository<MongoEntryDocument, Strin
     Optional<MongoEntryDocument> findBySubmissionId(String submissionId);
 
     Optional<MongoEntryDocument> findFirstByOwnerIdAndStatus(String ownerId, String status);
+
+    List<MongoEntryDocument> findByOwnerIdAndStatus(String ownerId, String status);
 }

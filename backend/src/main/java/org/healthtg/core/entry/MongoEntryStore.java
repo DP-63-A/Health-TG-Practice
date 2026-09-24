@@ -2,6 +2,7 @@ package org.healthtg.core.entry;
 
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,6 +20,11 @@ class MongoEntryStore implements EntryStore {
     }
 
     @Override
+    public Optional<Entry> findById(UUID id) {
+        return repository.findById(id.toString()).map(MongoEntryStore::toDomain);
+    }
+
+    @Override
     public Optional<Entry> findByTelegramUpdateKey(String updateKey) {
         return repository.findByTelegramUpdateKey(updateKey).map(MongoEntryStore::toDomain);
     }
@@ -32,6 +38,13 @@ class MongoEntryStore implements EntryStore {
     public Optional<Entry> findActiveDraft(UUID ownerId) {
         return repository.findFirstByOwnerIdAndStatus(ownerId.toString(), EntryStatus.DRAFT.code())
                 .map(MongoEntryStore::toDomain);
+    }
+
+    @Override
+    public List<Entry> findByOwnerAndStatus(UUID ownerId, EntryStatus status) {
+        return repository.findByOwnerIdAndStatus(ownerId.toString(), status.code()).stream()
+                .map(MongoEntryStore::toDomain)
+                .toList();
     }
 
     private static MongoEntryDocument toDocument(Entry entry) {

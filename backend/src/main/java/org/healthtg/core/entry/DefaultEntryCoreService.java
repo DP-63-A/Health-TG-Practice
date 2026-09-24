@@ -5,9 +5,11 @@ import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -43,7 +45,7 @@ class DefaultEntryCoreService implements EntryCoreService {
 
     @Override
     public DraftCreationResult createDraft(CreateDraftCommand command) {
-        validatePayload(command.type(), command.payload());
+        EntryPayloadValidator.validateDraft(command.type(), command.payload());
         String updateKey = command.updateKey().storageKey();
         Optional<Entry> repeated = store.findByTelegramUpdateKey(updateKey);
         if (repeated.isEmpty() && command.submissionId() != null) {
@@ -85,9 +87,21 @@ class DefaultEntryCoreService implements EntryCoreService {
         return store.findActiveDraft(owner.userId());
     }
 
+    @Override
+    public List<Entry> listConfirmedEntries(ListConfirmedEntriesQuery query) {
+        return store.findByOwnerAndStatus(query.owner().userId(), EntryStatus.CONFIRMED).stream()
+                .filter(entry -> query.types().isEmpty() || query.types().contains(entry.type()))
+                .filter(entry -> {
+                    LocalDate date = localDate(entry, query);
+                    return !date.isBefore(query.from()) && !date.isAfter(query.to());
+                })
+                .sorted(Comparator.comparing(Entry::occurredAt).thenComparing(Entry::id))
+                .toList();
+    }
+
     private static Entry owned(Entry entry, OwnerContext owner) {
         if (!entry.ownerId().equals(owner.userId())) {
-            throw new IllegalStateException("Telegram update key belongs to another owner");
+            throw new EntryOwnershipException("Telegram update key belongs to another owner");
         }
         return entry;
     }
@@ -96,27 +110,11 @@ class DefaultEntryCoreService implements EntryCoreService {
         return clock.instant().truncatedTo(ChronoUnit.MILLIS);
     }
 
-    private static void validatePayload(EntryType type, Map<String, Object> payload) {
-        validateFinite(payload);
-        if (type != EntryType.METRICS) return;
-        validateNonNegative(payload, "steps");
-        validateNonNegative(payload, "sleep_hours");
-        validateNonNegative(payload, "sleep_minutes");
+    private static LocalDate localDate(Entry entry, ListConfirmedEntriesQuery query) {
+        Object payloadDate = entry.payload().get("local_date");
+        if (payloadDate instanceof LocalDate date) return date;
+        if (payloadDate instanceof String date) return LocalDate.parse(date);
+        return entry.occurredAt().atZone(query.timezone()).toLocalDate();
     }
 
-    private static void validateFinite(Object value) {
-        if (value instanceof Double doubleValue && !Double.isFinite(doubleValue)
-                || value instanceof Float floatValue && !Float.isFinite(floatValue)) {
-            throw new IllegalArgumentException("Numeric values must be finite");
-        }
-        if (value instanceof Map<?, ?> map) map.values().forEach(DefaultEntryCoreService::validateFinite);
-        if (value instanceof Collection<?> collection) collection.forEach(DefaultEntryCoreService::validateFinite);
-    }
-
-    private static void validateNonNegative(Map<String, Object> payload, String field) {
-        Object value = payload.get(field);
-        if (value instanceof Number number && number.doubleValue() < 0) {
-            throw new IllegalArgumentException(field + " must be non-negative");
-        }
-    }
 }

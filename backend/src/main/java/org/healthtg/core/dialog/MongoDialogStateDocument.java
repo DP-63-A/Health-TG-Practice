@@ -16,6 +16,7 @@ record MongoDialogStateDocument(
         long revision,
         Instant updatedAt,
         String telegramUpdateKey,
+        Map<String, Long> processedUpdateIds,
         @Version Long mongoVersion
 ) {
 }
