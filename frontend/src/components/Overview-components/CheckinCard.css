@@ -1,0 +1,79 @@
+
+.checkin-card {
+  padding: 20px;
+  border-radius: 16px;
+
+  background: var(
+    --tg-theme-secondary-bg-color,
+    #f5f5f5
+  );
+
+  color: var(
+    --tg-theme-text-color,
+    #222
+  );
+}
+
+.checkin-card__title {
+  margin: 0 0 8px;
+
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.checkin-card__description {
+  margin: 0 0 20px;
+
+  font-size: 13px;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.checkin-card__scores {
+  display: flex;
+  flex-direction: column;
+}
+
+.checkin-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  gap: 16px;
+  padding: 14px 0;
+
+  border-top: 1px solid
+    var(--tg-theme-hint-color, #ddd);
+}
+
+.checkin-card__label {
+  font-size: 14px;
+}
+
+.checkin-card__value {
+  flex-shrink: 0;
+
+  font-size: 20px;
+  font-weight: 700;
+}
+
+@media (max-width: 360px) {
+  .checkin-card {
+    padding: 14px;
+  }
+
+  .checkin-card__row {
+    gap: 10px;
+  }
+
+  .checkin-card__label {
+    font-size: 13px;
+  }
+
+  .checkin-card__value {
+    font-size: 18px;
+  }
+}
