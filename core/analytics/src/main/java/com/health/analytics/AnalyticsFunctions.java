@@ -32,9 +32,9 @@ public final class AnalyticsFunctions {
             Objects.requireNonNull(id, "id");
             Objects.requireNonNull(status, "status");
         }
-        public static Entry meal(String id, Status status, LocalDate date, BigDecimal mass,
+        public static Entry meal(String id, Status status, Instant occurredAt, BigDecimal mass,
                                  Nutrients nutrients, Basis basis) {
-            return new Entry(id, "meal", status, null, null, null, date, null, null, null,
+            return new Entry(id, "meal", status, occurredAt, null, null, null, null, null, null,
                     null, null, null, mass, nutrients, basis);
         }
     }
@@ -124,10 +124,21 @@ public final class AnalyticsFunctions {
         int countedMeals = 0;
 
         for (Entry entry : current(entries)) {
-            if (!"meal".equals(entry.type()) || !period.contains(entry.localDate())) {
+            if (!"meal".equals(entry.type())) {
                 continue;
             }
-
+        
+            if (entry.occurredAt() == null) {
+                incomplete = true;
+                continue;
+            }
+        
+            LocalDate mealDate = localDate(entry.occurredAt(), period.zone());
+        
+            if (!period.contains(mealDate)) {
+                continue;
+            }
+        
             countedMeals++;
 
             Nutrients nutrients = entry.nutrients();
