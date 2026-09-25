@@ -25,6 +25,12 @@
 - Check-ins are grouped by category and retain gaps.
 - Presentation formatting is not performed by this module.
 
+## Average precision policy
+
+Core analytics returns daily metric averages as `BigDecimal`. Because recurring decimal fractions cannot be represented exactly, averages use `MathContext.DECIMAL128` (34 significant decimal digits, `RoundingMode.HALF_EVEN`) through the public `AnalyticsFunctions.AVERAGE_MATH_CONTEXT` constant.
+
+The core layer does not apply a fixed display scale. Consumers may round or format the returned value for presentation, but that formatting policy must remain outside the core calculation.
+
 ## Verification command
 
 Because the repository's `gradlew` currently has mode `100644` and is not executable, use `sh` on Linux/macOS:
