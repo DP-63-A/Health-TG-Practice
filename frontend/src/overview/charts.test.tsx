@@ -1,3 +1,10 @@
+import type {
+  AnalyticsSource,
+  NutritionPoint,
+  SleepPoint,
+  StepsPoint,
+  CheckinPoint,
+} from './analytics.types'
 
 import {
   afterEach,
@@ -54,6 +61,50 @@ function getChartTable() {
   return within(table)
 }
 
+function source(date: string, type: AnalyticsSource['type']): AnalyticsSource {
+  const ids = {
+    meal: '22222222-2222-4222-8222-222222222210',
+    metrics: '22222222-2222-4222-8222-222222222216',
+    checkin: '22222222-2222-4222-8222-222222222225',
+  }
+  return { entry_id: ids[type], type, local_date: date }
+}
+
+function nutritionPoint(date: string, energy_kcal: number | null): NutritionPoint {
+  return {
+    date,
+    energy_kcal,
+    source: energy_kcal === null ? [] : [source(date, 'meal')],
+  }
+}
+
+function sleepPoint(date: string, value: number | null): SleepPoint {
+  return {
+    date,
+    value,
+    unit: 'min',
+    source: value === null ? null : source(date, 'metrics'),
+  }
+}
+
+function stepsPoint(date: string, value: number | null): StepsPoint {
+  return {
+    date,
+    value,
+    unit: 'count',
+    source: value === null ? null : source(date, 'metrics'),
+  }
+}
+
+function checkinPoint(date: string, value: number | null): CheckinPoint {
+  return {
+    date,
+    value,
+    unit: 'score_1_5',
+    source: value === null ? null : source(date, 'checkin'),
+  }
+}
+
 describe('NutritionChart', () => {
   it('отображает калории и передаёт дату выбранного дня', () => {
     const onSelectDay = vi.fn()
@@ -61,14 +112,8 @@ describe('NutritionChart', () => {
     render(
       <NutritionChart
         series={[
-          {
-            date: '2026-09-15',
-            value: null,
-          },
-          {
-            date: '2026-09-16',
-            value: 330,
-          },
+          nutritionPoint('2026-09-15', null),
+          nutritionPoint('2026-09-16', 330),
         ]}
         onSelectDay={onSelectDay}
       />,
@@ -78,11 +123,11 @@ describe('NutritionChart', () => {
 
     expect(
       table.getByText(formatCalories(330)),
-    ).toBeTruthy()
+    ).toBeVisible()
 
     expect(
       table.getByText('Нет данных'),
-    ).toBeTruthy()
+    ).toBeVisible()
 
     expect(
       table.getAllByRole('button'),
@@ -107,18 +152,9 @@ describe('NutritionChart', () => {
     render(
       <NutritionChart
         series={[
-          {
-            date: '2026-09-14',
-            value: 200,
-          },
-          {
-            date: '2026-09-15',
-            value: null,
-          },
-          {
-            date: '2026-09-16',
-            value: 330,
-          },
+          nutritionPoint('2026-09-14', 200),
+          nutritionPoint('2026-09-15', null),
+          nutritionPoint('2026-09-16', 330),
         ]}
         onSelectDay={onSelectDay}
       />,
@@ -148,10 +184,7 @@ describe('NutritionChart', () => {
     render(
       <NutritionChart
         series={[
-          {
-            date: '2026-09-16',
-            value: 0,
-          },
+          nutritionPoint('2026-09-16', 0),
         ]}
         onSelectDay={onSelectDay}
       />,
@@ -161,7 +194,7 @@ describe('NutritionChart', () => {
 
     expect(
       table.getByText(formatCalories(0)),
-    ).toBeTruthy()
+    ).toBeVisible()
 
     fireEvent.click(
       table.getByRole('button', {
@@ -178,10 +211,7 @@ describe('NutritionChart', () => {
     render(
       <NutritionChart
         series={[
-          {
-            date: '2026-09-16',
-            value: null,
-          },
+          nutritionPoint('2026-09-16', null),
         ]}
       />,
     )
@@ -190,7 +220,7 @@ describe('NutritionChart', () => {
       screen.getByText(
         /Нет данных о питании за выбранный период/,
       ),
-    ).toBeTruthy()
+    ).toBeVisible()
 
     expect(
       screen.queryByRole('button', {
@@ -207,14 +237,8 @@ describe('SleepChart', () => {
     render(
       <SleepChart
         series={[
-          {
-            date: '2026-09-15',
-            value: null,
-          },
-          {
-            date: '2026-09-16',
-            value: 450,
-          },
+          sleepPoint('2026-09-15', null),
+          sleepPoint('2026-09-16', 450),
         ]}
         onSelectDay={onSelectDay}
       />,
@@ -224,11 +248,11 @@ describe('SleepChart', () => {
 
     expect(
       table.getByText(formatSleep(450)),
-    ).toBeTruthy()
+    ).toBeVisible()
 
     expect(
       table.getByText('Нет данных'),
-    ).toBeTruthy()
+    ).toBeVisible()
 
     expect(
       table.getAllByRole('button'),
@@ -253,10 +277,7 @@ describe('SleepChart', () => {
     render(
       <SleepChart
         series={[
-          {
-            date: '2026-09-16',
-            value: 0,
-          },
+          sleepPoint('2026-09-16', 0),
         ]}
         onSelectDay={onSelectDay}
       />,
@@ -266,7 +287,7 @@ describe('SleepChart', () => {
 
     expect(
       table.getByText(formatSleep(0)),
-    ).toBeTruthy()
+    ).toBeVisible()
 
     fireEvent.click(
       table.getByRole('button', {
@@ -288,7 +309,7 @@ describe('SleepChart', () => {
       screen.getByText(
         /Нет данных о сне за выбранный период/,
       ),
-    ).toBeTruthy()
+    ).toBeVisible()
   })
 })
 
@@ -299,14 +320,8 @@ describe('StepsChart', () => {
     render(
       <StepsChart
         series={[
-          {
-            date: '2026-09-15',
-            value: null,
-          },
-          {
-            date: '2026-09-16',
-            value: 8432,
-          },
+          stepsPoint('2026-09-15', null),
+          stepsPoint('2026-09-16', 8432),
         ]}
         onSelectDay={onSelectDay}
       />,
@@ -316,11 +331,11 @@ describe('StepsChart', () => {
 
     expect(
       table.getByText(formatSteps(8432)),
-    ).toBeTruthy()
+    ).toBeVisible()
 
     expect(
       table.getByText('Нет данных'),
-    ).toBeTruthy()
+    ).toBeVisible()
 
     expect(
       table.getAllByRole('button'),
@@ -345,14 +360,8 @@ describe('StepsChart', () => {
     render(
       <StepsChart
         series={[
-          {
-            date: '2026-09-15',
-            value: null,
-          },
-          {
-            date: '2026-09-16',
-            value: 0,
-          },
+          stepsPoint('2026-09-15', null),
+          stepsPoint('2026-09-16', 0),
         ]}
         onSelectDay={onSelectDay}
       />,
@@ -366,7 +375,7 @@ describe('StepsChart', () => {
 
     expect(
       table.getByText(formatSteps(0)),
-    ).toBeTruthy()
+    ).toBeVisible()
 
     fireEvent.click(
       table.getByRole('button', {
@@ -388,7 +397,7 @@ describe('StepsChart', () => {
       screen.getByText(
         /Нет данных о шагах за выбранный период/,
       ),
-    ).toBeTruthy()
+    ).toBeVisible()
   })
 })
 
@@ -401,14 +410,8 @@ describe('CheckinChart', () => {
         series={{
           category: 'mood',
           points: [
-            {
-              date: '2026-09-15',
-              value: null,
-            },
-            {
-              date: '2026-09-16',
-              value: 4,
-            },
+            checkinPoint('2026-09-15', null),
+            checkinPoint('2026-09-16', 4),
           ],
         }}
         onSelectDay={onSelectDay}
@@ -419,11 +422,11 @@ describe('CheckinChart', () => {
 
     expect(
       table.getByText('4 из 5'),
-    ).toBeTruthy()
+    ).toBeVisible()
 
     expect(
       table.getByText('Нет данных'),
-    ).toBeTruthy()
+    ).toBeVisible()
 
     expect(
       table.getAllByRole('button'),
@@ -451,10 +454,7 @@ describe('CheckinChart', () => {
         series={{
           category: 'mood',
           points: [
-            {
-              date: '2026-09-16',
-              value: 4,
-            },
+            checkinPoint('2026-09-16', 4),
           ],
         }}
         selectedCategory="wellbeing"
@@ -466,7 +466,7 @@ describe('CheckinChart', () => {
       screen.getByText(
         /Данные выбранной категории ещё не получены/,
       ),
-    ).toBeTruthy()
+    ).toBeVisible()
 
     expect(
       screen.queryByRole('button', {
@@ -485,10 +485,7 @@ describe('CheckinChart', () => {
         series={{
           category: 'mood',
           points: [
-            {
-              date: '2026-09-16',
-              value: 4,
-            },
+            checkinPoint('2026-09-16', 4),
           ],
         }}
         isLoading
@@ -498,7 +495,7 @@ describe('CheckinChart', () => {
 
     expect(
       screen.getByText('Загрузка оценок…'),
-    ).toBeTruthy()
+    ).toBeVisible()
 
     expect(
       screen.queryByRole('button', {
@@ -515,10 +512,7 @@ describe('CheckinChart', () => {
         series={{
           category: 'mood',
           points: [
-            {
-              date: '2026-09-16',
-              value: null,
-            },
+            checkinPoint('2026-09-16', null),
           ],
         }}
       />,
@@ -528,6 +522,6 @@ describe('CheckinChart', () => {
       screen.getByText(
         /Нет оценок «Настроение» за выбранный период/,
       ),
-    ).toBeTruthy()
+    ).toBeVisible()
   })
 })

@@ -31,13 +31,13 @@ import type { AnalyticsResponse } from '../../../overview/analytics.types'
   }: NutritionChartProps) {
     const titleId = useId()
     const hasValues = series.some((point) =>
-    point.value !== null)
+    point.energy_kcal !== null)
 
     function selectDay(date: string) {
       const point = series.find((item) => item.date
       === date)
 
-      if (point && point.value !== null) {
+      if (point && point.energy_kcal !== null) {
         onSelectDay?.(point.date)
       }
     }
@@ -107,7 +107,7 @@ import type { AnalyticsResponse } from '../../../overview/analytics.types'
                         label,
                       )
 
-                      if (!point || point.value ===
+                      if (!point || point.energy_kcal ===
                       null) {
                         return null
                       }
@@ -119,14 +119,14 @@ import type { AnalyticsResponse } from '../../../overview/analytics.types'
                             {formatTooltipDate(point.date)}
                           </strong>
 
-                          <span>{formatCalories(point.value)}</span>
+                          <span>{formatCalories(point.energy_kcal)}</span>
                         </div>
                       )
                     }}
                   />
 
                   <Bar
-                    dataKey="value"
+                    dataKey="energy_kcal"
                     name="Калории"
                     fill="var(--nutrition-chart-color)"
                     maxBarSize={40}
@@ -141,7 +141,7 @@ import type { AnalyticsResponse } from '../../../overview/analytics.types'
                   />
 
                   {series
-                    .filter((point) => point.value
+                    .filter((point) => point.energy_kcal
                     === 0)
                     .map((point) => (
                       <ReferenceDot
@@ -175,7 +175,7 @@ import type { AnalyticsResponse } from '../../../overview/analytics.types'
                   {series.map((point) => (
                     <tr key={point.date}>
                       <th scope="row">
-                        {point.value !== null &&
+                        {point.energy_kcal !== null &&
                         onSelectDay ? (
                           <button
                             type="button"
@@ -185,7 +185,7 @@ import type { AnalyticsResponse } from '../../../overview/analytics.types'
                               `Выбрать день
                               ${formatTooltipDate(point.date)}: ` +
 
-                              formatCalories(point.value)
+                              formatCalories(point.energy_kcal)
                             }
                           >
 
@@ -197,10 +197,10 @@ import type { AnalyticsResponse } from '../../../overview/analytics.types'
                         )}
                       </th>
                       <td>
-                        {point.value === null
+                        {point.energy_kcal=== null
                           ? 'Нет данных'
                           :
-                          formatCalories(point.value)
+                          formatCalories(point.energy_kcal)
                           }
                       </td>
                     </tr>

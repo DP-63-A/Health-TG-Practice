@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-
+import { useNavigate } from 'react-router-dom'
 import { Card, StateView } from '../components/ui'
 
 import { NutritionCard } from '../components/Overview-components/NutritionCard'
@@ -22,6 +22,7 @@ import { getAnalytics } from '../overview/analytics'
 
 import type {
   AnalyticsResponse,
+  AnalyticsPeriod,
   CheckinCategory,
 } from '../overview/analytics.types'
 
@@ -33,55 +34,58 @@ type AnalyticsState =
   | { status: 'empty'; data: AnalyticsResponse }
   | { status: 'error' }
 
-// Внутренний тип выбора точки.
-// Это ещё НЕ контракт URL для перехода в Diary.
 
-type ChartSelection =
-  | {
-      date: string
-      kind: 'nutrition'
-    }
-  | {
-      date: string
-      kind: 'sleep'
-    }
-  | {
-      date: string
-      kind: 'steps'
-    }
-  | {
-      date: string
-      kind: 'checkin'
-      category: CheckinCategory
-    }
+type ChartKind =
+  | 'nutrition'
+  | 'sleep'
+  | 'steps'
+  | 'checkin'
 
-const chartLabels: Record<
-  ChartSelection['kind'],
-  string
-> = {
-  nutrition: 'Питание',
-  sleep: 'Сон',
-  steps: 'Шаги',
-  checkin: 'Состояние',
+type DiaryEntryType =
+  | 'meal'
+  | 'metrics'
+  | 'checkin'
+
+const diaryEntryTypes: Record<ChartKind, DiaryEntryType> = {
+  nutrition: 'meal',
+  sleep: 'metrics',
+  steps: 'metrics',
+  checkin: 'checkin',
 }
 
-const checkinLabels: Record<
-  CheckinCategory,
-  string
-> = {
-  sleep_quality: 'Качество сна',
-  digestion_comfort: 'Комфорт пищеварения',
-  wellbeing: 'Самочувствие',
-  mood: 'Настроение',
+export function buildDiaryUrl(
+  date: string,
+  kind: ChartKind,
+): string {
+  const params = new URLSearchParams({
+    from: date,
+    to: date,
+    type: diaryEntryTypes[kind],
+  })
+
+  return `/diary?${params.toString()}`
 }
 
 function OverviewPage() {
-  const { markSessionExpired } = useAuth()
+  const { state: authState, markSessionExpired } = useAuth()
+  const timezone =
+    authState?.status === 'authenticated'
+      ? authState.user.timezone
+      : undefined
 
   const [analyticsState, setAnalyticsState] =
     useState<AnalyticsState>({
       status: 'loading',
     })
+
+  const navigate = useNavigate()
+
+  function openDiary(
+  date: string,
+  kind: ChartKind,
+) {
+  navigate(buildDiaryUrl(date, kind))
+}
 
   const [refreshCount, setRefreshCount] =
     useState(0)
@@ -92,10 +96,11 @@ function OverviewPage() {
   const [reloadKey, setReloadKey] =
     useState(0)
 
-  // Новое: выбранная пользователем точка графика.
+  const [period, setPeriod] =
+    useState<AnalyticsPeriod>('days_7')
 
-  const [selectedPoint, setSelectedPoint] =
-    useState<ChartSelection | null>(null)
+  const [checkinCategory, setCheckinCategory] =
+    useState<CheckinCategory>('mood')
 
   // Общий механизм обновления FE1.
 
@@ -119,12 +124,11 @@ function OverviewPage() {
         status: 'loading',
       })
 
-      // Не сохраняем выбор из предыдущего ответа.
-      setSelectedPoint(null)
-
       try {
         const data = await getAnalytics({
-          period: 'days_7',
+          period,
+          timezone,
+          checkin_category: checkinCategory,
         })
 
         if (!isActive) {
@@ -136,7 +140,7 @@ function OverviewPage() {
         ) {
           setAnalyticsState({
             status: 'empty',
-             data,
+            data,
           })
 
           return
@@ -171,7 +175,7 @@ function OverviewPage() {
     return () => {
       isActive = false
     }
-  }, [reloadKey, markSessionExpired])
+  }, [reloadKey, period, checkinCategory, timezone, markSessionExpired])
 
   function retryAnalytics() {
     setReloadKey((key) => key + 1)
@@ -182,6 +186,21 @@ function OverviewPage() {
       title="Обзор"
       subtitle="Аналитика за выбранный период"
     >
+      <div className="overview-filters">
+        <label htmlFor="overview-period">Период</label>
+        <select
+          id="overview-period"
+          value={period}
+          onChange={(event) => {
+            setPeriod(event.target.value as AnalyticsPeriod)
+          }}
+        >
+          <option value="today">Сегодня</option>
+          <option value="days_7">7 дней</option>
+          <option value="days_21">21 день</option>
+        </select>
+      </div>
+
       {analyticsState.status === 'loading' && (
         <StateView
           title="Загрузка аналитики"
@@ -275,19 +294,12 @@ function OverviewPage() {
 
       {/* Питание */}
 
-      {analyticsState.status === 'success' && (
-        <NutritionChart
-          series={
-            analyticsState.data.series.nutrition
-          }
-          onSelectDay={(date) => {
-            setSelectedPoint({
-              date,
-              kind: 'nutrition',
-            })
-          }}
-        />
-      )}
+{analyticsState.status === 'success' && (
+  <NutritionChart
+    series={analyticsState.data.series.nutrition}
+    onSelectDay={(date) => openDiary(date, 'nutrition')}
+  />
+)}
 
       {analyticsState.status === 'empty' && (
         <NutritionChart series={[]} />
@@ -297,14 +309,9 @@ function OverviewPage() {
 
       {analyticsState.status === 'success' && (
         <SleepChart
-          series={analyticsState.data.series.sleep}
-          onSelectDay={(date) => {
-            setSelectedPoint({
-              date,
-              kind: 'sleep',
-            })
-          }}
-        />
+  series={analyticsState.data.series.sleep}
+  onSelectDay={(date) => openDiary(date, 'sleep')}
+/>
       )}
 
       {analyticsState.status === 'empty' && (
@@ -315,14 +322,9 @@ function OverviewPage() {
 
       {analyticsState.status === 'success' && (
         <StepsChart
-          series={analyticsState.data.series.steps}
-          onSelectDay={(date) => {
-            setSelectedPoint({
-              date,
-              kind: 'steps',
-            })
-          }}
-        />
+  series={analyticsState.data.series.steps}
+  onSelectDay={(date) => openDiary(date, 'steps')}
+/>
       )}
 
       {analyticsState.status === 'empty' && (
@@ -333,46 +335,21 @@ function OverviewPage() {
 
       {analyticsState.status === 'success' && (
         <CheckinChart
-          series={analyticsState.data.series.checkin}
-          onSelectDay={(date, category) => {
-            setSelectedPoint({
-              date,
-              kind: 'checkin',
-              category,
-            })
-          }}
-        />
+  series={analyticsState.data.series.checkin}
+  selectedCategory={checkinCategory}
+  onCategoryChange={setCheckinCategory}
+  onSelectDay={(date) => openDiary(date, 'checkin')}
+/>
       )}
 
 
-{analyticsState.status === 'empty' && (
-  <CheckinChart
-    series={analyticsState.data.series.checkin}
-  />
-)}
-
-
-      {/* Временное отображение выбора для FE2-03.
-          В FE2-04 вместо него будет переход в Diary. */}
-
-      {analyticsState.status === 'success' &&
-        selectedPoint && (
-          <p role="status">
-            Выбран день: {selectedPoint.date}.
-            {' '}
-            Показатель:{' '}
-            {chartLabels[selectedPoint.kind]}.
-            {selectedPoint.kind === 'checkin' && (
-              <>
-                {' '}
-                Категория:{' '}
-                {checkinLabels[
-                  selectedPoint.category
-                ]}.
-              </>
-            )}
-          </p>
-        )}
+      {analyticsState.status === 'empty' && (
+        <CheckinChart
+          series={analyticsState.data.series.checkin}
+          selectedCategory={checkinCategory}
+          onCategoryChange={setCheckinCategory}
+        />
+      )}
 
       {/* Отладочная информация FE1 */}
 
