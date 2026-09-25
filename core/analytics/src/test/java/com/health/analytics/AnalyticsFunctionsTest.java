@@ -42,16 +42,16 @@ class AnalyticsFunctionsTest {
                     d("200"),
                     base,
                     Basis.PER_100G
-                )
-                Entry.meal("150g", Status.CONFIRMED, Instant.parse("2026-09-19T22:00:00Z"), d("150"), base, Basis.PER_100G)), WEEK);
+                ),
+                Entry.meal("150g", Status.CONFIRMED, Instant.parse("2026-09-19T10:00:00Z"), d("150"), base, Basis.PER_100G)), WEEK);
         assertEquals(d("577.5"), result.energyKcal());
         assertEquals(d("35"), result.proteinG());
         assertEquals(2, result.countedMeals());
     }
 
     @Test void unknownNutrientsAreNotZeroAndStatusesAreFiltered() {
-        Entry unknown = Entry.meal("unknown", Status.CONFIRMED, Instant.parse("2026-09-19T22:00:00Z"), d("100"), null, Basis.UNKNOWN);
-        Entry cancelled = Entry.meal("cancelled", Status.CANCELLED, Instant.parse("2026-09-19T22:00:00Z"), d("100"),
+        Entry unknown = Entry.meal("unknown", Status.CONFIRMED, Instant.parse("2026-09-19T10:00:00Z"), d("100"), null, Basis.UNKNOWN);
+        Entry cancelled = Entry.meal("cancelled", Status.CANCELLED, Instant.parse("2026-09-19T10:00:00Z"), d("100"),
                 new Nutrients(d("999"), d("1"), d("1"), d("1")), Basis.PER_100G);
         NutritionResult result = nutrition(List.of(unknown, cancelled), WEEK);
         assertNull(result.energyKcal()); assertTrue(result.incomplete()); assertEquals(1, result.countedMeals());
@@ -145,7 +145,7 @@ class AnalyticsFunctionsTest {
         Entry meal = Entry.meal(
             "unknown",
             Status.CONFIRMED,
-            Instant.parse("2026-09-19T22:00:00Z"),
+            Instant.parse("2026-09-19T10:00:00Z"),
             d("100"),
             new Nutrients(null, null, null, null),
             Basis.PER_100G
@@ -166,7 +166,7 @@ class AnalyticsFunctionsTest {
         Entry meal = Entry.meal(
             "partial",
             Status.CONFIRMED,
-            Instant.parse("2026-09-19T22:00:00Z"),
+            Instant.parse("2026-09-19T10:00:00Z"),
             d("200"),
             new Nutrients(
                     d("165"),
@@ -232,13 +232,13 @@ class AnalyticsFunctionsTest {
         );
 
         List<Entry> entries = List.of(
-            Entry.meal("confirmed", Status.CONFIRMED, Instant.parse("2026-09-19T22:00:00Z"),
+            Entry.meal("confirmed", Status.CONFIRMED, Instant.parse("2026-09-19T10:00:00Z"),
                     d("100"), nutrients, Basis.PER_100G),
-            Entry.meal("draft", Status.DRAFT, Instant.parse("2026-09-19T22:00:00Z"),
+            Entry.meal("draft", Status.DRAFT, Instant.parse("2026-09-19T10:00:00Z"),
                     d("100"), nutrients, Basis.PER_100G),
-            Entry.meal("cancelled", Status.CANCELLED, Instant.parse("2026-09-19T22:00:00Z"),
+            Entry.meal("cancelled", Status.CANCELLED, Instant.parse("2026-09-19T10:00:00Z"),
                     d("100"), nutrients, Basis.PER_100G),
-            Entry.meal("deleted", Status.DELETED, Instant.parse("2026-09-19T22:00:00Z"),
+            Entry.meal("deleted", Status.DELETED, Instant.parse("2026-09-19T10:00:00Z"),
                     d("100"), nutrients, Basis.PER_100G)
         );
 
@@ -253,7 +253,7 @@ class AnalyticsFunctionsTest {
         Entry meal = Entry.meal(
             "serving",
             Status.CONFIRMED,
-            Instant.parse("2026-09-19T22:00:00Z"),
+            Instant.parse("2026-09-19T10:00:00Z"),
             d("500"),
             new Nutrients(d("600"), d("30"), d("10"), d("80")),
             Basis.PER_SERVING
@@ -662,7 +662,7 @@ class AnalyticsFunctionsTest {
         Entry firstMeal = Entry.meal(
             "22222222-2222-4222-8222-222222222210",
             Status.CONFIRMED,
-            Instant.parse("2026-09-19T22:00:00Z"),
+            Instant.parse("2026-09-19T10:00:00Z"),
             null,
             firstMealNutrients,
             Basis.PER_SERVING
@@ -671,7 +671,7 @@ class AnalyticsFunctionsTest {
         Entry secondMeal = Entry.meal(
             "22222222-2222-4222-8222-222222222211",
             Status.CONFIRMED,
-            Instant.parse("2026-09-19T22:00:00Z"),
+            Instant.parse("2026-09-19T10:00:00Z"),
             d("200"),
             secondMealNutrients,
             Basis.PER_100G
@@ -808,7 +808,7 @@ class AnalyticsFunctionsTest {
         Entry firstMeal = Entry.meal(
             "first-meal",
             Status.CONFIRMED,
-            Instant.parse("2026-09-19T22:00:00Z"),
+            Instant.parse("2026-09-19T10:00:00Z"),
             null,
             firstMealNutrients,
             Basis.PER_SERVING
@@ -817,7 +817,7 @@ class AnalyticsFunctionsTest {
         Entry changedMeal = Entry.meal(
             "changed-meal",
             Status.CONFIRMED,
-            Instant.parse("2026-09-19T22:00:00Z"),
+            Instant.parse("2026-09-19T10:00:00Z"),
             d("150"),
             changedMealNutrients,
             Basis.PER_100G
@@ -845,7 +845,7 @@ class AnalyticsFunctionsTest {
         Entry confirmed = Entry.meal(
             "confirmed",
             Status.CONFIRMED,
-            Instant.parse("2026-09-19T22:00:00Z"),
+            Instant.parse("2026-09-19T10:00:00Z"),
             null,
             nutrients,
             Basis.PER_SERVING
@@ -854,7 +854,7 @@ class AnalyticsFunctionsTest {
         Entry cancelled = Entry.meal(
             "cancelled",
             Status.CANCELLED,
-            Instant.parse("2026-09-19T22:00:00Z"),
+            Instant.parse("2026-09-19T10:00:00Z"),
             null,
             new Nutrients(d("999"), d("999"), d("999"), d("999")),
             Basis.PER_SERVING
@@ -863,7 +863,7 @@ class AnalyticsFunctionsTest {
         Entry deleted = Entry.meal(
             "deleted",
             Status.DELETED,
-            Instant.parse("2026-09-19T22:00:00Z"),
+            Instant.parse("2026-09-19T10:00:00Z"),
             null,
             new Nutrients(d("999"), d("999"), d("999"), d("999")),
             Basis.PER_SERVING
@@ -872,7 +872,7 @@ class AnalyticsFunctionsTest {
         Entry draft = Entry.meal(
             "draft",
             Status.DRAFT,
-            Instant.parse("2026-09-19T22:00:00Z"),
+            Instant.parse("2026-09-19T10:00:00Z"),
             null,
             new Nutrients(d("999"), d("999"), d("999"), d("999")),
             Basis.PER_SERVING
