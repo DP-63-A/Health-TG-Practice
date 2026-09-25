@@ -27,10 +27,10 @@
 
 ## Verification command
 
-The complete verification command is:
+Because the repository's `gradlew` currently has mode `100644` and is not executable, use `sh` on Linux/macOS:
 
 ```bash
-./gradlew clean :analytics:test validateContracts :contract-validator:validate --no-daemon --console=plain
+sh ./gradlew clean :analytics:test validateContracts :contract-validator:validate --no-daemon --console=plain
 ```
 
 On Windows:
@@ -41,10 +41,16 @@ On Windows:
 
 ## Acceptance criteria report
 
+The command was run successfully on commit `74cc7ae9cc9986e092e2ddb39d20bb180a6ec27f` using Java 26. The run completed in 56 seconds and reported `12 actionable tasks: 12 executed`.
+
+The Gradle output did not print a JUnit test count, so this report records the verified task result rather than inventing a test number.
+
 | AC | Команда / проверка | Ожидаемый результат | Фактический результат | Статус | Доказательство |
 |---|---|---|---|---|---|
-| AC1 | `:analytics:test` | Модуль компилируется, unit-тесты проходят | Заполнить после запуска команды | Не проверен до запуска | `core/analytics/src/main/java/com/health/analytics/AnalyticsFunctions.java` |
-| AC2 | `:analytics:test` | Фильтруются `DRAFT`, `CANCELLED`, `DELETED`; учитываются только подходящие типы | Заполнить после запуска команды | Не проверен до запуска | `AnalyticsFunctionsTest` |
-| AC3 | `:analytics:test` | Проверены значения `930`, `847.5`, `600`, `5000`, `900`, `450` | Заполнить после запуска команды | Не проверен до запуска | `AnalyticsFunctionsTest` |
-| AC4 | `validateContracts` | Контрактные fixtures проходят проверку | Заполнить после запуска команды | Не проверен до запуска | `tools/contract-validator/src/test/java/com/health/analytics/contracts/AnalyticsContractTest.java` |
-| AC5 | `:contract-validator:validate` | Валидатор контрактов завершается успешно | Заполнить после запуска команды | Не проверен до запуска | Результат Gradle-команды |
+| AC1 | `:analytics:test` | Модуль компилируется, unit-тесты проходят | `:analytics:test` завершился успешно | Passed | Gradle output; commit `74cc7ae9cc9986e092e2ddb39d20bb180a6ec27f` |
+| AC2 | `:analytics:test` | Фильтруются `DRAFT`, `CANCELLED`, `DELETED`; учитываются только подходящие типы | Analytics unit-тесты завершились успешно | Passed | `AnalyticsFunctionsTest`; commit `74cc7ae9cc9986e092e2ddb39d20bb180a6ec27f` |
+| AC3 | `:analytics:test` | Проверены значения `930`, `847.5`, `600`, `5000`, `900`, `450` | Analytics unit-тесты завершились успешно | Passed | `AnalyticsFunctionsTest`; commit `74cc7ae9cc9986e092e2ddb39d20bb180a6ec27f` |
+| AC4 | `validateContracts` | Контрактные fixtures проходят проверку | `:validateContracts` завершился успешно | Passed | Gradle output: `> Task :validateContracts`; commit `74cc7ae9cc9986e092e2ddb39d20bb180a6ec27f` |
+| AC5 | `:contract-validator:validate` | Валидатор контрактов завершается успешно | `:contract-validator:validate` завершился успешно; OpenAPI и examples validated | Passed | Gradle output: `OK: OpenAPI + examples validated ...`; commit `74cc7ae9cc9986e092e2ddb39d20bb180a6ec27f` |
+
+Примечание: предупреждения `SLF4J(W)` относятся к отсутствующему SLF4J provider и не повлияли на результат проверки. Итоговый результат сборки: `BUILD SUCCESSFUL`.
