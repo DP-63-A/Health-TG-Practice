@@ -1,11 +1,17 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from './errors'
 import { createEntriesApi } from './entries'
-import { fixtureApiClient } from './fixtureClient'
+import type { ApiClient } from './types'
 
-const api = createEntriesApi(fixtureApiClient)
+let fixtureApiClient: ApiClient
+let api: ReturnType<typeof createEntriesApi>
 
 describe('FE1-04 fixture transitions', () => {
+  beforeEach(async () => {
+    vi.resetModules()
+    fixtureApiClient = (await import('./fixtureClient')).fixtureApiClient
+    api = createEntriesApi(fixtureApiClient)
+  })
   it('merges nested nutrients, checks revision and confirms idempotently', async () => {
     const id = '22222222-2222-4222-8222-222222222202'
     const before = await api.get(id)

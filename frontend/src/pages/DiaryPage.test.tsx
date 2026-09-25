@@ -13,18 +13,22 @@ describe('FE1-03 diary', () => {
   })
 
   it('requests confirmed entries by default and keeps drafts in review mode', async () => {
+    const list = vi.spyOn(entriesApi, 'list')
     renderRoute('/diary')
 
     expect(await screen.findByText('Овсянка с ягодами')).toBeInTheDocument()
+    expect(list).toHaveBeenCalledWith({ status: 'confirmed', limit: 2, cursor: undefined }, expect.any(AbortSignal))
     expect(screen.queryByText('Паста')).not.toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Режим'), { target: { value: 'draft' } })
 
     expect(await screen.findByText('Паста')).toBeInTheDocument()
+    expect(list).toHaveBeenLastCalledWith({ status: 'draft', limit: 2, cursor: undefined }, expect.any(AbortSignal))
     expect(screen.queryByText('Овсянка с ягодами')).not.toBeInTheDocument()
   })
 
   it('applies from/to/type filters through a new server page request', async () => {
+    const list = vi.spyOn(entriesApi, 'list')
     renderRoute('/diary')
 
     expect(await screen.findByText('Овсянка с ягодами')).toBeInTheDocument()
@@ -32,32 +36,61 @@ describe('FE1-03 diary', () => {
     fireEvent.change(screen.getByLabelText('С даты'), { target: { value: '2026-09-18' } })
 
     expect(await screen.findByText('mood: 4/5')).toBeInTheDocument()
+    expect(list).toHaveBeenLastCalledWith({ status: 'confirmed', limit: 2, cursor: undefined, from: '2026-09-18' }, expect.any(AbortSignal))
     expect(screen.queryByText('Овсянка с ягодами')).not.toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Тип'), { target: { value: 'note' } })
 
     expect((await screen.findAllByText('После завтрака чувствую себя хорошо')).length).toBeGreaterThan(0)
+    expect(list).toHaveBeenLastCalledWith({ status: 'confirmed', limit: 2, cursor: undefined, from: '2026-09-18', type: 'note' }, expect.any(AbortSignal))
     expect(screen.queryByText('mood: 4/5')).not.toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('По дату'), { target: { value: '2026-09-18' } })
 
     expect(await screen.findByText('Записей нет')).toBeInTheDocument()
+    expect(list).toHaveBeenLastCalledWith({ status: 'confirmed', limit: 2, cursor: undefined, from: '2026-09-18', to: '2026-09-18', type: 'note' }, expect.any(AbortSignal))
   })
 
   it('switches pages without mixing old items and resets pagination on filter change', async () => {
+    const list = vi.spyOn(entriesApi, 'list')
     renderRoute('/diary')
 
     expect(await screen.findByText('Овсянка с ягодами')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Вперёд' }))
 
     expect(await screen.findByText('mood: 4/5')).toBeInTheDocument()
+    expect(list).toHaveBeenLastCalledWith({ status: 'confirmed', limit: 2, cursor: '2' }, expect.any(AbortSignal))
     expect(screen.queryByText('Овсянка с ягодами')).not.toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Тип'), { target: { value: 'meal' } })
 
     expect(await screen.findByText('Овсянка с ягодами')).toBeInTheDocument()
+    expect(list).toHaveBeenLastCalledWith({ status: 'confirmed', limit: 2, cursor: undefined, type: 'meal' }, expect.any(AbortSignal))
     expect(screen.getByText('Страница 1')).toBeInTheDocument()
     expect(screen.queryByText('mood: 4/5')).not.toBeInTheDocument()
+  })
+
+  it('uses the opaque cursor returned by the server and drops it after a filter change', async () => {
+    const list = vi.spyOn(entriesApi, 'list').mockImplementation(async (filters): Promise<EntryListResponse> => {
+      if (filters?.cursor === 'opaque:next-page') {
+        return { items: [entryFixture({ id: 'second-page', type: 'note', payload: { text: 'Server second page' } })], next_cursor: null }
+      }
+      return { items: [entryFixture({ id: 'first-page', payload: { description: 'Server first page' } })], next_cursor: 'opaque:next-page' }
+    })
+    renderRoute('/diary')
+
+    expect(await screen.findByText('Server first page')).toBeInTheDocument()
+    expect(list).toHaveBeenLastCalledWith({ status: 'confirmed', limit: 2, cursor: undefined }, expect.any(AbortSignal))
+    fireEvent.click(screen.getByRole('button', { name: 'Вперёд' }))
+    expect(await screen.findByRole('link', { name: /Server second page/ })).toBeInTheDocument()
+    expect(list).toHaveBeenLastCalledWith({ status: 'confirmed', limit: 2, cursor: 'opaque:next-page' }, expect.any(AbortSignal))
+    expect(screen.queryByText('Server first page')).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Тип'), { target: { value: 'meal' } })
+    expect(await screen.findByText('Server first page')).toBeInTheDocument()
+    expect(list).toHaveBeenLastCalledWith({ status: 'confirmed', limit: 2, cursor: undefined, type: 'meal' }, expect.any(AbortSignal))
+    expect(screen.getByText('Страница 1')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Server second page/ })).not.toBeInTheDocument()
   })
 
   it('shows empty state for an empty server result', async () => {
@@ -102,6 +135,33 @@ describe('FE1-03 diary', () => {
 
     expect(screen.getAllByText('Fresh async note').length).toBeGreaterThan(0)
     expect(screen.queryByText('Old async meal')).not.toBeInTheDocument()
+  })
+
+  it('keeps loading distinct from empty until the API resolves', async () => {
+    let resolveList: (value: EntryListResponse) => void = () => undefined
+    const list = vi.spyOn(entriesApi, 'list').mockImplementation(() => new Promise<EntryListResponse>((resolve) => { resolveList = resolve }))
+    renderRoute('/diary')
+
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(1))
+    expect(screen.getByRole('heading', { name: 'Загрузка записей' })).toBeInTheDocument()
+    expect(screen.queryByText('Записей нет')).not.toBeInTheDocument()
+    await act(async () => resolveList({ items: [], next_cursor: null }))
+    expect(await screen.findByText('Записей нет')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Загрузка записей' })).not.toBeInTheDocument()
+  })
+
+  it('shows a failed list request and retries the same filters', async () => {
+    const list = vi.spyOn(entriesApi, 'list')
+      .mockRejectedValueOnce(new Error('Connection lost'))
+      .mockResolvedValueOnce({ items: [entryFixture({ payload: { description: 'Recovered entry' } })], next_cursor: null })
+    renderRoute('/diary')
+
+    expect(await screen.findByText('Connection lost')).toBeInTheDocument()
+    expect(screen.queryByText('Записей нет')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }))
+    expect(await screen.findByText('Recovered entry')).toBeInTheDocument()
+    expect(list).toHaveBeenCalledTimes(2)
+    expect(list).toHaveBeenLastCalledWith({ status: 'confirmed', limit: 2, cursor: undefined }, undefined)
   })
 
   it('keeps the newest response when a refresh overtakes an older list request', async () => {
