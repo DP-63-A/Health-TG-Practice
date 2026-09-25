@@ -363,7 +363,7 @@ class AnalyticsFunctionsTest {
                 Instant.parse("2026-09-19T08:00:00Z"),
                 null,
                 1L,
-                date,
+                null,
                 null,
                 null,
                 null,
@@ -382,7 +382,7 @@ class AnalyticsFunctionsTest {
                 Instant.parse("2026-09-19T09:00:00Z"),
                 null,
                 1L,
-                date,
+                null,
                 null,
                 null,
                 null,
@@ -401,7 +401,7 @@ class AnalyticsFunctionsTest {
                 Instant.parse("2026-09-19T10:00:00Z"),
                 null,
                 1L,
-                date,
+                null,
                 null,
                 null,
                 null,
@@ -420,7 +420,7 @@ class AnalyticsFunctionsTest {
                 Instant.parse("2026-09-19T11:00:00Z"),
                 null,
                 1L,
-                date,
+                null,
                 null,
                 null,
                 null,
@@ -481,7 +481,7 @@ class AnalyticsFunctionsTest {
             occurredAt,
             updatedAt,
             1L,
-            LocalDate.of(2026, 9, 19),
+            null,
             null,
             null,
             null,
@@ -500,7 +500,7 @@ class AnalyticsFunctionsTest {
             occurredAt,
             updatedAt,
             2L,
-            LocalDate.of(2026, 9, 19),
+            null,
             null,
             null,
             null,
@@ -569,7 +569,7 @@ class AnalyticsFunctionsTest {
             Instant.parse("2026-09-19T10:00:00Z"),
             Instant.parse("2026-09-19T10:01:00Z"),
             1L,
-            LocalDate.of(2026, 9, 19),
+            null,
             null,
             Metric.HEART_RATE,
             d("220"),
@@ -598,7 +598,7 @@ class AnalyticsFunctionsTest {
             Instant.parse("2026-09-19T10:00:00Z"),
             Instant.parse("2026-09-19T10:01:00Z"),
             1L,
-            LocalDate.of(2026, 9, 19),
+            null,
             null,
             null,
             null,
@@ -625,7 +625,7 @@ class AnalyticsFunctionsTest {
             Instant.parse("2026-09-19T10:00:00Z"),
             Instant.parse("2026-09-19T10:01:00Z"),
             1L,
-            LocalDate.of(2026, 9, 19),
+            null,
             null,
             null,
             null,
@@ -960,5 +960,88 @@ class AnalyticsFunctionsTest {
         assertEquals(d("165"), result.energyKcal());
         assertEquals(1, result.countedMeals());
         assertFalse(result.incomplete());
+    }
+
+    @Test
+    void checkinUsesOccurredAtAndPeriodZoneAtWarsawMidnight() {
+        Entry checkin = new Entry(
+            "checkin-at-midnight",
+            "checkin",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-18T22:00:00Z"),
+            null,
+            1L,
+            null,
+            null,
+            null,
+            null,
+            null,
+            CheckinCategory.MOOD,
+            5,
+            null,
+            null,
+            null
+        );
+    
+        Period oneDay = new Period(
+            LocalDate.of(2026, 9, 19),
+            LocalDate.of(2026, 9, 19),
+            WARSAW
+        );
+    
+        Map<CheckinCategory, List<RatingPoint>> result =
+            checkins(List.of(checkin), oneDay);
+    
+        assertEquals(
+            List.of(new RatingPoint(
+                LocalDate.of(2026, 9, 19),
+                5,
+                "checkin-at-midnight"
+            )),
+            result.get(CheckinCategory.MOOD)
+        );
+    }
+
+    @Test
+    void portionFactorPreservesInputPrecision() {
+        BigDecimal mass = d("123.456789012345678901");
+    
+        BigDecimal factor = portionFactor(mass);
+    
+        assertEquals(
+            d("1.23456789012345678901"),
+            factor
+        );
+    }
+
+    @Test
+    void nutritionPreservesHighPrecisionMass() {
+        Entry meal = Entry.meal(
+            "precise-meal",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-18T22:00:00Z"),
+            d("123.456789012345678901"),
+            new Nutrients(
+                d("100"),
+                d("1"),
+                d("1"),
+                d("1")
+            ),
+            Basis.PER_100G
+        );
+    
+        NutritionResult result = nutrition(
+            List.of(meal),
+            new Period(
+                LocalDate.of(2026, 9, 19),
+                LocalDate.of(2026, 9, 19),
+                WARSAW
+            )
+        );
+    
+        assertEquals(
+            d("123.456789012345678901"),
+            result.energyKcal()
+        );
     }
 }
