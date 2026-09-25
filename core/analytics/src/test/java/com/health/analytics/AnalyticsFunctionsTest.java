@@ -932,4 +932,33 @@ class AnalyticsFunctionsTest {
             () -> dailyMetric(List.of(), Metric.HEART_RATE, WEEK)
         );
     }
+
+    @Test
+    void nutritionUsesOccurredAtAndPeriodZoneAtWarsawMidnight() {
+        Entry meal = Entry.meal(
+            "meal-at-midnight",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-18T22:00:00Z"),
+            d("100"),
+            new Nutrients(
+                d("165"),
+                d("10"),
+                d("5"),
+                d("20")
+            ),
+            Basis.PER_100G
+        );
+    
+        Period oneDay = new Period(
+            LocalDate.of(2026, 9, 19),
+            LocalDate.of(2026, 9, 19),
+            WARSAW
+        );
+    
+        NutritionResult result = nutrition(List.of(meal), oneDay);
+    
+        assertEquals(d("165"), result.energyKcal());
+        assertEquals(1, result.countedMeals());
+        assertFalse(result.incomplete());
+    }
 }
