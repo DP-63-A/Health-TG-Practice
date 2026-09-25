@@ -1,0 +1,5 @@
+{
+  "code": "VERSION_CONFLICT",
+  "message": "expected_revision 2 is stale; current revision is 3",
+  "request_id": "req_01CONFLICT"
+}
