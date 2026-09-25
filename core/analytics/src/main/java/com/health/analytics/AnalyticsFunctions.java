@@ -92,11 +92,9 @@ public final class AnalyticsFunctions {
             throw new IllegalArgumentException("mass must be non-negative");
         }
 
-        return normalize(massGrams.divide(
-            BigDecimal.valueOf(100),
-            12,
-            RoundingMode.HALF_UP
-        ));
+        return normalize(
+            massGrams.divide(BigDecimal.valueOf(100))
+        );
     }
 
     private static BigDecimal normalize(BigDecimal value) {
