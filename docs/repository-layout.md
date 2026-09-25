@@ -9,8 +9,10 @@ Health-TG-Practice/
 |-- settings.gradle.kts
 |-- gradlew / gradlew.bat
 |-- gradle/wrapper/
-|-- backend/                  Spring Boot backend и его тесты
-|-- frontend/                 Telegram Mini App (пока документация)
+|-- backend/                  Два отдельных запуска одного Java-приложения
+|   |-- api/                  HTTP API и его тесты
+|   `-- bot/                  Telegram-бот и его тесты
+|-- frontend/                 React/TypeScript Mini App, код и тесты
 |-- contracts/                OpenAPI, JSON-схемы, примеры и отчёты
 |-- tools/contract-validator/ Java-инструмент проверки контрактов
 |-- fixtures/                 общие синтетические данные
@@ -25,15 +27,16 @@ Health-TG-Practice/
 
 Корневой `settings.gradle.kts` подключает:
 
-- `backend` — Spring Boot 3.5.6, Java 21, HTTP API, безопасность и MongoDB persistence;
+- `backend:api` — Spring Boot 3.5.6, Java 21, HTTP API, безопасность и MongoDB persistence;
+- `backend:bot` — Spring Boot 3.5.6, Java 21, TelegramBots, без HTTP-сервера и MongoDB;
 - `contract-validator` — проверка OpenAPI, JSON-схем и контрактных примеров.
 
-Версия Gradle задаётся Wrapper: 8.11.1. Оба Java-модуля используют toolchain Java 21.
-Frontend пока не подключён к сборке.
+Версия Gradle задаётся Wrapper: 8.11.1. Все Java-модули используют toolchain Java 21.
+Frontend собирается отдельно через npm в каталоге `frontend/` и не входит в Gradle-сборку. Команды запуска, тестов и проверки типов определены в `frontend/package.json`; настройки fixture/live описаны в [README frontend](../frontend/README.md).
 
 ## Код и проверки
 
-Backend-код находится в `backend/src/main/java`, тесты — в `backend/src/test/java`.
+Код API находится в `backend/api/src/main/java`, код бота — в `backend/bot/src/main/java`; тесты каждого приложения находятся рядом в `src/test/java`.
 Код валидатора находится в `tools/contract-validator/src/main/java`, его тесты — в соседнем
 `src/test/java`. Корневой каталог `tests/` предназначен для будущих сквозных сценариев.
 

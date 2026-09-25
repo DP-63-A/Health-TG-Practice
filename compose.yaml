@@ -1,0 +1,21 @@
+name: health-tg-practice
+
+services:
+  mongo:
+    image: ${MONGODB_IMAGE:-mongodb/mongodb-community-server:8.0-ubi9-slim}
+    container_name: health-tg-mongo
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MONGODB_PORT:-27017}:27017"
+    volumes:
+      - health-tg-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'quit(db.runCommand({ ping: 1 }).ok ? 0 : 2)' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  health-tg-mongo-data:
+    name: health-tg-mongo-data
