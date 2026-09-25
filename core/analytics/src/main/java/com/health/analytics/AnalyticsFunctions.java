@@ -340,13 +340,13 @@ public final class AnalyticsFunctions {
                 || entry.occurredAt() == null) {
                 continue;
             }
-            
+
             LocalDate checkinDate = localDate(entry.occurredAt(), period.zone());
-            
+
             if (!period.contains(checkinDate)) {
                 continue;
             }
-            
+
             selected
                 .computeIfAbsent(
                     entry.category(),
