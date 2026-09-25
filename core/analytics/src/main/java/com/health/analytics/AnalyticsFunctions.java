@@ -1,7 +1,7 @@
 package com.health.analytics;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.math.MathContext;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -18,6 +18,16 @@ import java.util.TreeMap;
 /** Pure, database-independent analytics calculations. Inputs are never mutated. */
 public final class AnalyticsFunctions {
     private AnalyticsFunctions() {}
+
+    /**
+     * Decimal average policy for this core API.
+     *
+     * <p>Recurring decimals cannot be represented exactly in {@link BigDecimal}.
+     * We therefore keep the division policy explicit in the core API instead of a
+     * hidden fixed scale (for example, 12 decimal places). Presentation layers can
+     * still format the value for display as needed.</p>
+     */
+    public static final MathContext AVERAGE_MATH_CONTEXT = MathContext.DECIMAL128;
 
     public enum Status { DRAFT, CONFIRMED, CANCELLED, DELETED }
     public enum Metric { STEPS, SLEEP_DURATION_MIN, HEART_RATE }
@@ -204,7 +214,7 @@ public final class AnalyticsFunctions {
     }
 
     private static Comparator<Entry> byOccurredUpdatedAndId() {
-    return Comparator
+        return Comparator
             .comparing(Entry::occurredAt, Comparator.nullsFirst(Comparator.naturalOrder()))
             .thenComparing(Entry::updatedAt, Comparator.nullsFirst(Comparator.naturalOrder()))
             .thenComparing(Entry::id);
@@ -225,8 +235,8 @@ public final class AnalyticsFunctions {
             );
         }
 
-    Map<LocalDate, Entry> selected = new TreeMap<>();
-    Comparator<Entry> order = byOccurredUpdatedAndId();
+        Map<LocalDate, Entry> selected = new TreeMap<>();
+        Comparator<Entry> order = byOccurredUpdatedAndId();
 
         for (Entry entry : current(entries)) {
             if (!"metrics".equals(entry.type())) {
@@ -234,7 +244,7 @@ public final class AnalyticsFunctions {
             }
 
             if (entry.metric() != metric || entry.value() == null) {
-            continue;
+                continue;
             }
 
             Optional<LocalDate> date;
@@ -279,8 +289,7 @@ public final class AnalyticsFunctions {
             ? null
             : normalize(total.divide(
                 BigDecimal.valueOf(values.size()),
-                12,
-                RoundingMode.HALF_UP
+                AVERAGE_MATH_CONTEXT
             ));
 
         return new DailyResult(
