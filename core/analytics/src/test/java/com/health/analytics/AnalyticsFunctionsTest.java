@@ -1044,4 +1044,75 @@ class AnalyticsFunctionsTest {
             result.energyKcal()
         );
     }
+
+    @Test
+    void averageUsesDocumentedPrecisionForNonTerminatingDecimal() {
+        Entry first = new Entry(
+            "day-one",
+            "metrics",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-13T10:00:00Z"),
+            null,
+            1L,
+            null,
+            null,
+            Metric.STEPS,
+            d("1"),
+            null,
+            null,
+            null,
+            null,
+            null,
+            (Basis) null
+        );
+
+        Entry second = new Entry(
+            "day-two",
+            "metrics",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-14T10:00:00Z"),
+            null,
+            1L,
+            null,
+            null,
+            Metric.STEPS,
+            d("0"),
+            null,
+            null,
+            null,
+            null,
+            null,
+            (Basis) null
+        );
+
+        Entry third = new Entry(
+            "day-three",
+            "metrics",
+            Status.CONFIRMED,
+            Instant.parse("2026-09-15T10:00:00Z"),
+            null,
+            1L,
+            null,
+            null,
+            Metric.STEPS,
+            d("0"),
+            null,
+            null,
+            null,
+            null,
+            null,
+            (Basis) null
+        );
+
+        DailyResult result = dailyMetric(
+            List.of(first, second, third),
+            Metric.STEPS,
+            WEEK
+        );
+
+        assertEquals(
+            BigDecimal.ONE.divide(BigDecimal.valueOf(3), AVERAGE_MATH_CONTEXT),
+            result.aggregate().average()
+        );
+    }
 }
