@@ -667,7 +667,7 @@ class AnalyticsFunctionsTest {
             firstMealNutrients,
             Basis.PER_SERVING
         );
-        
+
         Entry secondMeal = Entry.meal(
             "22222222-2222-4222-8222-222222222211",
             Status.CONFIRMED,
@@ -773,7 +773,7 @@ class AnalyticsFunctionsTest {
             Metric.STEPS,
             WEEK
         );
-    
+
         assertEquals(d("5000"), stepsResult.aggregate().total());
         assertEquals(d("5000"), stepsResult.aggregate().average());
         assertEquals(1, stepsResult.aggregate().daysWithData());
