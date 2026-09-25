@@ -125,18 +125,18 @@ public final class AnalyticsFunctions {
             if (!"meal".equals(entry.type())) {
                 continue;
             }
-        
+
             if (entry.occurredAt() == null) {
                 incomplete = true;
                 continue;
             }
-        
+
             LocalDate mealDate = localDate(entry.occurredAt(), period.zone());
-        
+
             if (!period.contains(mealDate)) {
                 continue;
             }
-        
+
             countedMeals++;
 
             Nutrients nutrients = entry.nutrients();
