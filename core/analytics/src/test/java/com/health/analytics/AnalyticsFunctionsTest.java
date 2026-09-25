@@ -207,15 +207,15 @@ class AnalyticsFunctionsTest {
             null,
             (Basis) null
         );
-    
+
         assertTrue(sleepDate(sleep, WARSAW).isEmpty());
-    
+
         DailyResult result = dailyMetric(
             List.of(sleep),
             Metric.SLEEP_DURATION_MIN,
             WEEK
         );
-    
+
         assertTrue(result.values().isEmpty());
         assertNull(result.aggregate().total());
         assertNull(result.aggregate().average());
@@ -286,17 +286,17 @@ class AnalyticsFunctionsTest {
     void periodBoundariesAndWarsawMidnightAreHandledCorrectly() {
         Instant beforeWarsawDay = Instant.parse("2026-09-18T21:59:59Z");
         Instant atWarsawDay = Instant.parse("2026-09-18T22:00:00Z");
-    
+
         assertEquals(
             LocalDate.of(2026, 9, 18),
             localDate(beforeWarsawDay, WARSAW)
         );
-    
+
         assertEquals(
             LocalDate.of(2026, 9, 19),
             localDate(atWarsawDay, WARSAW)
         );
-    
+
         Entry before = new Entry(
             "before",
             "metrics",
@@ -315,7 +315,7 @@ class AnalyticsFunctionsTest {
             null,
             (Basis) null
         );
-    
+
         Entry atBoundary = new Entry(
             "at-boundary",
             "metrics",
@@ -334,19 +334,19 @@ class AnalyticsFunctionsTest {
             null,
             (Basis) null
         );
-    
+
         Period oneDay = new Period(
             LocalDate.of(2026, 9, 19),
             LocalDate.of(2026, 9, 19),
             WARSAW
         );
-    
+
         DailyResult result = dailyMetric(
             List.of(before, atBoundary),
             Metric.STEPS,
             oneDay
         );
-    
+
         assertEquals(d("200"), result.aggregate().total());
         assertEquals(1, result.aggregate().daysWithData());
     }
@@ -354,7 +354,7 @@ class AnalyticsFunctionsTest {
     @Test
     void checkinsKeepAllCategoriesAndDoNotFillGaps() {
         LocalDate date = LocalDate.of(2026, 9, 19);
-    
+
         List<Entry> entries = List.of(
             new Entry(
                 "sleep-quality",
@@ -374,7 +374,7 @@ class AnalyticsFunctionsTest {
                 null,
                 (Basis) null
             ),
-    
+
             new Entry(
                 "digestion",
                 "checkin",
@@ -393,7 +393,7 @@ class AnalyticsFunctionsTest {
                 null,
                 (Basis) null
             ),
-    
+
             new Entry(
                 "wellbeing",
                 "checkin",
@@ -412,7 +412,7 @@ class AnalyticsFunctionsTest {
                 null,
                 (Basis) null
             ),
-    
+
             new Entry(
                 "mood",
                 "checkin",
@@ -432,10 +432,10 @@ class AnalyticsFunctionsTest {
                 (Basis) null
             )
         );
-    
+
         Map<CheckinCategory, List<RatingPoint>> result =
             checkins(entries, WEEK);
-    
+
         assertEquals(4, result.size());
         assertEquals(
             4,
@@ -473,7 +473,7 @@ class AnalyticsFunctionsTest {
     void checkinsAreIndependentOfInputOrderAndUseDeterministicTieBreak() {
         Instant occurredAt = Instant.parse("2026-09-19T10:00:00Z");
         Instant updatedAt = Instant.parse("2026-09-19T10:05:00Z");
-    
+
         Entry first = new Entry(
             "a",
             "checkin",
@@ -492,7 +492,7 @@ class AnalyticsFunctionsTest {
             null,
             (Basis) null
         );
-    
+
         Entry second = new Entry(
             "b",
             "checkin",
@@ -511,18 +511,18 @@ class AnalyticsFunctionsTest {
             null,
             (Basis) null
         );
-    
+
         Map<CheckinCategory, List<RatingPoint>> forward =
             checkins(List.of(first, second), WEEK);
-    
+
         Map<CheckinCategory, List<RatingPoint>> reverse =
             checkins(List.of(second, first), WEEK);
-    
+
         assertEquals(forward, reverse);
-    
+
         RatingPoint selected =
             forward.get(CheckinCategory.MOOD).get(0);
-    
+
         assertEquals("b", selected.entryId());
         assertEquals(5, selected.value());
     }
@@ -547,13 +547,13 @@ class AnalyticsFunctionsTest {
             null,
             (Basis) null
         );
-    
+
         DailyResult result = dailyMetric(
             List.of(invalidMeal),
             Metric.STEPS,
             WEEK
         );
-    
+
         assertTrue(result.values().isEmpty());
         assertNull(result.aggregate().total());
         assertNull(result.aggregate().average());
@@ -580,12 +580,12 @@ class AnalyticsFunctionsTest {
             null,
             (Basis) null
         );
-    
+
         Optional<HeartRateResult> result = latestHeartRate(
             List.of(invalidCheckin),
             WEEK
         );
-    
+
         assertTrue(result.isEmpty());
     }
 
@@ -609,10 +609,10 @@ class AnalyticsFunctionsTest {
             null,
             (Basis) null
         );
-    
+
         Map<CheckinCategory, List<RatingPoint>> result =
             checkins(List.of(invalidMetrics), WEEK);
-    
+
         assertTrue(result.isEmpty());
     }
 
@@ -636,10 +636,10 @@ class AnalyticsFunctionsTest {
             null,
             Basis.PER_100G
         );
-    
+
         Map<CheckinCategory, List<RatingPoint>> result =
             checkins(List.of(invalidMeal), WEEK);
-    
+
         assertTrue(result.isEmpty());
     }
 
@@ -667,7 +667,7 @@ class AnalyticsFunctionsTest {
             firstMealNutrients,
             Basis.PER_SERVING
         );
-
+        
         Entry secondMeal = Entry.meal(
             "22222222-2222-4222-8222-222222222211",
             Status.CONFIRMED,
@@ -752,7 +752,7 @@ class AnalyticsFunctionsTest {
             null,
             (Basis) null
         );
-    
+
         List<Entry> entries = List.of(
             firstMeal,
             secondMeal,
@@ -804,7 +804,7 @@ class AnalyticsFunctionsTest {
             d("5"),
             d("20")
         );
-    
+
         Entry firstMeal = Entry.meal(
             "first-meal",
             Status.CONFIRMED,
@@ -948,15 +948,15 @@ class AnalyticsFunctionsTest {
             ),
             Basis.PER_100G
         );
-    
+
         Period oneDay = new Period(
             LocalDate.of(2026, 9, 19),
             LocalDate.of(2026, 9, 19),
             WARSAW
         );
-    
+
         NutritionResult result = nutrition(List.of(meal), oneDay);
-    
+
         assertEquals(d("165"), result.energyKcal());
         assertEquals(1, result.countedMeals());
         assertFalse(result.incomplete());
@@ -982,16 +982,16 @@ class AnalyticsFunctionsTest {
             null,
             null
         );
-    
+
         Period oneDay = new Period(
             LocalDate.of(2026, 9, 19),
             LocalDate.of(2026, 9, 19),
             WARSAW
         );
-    
+
         Map<CheckinCategory, List<RatingPoint>> result =
             checkins(List.of(checkin), oneDay);
-    
+
         assertEquals(
             List.of(new RatingPoint(
                 LocalDate.of(2026, 9, 19),
@@ -1005,9 +1005,9 @@ class AnalyticsFunctionsTest {
     @Test
     void portionFactorPreservesInputPrecision() {
         BigDecimal mass = d("123.456789012345678901");
-    
+
         BigDecimal factor = portionFactor(mass);
-    
+
         assertEquals(
             d("1.23456789012345678901"),
             factor
@@ -1029,7 +1029,7 @@ class AnalyticsFunctionsTest {
             ),
             Basis.PER_100G
         );
-    
+
         NutritionResult result = nutrition(
             List.of(meal),
             new Period(
@@ -1038,7 +1038,7 @@ class AnalyticsFunctionsTest {
                 WARSAW
             )
         );
-    
+
         assertEquals(
             d("123.456789012345678901"),
             result.energyKcal()
