@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { StrictMode, useState } from 'react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -105,6 +105,8 @@ describe('refresh mechanism', () => {
     try {
       renderRoute('/diary')
       await waitFor(() => expect(list).toHaveBeenCalledTimes(1))
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-09-25T10:00:00Z'))
       Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' })
       fireEvent(window, new Event('pagehide'))
       fireEvent(document, new Event('visibilitychange'))
@@ -112,11 +114,13 @@ describe('refresh mechanism', () => {
       fireEvent(window, new Event('focus'))
       fireEvent(document, new Event('visibilitychange'))
       fireEvent(window, new PageTransitionEvent('pageshow', { persisted: true }))
-      await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+      await act(async () => { vi.advanceTimersByTime(100) })
+      expect(list).toHaveBeenCalledTimes(2)
       fireEvent(window, new PageTransitionEvent('pageshow', { persisted: true }))
-      await new Promise((resolve) => setTimeout(resolve, 160))
+      await act(async () => { vi.advanceTimersByTime(160) })
       expect(list).toHaveBeenCalledTimes(2)
     } finally {
+      vi.useRealTimers()
       if (descriptor) Object.defineProperty(document, 'visibilityState', descriptor)
       else Reflect.deleteProperty(document, 'visibilityState')
     }
@@ -125,12 +129,17 @@ describe('refresh mechanism', () => {
   it('cleans lifecycle listeners and pending resume on unmount', async () => {
     const onRefresh = vi.fn()
     const view = render(<StrictMode><RefreshProvider><RefreshCallback onRefresh={onRefresh} /></RefreshProvider></StrictMode>)
-    fireEvent(window, new Event('blur'))
-    fireEvent(window, new Event('focus'))
-    view.unmount()
-    await new Promise((resolve) => setTimeout(resolve, 160))
-    fireEvent(window, new Event('focus'))
-    expect(onRefresh).not.toHaveBeenCalled()
+    try {
+      vi.useFakeTimers()
+      fireEvent(window, new Event('blur'))
+      fireEvent(window, new Event('focus'))
+      view.unmount()
+      await act(async () => { vi.advanceTimersByTime(160) })
+      fireEvent(window, new Event('focus'))
+      expect(onRefresh).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('ignores an older Overview response after a newer shared refresh', async () => {
@@ -146,8 +155,7 @@ describe('refresh mechanism', () => {
     resolveNew({ ...analyticsFixture, cards: { ...analyticsFixture.cards, meal_count: { count: 9 } } })
     const card = await screen.findByRole('region', { name: 'Количество приёмов пищи' })
     expect(within(card).getByText('9')).toBeInTheDocument()
-    resolveOld(analyticsFixture)
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await act(async () => resolveOld(analyticsFixture))
     expect(within(card).getByText('9')).toBeInTheDocument()
     expect(within(card).queryByText('2')).not.toBeInTheDocument()
   })
