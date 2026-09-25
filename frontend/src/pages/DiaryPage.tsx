@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { ApiError } from '../api/client'
 import { entriesApi } from '../api/entries'
 import type { Entry, EntryFilters, EntryPayload, EntryStatus, EntryType, FieldOrigin } from '../api/types'
@@ -11,9 +11,38 @@ const PAGE_SIZE = 2
 const typeLabels: Record<EntryType, string> = { meal: 'Приём пищи', metrics: 'Показатель', checkin: 'Самочувствие', note: 'Заметка' }
 const statusLabels: Record<EntryStatus, string> = { draft: 'На проверке', confirmed: 'История', cancelled: 'Отменено', deleted: 'Удалено' }
 const originLabels: Record<FieldOrigin, string> = { reported: 'сообщено', extracted: 'извлечено', estimated: 'оценка', computed: 'рассчитано' }
+const overviewTypes = ['meal', 'metrics', 'checkin'] as const satisfies readonly EntryType[]
+
+function isOverviewType(value: string | null): value is (typeof overviewTypes)[number] {
+  return value !== null && overviewTypes.some((type) => type === value)
+}
+
+function initialFilters(search: string): EntryFilters {
+  const params = new URLSearchParams(search)
+  const filters: EntryFilters = { status: 'confirmed', limit: PAGE_SIZE }
+  const from = params.get('from')
+  const to = params.get('to')
+  const type = params.get('type')
+
+  if (isCalendarDate(from)) filters.from = from
+  if (isCalendarDate(to)) filters.to = to
+  if (isOverviewType(type)) filters.type = type
+  return filters
+}
+
+function isCalendarDate(value: string | null): value is string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = new Date(`${value}T00:00:00Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
 
 function DiaryPage() {
-  const [filters, setFilters] = useState<EntryFilters>({ status: 'confirmed', limit: PAGE_SIZE })
+  const { search } = useLocation()
+  return <DiaryContent key={search} search={search} />
+}
+
+function DiaryContent({ search }: { search: string }) {
+  const [filters, setFilters] = useState<EntryFilters>(() => initialFilters(search))
   const [entries, setEntries] = useState<Entry[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [pageIndex, setPageIndex] = useState(0)

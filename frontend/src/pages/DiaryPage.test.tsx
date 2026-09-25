@@ -12,6 +12,105 @@ describe('FE1-03 diary', () => {
     vi.restoreAllMocks()
   })
 
+  it('uses all Overview URL filters in the first request and shows the returned entry', async () => {
+    const list = vi.spyOn(entriesApi, 'list').mockResolvedValue({
+      items: [entryFixture({ payload: { description: 'September meal' }, occurred_at: '2026-09-03T09:00:00Z' })],
+      next_cursor: null,
+    })
+    renderRoute('/diary?from=2026-09-01&to=2026-09-07&type=meal')
+
+    expect(await screen.findByText('September meal')).toBeInTheDocument()
+    expect(list).toHaveBeenCalledTimes(1)
+    expect(list).toHaveBeenNthCalledWith(1, {
+      status: 'confirmed', limit: 2, cursor: undefined,
+      from: '2026-09-01', to: '2026-09-07', type: 'meal',
+    }, expect.any(AbortSignal))
+    expect(screen.getByLabelText('С даты')).toHaveValue('2026-09-01')
+    expect(screen.getByLabelText('По дату')).toHaveValue('2026-09-07')
+    expect(screen.getByLabelText('Тип')).toHaveValue('meal')
+    expect(screen.getByLabelText('Режим')).toHaveValue('confirmed')
+  })
+
+  it.each(['meal', 'metrics', 'checkin'] as const)('accepts the Overview %s type without dates', async (type) => {
+    const list = vi.spyOn(entriesApi, 'list').mockResolvedValue({ items: [], next_cursor: null })
+    renderRoute(`/diary?type=${type}`)
+
+    expect(await screen.findByText('Записей нет')).toBeInTheDocument()
+    expect(list).toHaveBeenCalledTimes(1)
+    expect(list).toHaveBeenNthCalledWith(1, {
+      status: 'confirmed', limit: 2, cursor: undefined, type,
+    }, expect.any(AbortSignal))
+    expect(screen.getByLabelText('Тип')).toHaveValue(type)
+    expect(screen.getByLabelText('С даты')).toHaveValue('')
+    expect(screen.getByLabelText('По дату')).toHaveValue('')
+  })
+
+  it('accepts partial date filters without a type', async () => {
+    const list = vi.spyOn(entriesApi, 'list').mockResolvedValue({ items: [], next_cursor: null })
+    renderRoute('/diary?from=2026-09-01&to=2026-09-07')
+
+    expect(await screen.findByText('Записей нет')).toBeInTheDocument()
+    expect(list).toHaveBeenCalledTimes(1)
+    expect(list).toHaveBeenNthCalledWith(1, {
+      status: 'confirmed', limit: 2, cursor: undefined,
+      from: '2026-09-01', to: '2026-09-07',
+    }, expect.any(AbortSignal))
+    expect(screen.getByLabelText('Тип')).toHaveValue('')
+  })
+
+  it.each(['unsupported', 'note', 'toString'] as const)('ignores unsupported URL type %s', async (type) => {
+    const list = vi.spyOn(entriesApi, 'list')
+    renderRoute(`/diary?type=${type}`)
+
+    expect(await screen.findByText('Овсянка с ягодами')).toBeInTheDocument()
+    expect(list).toHaveBeenCalledTimes(1)
+    expect(list).toHaveBeenNthCalledWith(1, { status: 'confirmed', limit: 2, cursor: undefined }, expect.any(AbortSignal))
+    expect(screen.getByLabelText('Тип')).toHaveValue('')
+  })
+
+  it('ignores malformed URL dates instead of inventing current dates', async () => {
+    const list = vi.spyOn(entriesApi, 'list')
+    renderRoute('/diary?from=not-a-date&to=2026-02-30&type=meal')
+
+    expect(await screen.findByText('Овсянка с ягодами')).toBeInTheDocument()
+    expect(list).toHaveBeenCalledTimes(1)
+    expect(list).toHaveBeenNthCalledWith(1, {
+      status: 'confirmed', limit: 2, cursor: undefined, type: 'meal',
+    }, expect.any(AbortSignal))
+    expect(screen.getByLabelText('С даты')).toHaveValue('')
+    expect(screen.getByLabelText('По дату')).toHaveValue('')
+  })
+
+  it.each(['2026-02-30', '2026-13-01', '2026-9-1'])(
+    'rejects impossible or non-canonical URL date %s', async (date) => {
+      const list = vi.spyOn(entriesApi, 'list')
+      renderRoute(`/diary?from=${date}`)
+
+      expect(await screen.findByText('Овсянка с ягодами')).toBeInTheDocument()
+      expect(list).toHaveBeenCalledTimes(1)
+      expect(list).toHaveBeenNthCalledWith(1, { status: 'confirmed', limit: 2, cursor: undefined }, expect.any(AbortSignal))
+      expect(screen.getByLabelText('С даты')).toHaveValue('')
+    },
+  )
+
+  it('applies a new query when navigating to the already mounted Diary route', async () => {
+    const list = vi.spyOn(entriesApi, 'list').mockResolvedValue({ items: [], next_cursor: null })
+    const { router } = renderRoute('/diary?type=meal')
+    expect(await screen.findByText('Записей нет')).toBeInTheDocument()
+    expect(list).toHaveBeenCalledTimes(1)
+
+    await act(async () => { await router.navigate('/diary?from=2026-09-01&to=2026-09-07&type=metrics') })
+
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+    expect(list).toHaveBeenLastCalledWith({
+      status: 'confirmed', limit: 2, cursor: undefined,
+      from: '2026-09-01', to: '2026-09-07', type: 'metrics',
+    }, expect.any(AbortSignal))
+    expect(screen.getByLabelText('С даты')).toHaveValue('2026-09-01')
+    expect(screen.getByLabelText('По дату')).toHaveValue('2026-09-07')
+    expect(screen.getByLabelText('Тип')).toHaveValue('metrics')
+  })
+
   it('requests confirmed entries by default and keeps drafts in review mode', async () => {
     const list = vi.spyOn(entriesApi, 'list')
     renderRoute('/diary')
@@ -206,7 +305,8 @@ describe('FE1-03 diary', () => {
 
 function renderRoute(path: string) {
   const router = createMemoryRouter(appRoutes, { initialEntries: [path] })
-  return render(<AuthProvider><RefreshProvider><RouterProvider router={router} /></RefreshProvider></AuthProvider>)
+  const view = render(<AuthProvider><RefreshProvider><RouterProvider router={router} /></RefreshProvider></AuthProvider>)
+  return { ...view, router }
 }
 
 function entryFixture(overrides: Partial<Entry>): Entry {
