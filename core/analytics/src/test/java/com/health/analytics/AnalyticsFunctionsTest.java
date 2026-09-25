@@ -35,7 +35,14 @@ class AnalyticsFunctionsTest {
     @Test void nutritionScalesPer100gAndKeepsPrecision() {
         Nutrients base = new Nutrients(d("165"), d("10"), d("5"), d("20"));
         NutritionResult result = nutrition(List.of(
-                Entry.meal("200g", Status.CONFIRMED, LocalDate.of(2026,9,19), d("200"), base, Basis.PER_100G),
+                Entry.meal(
+                    "200g",
+                    Status.CONFIRMED,
+                    Instant.parse("2026-09-18T22:00:00Z"),
+                    d("200"),
+                    base,
+                    Basis.PER_100G
+                )
                 Entry.meal("150g", Status.CONFIRMED, LocalDate.of(2026,9,19), d("150"), base, Basis.PER_100G)), WEEK);
         assertEquals(d("577.5"), result.energyKcal());
         assertEquals(d("35"), result.proteinG());
