@@ -339,18 +339,23 @@ public final class AnalyticsFunctions {
 
             if (entry.category() == null
                 || entry.score() == null
-                || entry.localDate() == null
-                || !period.contains(entry.localDate())) {
+                || entry.occurredAt() == null) {
                 continue;
             }
-
+            
+            LocalDate checkinDate = localDate(entry.occurredAt(), period.zone());
+            
+            if (!period.contains(checkinDate)) {
+                continue;
+            }
+            
             selected
                 .computeIfAbsent(
                     entry.category(),
                     ignored -> new TreeMap<>()
                 )
                 .merge(
-                    entry.localDate(),
+                    checkinDate,
                     entry,
                     (first, second) ->
                         checkinOrder.compare(first, second) <= 0
