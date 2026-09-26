@@ -47,7 +47,7 @@ On Windows:
 
 ## Acceptance criteria report
 
-The command was run successfully on commit `74cc7ae9cc9986e092e2ddb39d20bb180a6ec27f` using Java 26. The run completed in 56 seconds and reported `12 actionable tasks: 12 executed`.
+The command was run successfully on commit `e5dd906c01a54626b60172574a46e576aeac1c4c` using Java 26. The run completed in 56 seconds and reported `12 actionable tasks: 12 executed`.
 
 The Gradle output did not print a JUnit test count, so this report records the verified task result rather than inventing a test number.
 
