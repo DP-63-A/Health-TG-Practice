@@ -160,6 +160,47 @@ class CheckinSelectorTest {
         assertEquals(4, replayStart.view().selection().score());
     }
 
+    @Test void newerScoreReplayRejectsDelayedStartWithoutReplacingCompletedSelection() {
+        var start = selector.begin(OWNER, OWNER, 10);
+        var scale = click(11, buttons(start).get(2).callbackData());
+        String score = buttons(scale).get(3).callbackData();
+        var finish = click(12, score);
+        assertEquals(SELECTED, finish.status());
+
+        var replay = click(100, score);
+        assertEquals(REPLAY, replay.status());
+        assertEquals(finish.view(), replay.view());
+        rejected(selector.begin(OWNER, OWNER, 50));
+        rejected(selector.begin(OWNER, OWNER, 100));
+        rejected(click(99, score));
+        rejected(click(100, buttons(scale).getFirst().callbackData()));
+        var duplicate = click(100, score);
+        assertEquals(REPLAY, duplicate.status());
+        assertEquals(finish.view(), duplicate.view());
+
+        var next = selector.begin(OWNER, OWNER, 101);
+        assertEquals(ACCEPTED, next.status());
+        assertEquals(CATEGORY, next.view().stage());
+        assertNull(next.view().selection());
+        rejected(click(102, score));
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"c0", "v1", "v6"})
+    void invalidCallbackAfterCompletedReplayDoesNotConsumeNewerUpdate(String suffix) {
+        var start = selector.begin(OWNER, OWNER, 10);
+        var scale = click(11, buttons(start).get(2).callbackData());
+        String score = buttons(scale).get(3).callbackData();
+        var finish = click(12, score);
+        assertEquals(SELECTED, finish.status());
+        assertEquals(REPLAY, click(100, score).status());
+
+        rejected(click(Long.MAX_VALUE, action(scale, suffix)));
+        var duplicate = click(100, score);
+        assertEquals(REPLAY, duplicate.status());
+        assertEquals(finish.view(), duplicate.view());
+        assertEquals(ACCEPTED, selector.begin(OWNER, OWNER, 101).status());
+    }
+
     @Test void replacingSelectionOrLosingStateInvalidatesOldButtons() {
         var old = selector.begin(OWNER, OWNER, 10);
         var current = selector.begin(OWNER, OWNER, 20);

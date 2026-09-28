@@ -73,8 +73,10 @@ public final class CheckinSelector {
         if (updateId <= session.lastUpdate) return rejected();
         String action = data.substring(35);
         if (session.selection != null) {
-            return action.equals("v" + session.selection.score())
-                    ? new Outcome(Status.REPLAY, view(session)) : rejected();
+            if (!action.equals("v" + session.selection.score())) return rejected();
+            session.lastUpdate = updateId;
+            session.lastCallback = data;
+            return new Outcome(Status.REPLAY, view(session));
         }
         if (action.charAt(0) == 'c') {
             if (session.category != null) return rejected();
