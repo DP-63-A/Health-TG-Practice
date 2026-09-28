@@ -40,6 +40,7 @@ describe('FE1-04 entry review and correction', () => {
     expect(screen.getByRole('button', { name: 'Изменить' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Подтвердить' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Не сохранять' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Убрать из дневника' })).not.toBeInTheDocument()
   })
 
   it('loads a confirmed entry by id and edits it through PATCH with expected_revision', async () => {
@@ -104,6 +105,8 @@ describe('FE1-04 entry review and correction', () => {
       expected_revision: 2,
       submission_id: expect.stringMatching(new RegExp(`^web_${entry.id}_`)),
     })
+    expect(screen.queryByText('Запись подтверждена.')).not.toBeInTheDocument()
+    expect(button).toBeDisabled()
 
     await act(async () => {
       resolveConfirm({ ...entry, status: 'confirmed', submission_id: 'server-submission', revision: 3 })
@@ -180,6 +183,21 @@ describe('FE1-04 entry review and correction', () => {
 
     expect(await screen.findByText('mass must be >= 0')).toBeInTheDocument()
     expect(screen.getByLabelText(/Масса/)).toHaveValue('150')
+    expect(screen.queryByText('Изменения сохранены.')).not.toBeInTheDocument()
+  })
+
+  it('blocks a locally invalid mass before PATCH and keeps the entered value', async () => {
+    const entry = entryFixture({ status: 'confirmed', revision: 4 })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch')
+    renderRoute(`/diary/${entry.id}`)
+
+    fireEvent.change(await screen.findByLabelText(/Масса/), { target: { value: '-1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+
+    expect(await screen.findByText(/не может быть отрицательным по контракту/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Масса/)).toHaveValue('-1')
+    expect(patch).not.toHaveBeenCalled()
     expect(screen.queryByText('Изменения сохранены.')).not.toBeInTheDocument()
   })
 
@@ -347,6 +365,19 @@ describe('FE1-04 entry review and correction', () => {
     },
   )
 
+  it('edits a note through the contract text field and shows the saved value', async () => {
+    const entry = entryFixture({ type: 'note', status: 'confirmed', revision: 7, payload: { text: 'Before' } })
+    const patch = vi.spyOn(entriesApi, 'patch').mockResolvedValue({ ...entry, revision: 8, payload: { text: 'After' } })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    renderRoute(`/diary/${entry.id}`)
+
+    fireEvent.change(await screen.findByLabelText(/Текст/), { target: { value: 'After' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(patch).toHaveBeenCalledWith(entry.id, { expected_revision: 7, payload: { text: 'After' } })
+    expect(await screen.findByText('Изменения сохранены.')).toBeInTheDocument()
+    expect(screen.getByLabelText(/Текст/)).toHaveValue('After')
+  })
+
   it('blocks a rapid second PATCH and a conflicting cancel while saving', async () => {
     const entry = entryFixture({ status: 'draft', submission_id: null })
     let rejectPatch: (reason: Error) => void = () => undefined
@@ -444,6 +475,7 @@ describe('FE1-04 entry review and correction', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Подтвердить' }))
     expect(await screen.findByText('Network down')).toBeInTheDocument()
+    expect(screen.queryByText('Запись подтверждена.')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить' }))
     await waitFor(() => expect(confirm).toHaveBeenCalledTimes(2))
     expect(confirm.mock.calls[1][1]).toEqual(confirm.mock.calls[0][1])
@@ -537,7 +569,7 @@ describe('FE1-04 entry review and correction', () => {
     const entry = entryFixture({ status: 'confirmed' })
     const refresh = vi.fn()
     const get = vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
-    vi.spyOn(entriesApi, 'delete').mockRejectedValue(new ApiError({ code: 'UNAUTHORIZED', message: 'Session expired', request_id: 'req_401' }, 401))
+    const remove = vi.spyOn(entriesApi, 'delete').mockRejectedValue(new ApiError({ code: 'UNAUTHORIZED', message: 'Session expired', request_id: 'req_401' }, 401))
     renderRoute(`/diary/${entry.id}`, refresh, true)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Убрать из дневника' }))
@@ -546,6 +578,7 @@ describe('FE1-04 entry review and correction', () => {
     expect(screen.queryByText('Запись убрана из дневника.')).not.toBeInTheDocument()
     expect(refresh).not.toHaveBeenCalled()
     expect(get).toHaveBeenCalledTimes(1)
+    expect(remove).toHaveBeenCalledTimes(1)
   })
 
   it('shows fresh status on stale DELETE and retries only after consciously adopting revision', async () => {
