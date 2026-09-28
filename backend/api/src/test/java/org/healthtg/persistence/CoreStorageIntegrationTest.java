@@ -1,5 +1,8 @@
 package org.healthtg.persistence;
 
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+
 import org.healthtg.core.dialog.DialogState;
 import org.healthtg.core.dialog.DialogStateService;
 import org.healthtg.core.dialog.SaveDialogStateCommand;
@@ -19,8 +22,13 @@ import org.healthtg.core.entry.TelegramUpdateKey;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.MongoDBContainer;
@@ -28,6 +36,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -49,6 +58,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest
 @Testcontainers(disabledWithoutDocker = true)
 class CoreStorageIntegrationTest {
+    private static String restartDatabaseName;
+
     @Container
     static final MongoDBContainer MONGO = new MongoDBContainer(
             DockerImageName.parse("mongodb/mongodb-community-server:8.0-ubi9-slim")
@@ -131,7 +142,9 @@ class CoreStorageIntegrationTest {
         assertEquals(created.entry().id(), repeated.entry().id());
         assertEquals(DraftCreationResult.Outcome.ACTIVE_DRAFT_EXISTS, another.outcome());
         assertEquals(created.entry().id(), another.entry().id());
+        assertEquals(created.entry(), another.entry());
         assertEquals(created.entry(), entries.findActiveDraft(owner).orElseThrow());
+        assertEquals(1, mongoTemplate.getCollection("entries").countDocuments());
     }
 
     @Test
@@ -222,6 +235,31 @@ class CoreStorageIntegrationTest {
                 Map.of("unit", "kg"), new TelegramUpdateKey("main", 51)));
         assertEquals(2, advanced.revision());
         assertEquals("awaiting_date", dialogs.find(owner).orElseThrow().step());
+    }
+
+    @Test
+    void restoresDraftAndDialogStateAfterApplicationContextRestart() {
+        restartDatabaseName = "restart_" + UUID.randomUUID().toString().replace("-", "");
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Entry savedDraft;
+        DialogState savedDialog;
+
+        try (AnnotationConfigApplicationContext first = restartContext()) {
+            EntryCoreService firstEntries = first.getBean(EntryCoreService.class);
+            DialogStateService firstDialogs = first.getBean(DialogStateService.class);
+            savedDraft = firstEntries.createDraft(draft(owner, 60, "restart-submission", metrics("steps", 1234)))
+                    .entry();
+            savedDialog = firstDialogs.save(new SaveDialogStateCommand(owner, savedDraft.id(), "awaiting_unit",
+                    Map.of("metric", "steps"), new TelegramUpdateKey("main", 61)));
+        }
+
+        try (AnnotationConfigApplicationContext second = restartContext()) {
+            EntryCoreService secondEntries = second.getBean(EntryCoreService.class);
+            DialogStateService secondDialogs = second.getBean(DialogStateService.class);
+            assertEquals(savedDraft, secondEntries.findActiveDraft(owner).orElseThrow());
+            assertEquals(savedDialog, secondDialogs.find(owner).orElseThrow());
+            second.getBean(MongoTemplate.class).getDb().drop();
+        }
     }
 
     @Test
@@ -350,5 +388,29 @@ class CoreStorageIntegrationTest {
         Instant persistedAt = Instant.parse("2026-09-23T08:00:00Z");
         return new Entry(UUID.randomUUID(), owner.userId(), type, status, SourceKind.TEXT, Map.of(), occurredAt,
                 persistedAt, persistedAt, 1, payload, Map.of(), null, updateKey);
+    }
+
+    private static AnnotationConfigApplicationContext restartContext() {
+        return new AnnotationConfigApplicationContext(RestartStorageConfiguration.class);
+    }
+
+    @TestConfiguration(proxyBeanMethods = false)
+    @ComponentScan(basePackages = {"org.healthtg.core.entry", "org.healthtg.core.dialog"})
+    @EnableMongoRepositories(basePackages = {"org.healthtg.core.entry", "org.healthtg.core.dialog"})
+    static class RestartStorageConfiguration {
+        @Bean
+        MongoClient mongoClient() {
+            return MongoClients.create(MONGO.getReplicaSetUrl());
+        }
+
+        @Bean
+        MongoTemplate mongoTemplate(MongoClient mongoClient) {
+            return new MongoTemplate(mongoClient, restartDatabaseName);
+        }
+
+        @Bean
+        Clock clock() {
+            return Clock.systemUTC();
+        }
     }
 }

@@ -1,6 +1,6 @@
 # BE1-03 core storage interface
 
-This document describes the early BE1-03 storage slice used by BE2-02 and BE2-05.
+This document describes the BE1-03 core storage implementation used by BE2-02 and BE2-05.
 It is not an HTTP API and Telegram handlers must not access Mongo repositories directly.
 
 ## Public Java interfaces
@@ -80,14 +80,16 @@ state without applying another transition.
 `CoreStorageIntegrationTest` uses a real MongoDB Testcontainers instance and covers check-in boundaries,
 concurrent duplicate delivery, submission idempotency, one active draft, contract-shaped incomplete
 metric drafts, invalid payloads, owner isolation, active-entry ownership, stale update rejection,
-concurrent first state creation, and dialog-state restoration.
+concurrent first state creation, and dialog-state restoration. The restart scenario closes one Spring
+application context, creates a new context against the same MongoDB database, and verifies that both the
+active draft and dialog state survive the restart unchanged.
 
 ## Acceptance status
 
 | Criterion | Verification | Current result | Status |
 |---|---|---|---|
 | AC1 | MongoDB tests for `createDraft` and `createCheckin` | Core methods are covered; invocation from the Telegram bot belongs to BE2-02/05 | Partially verified |
-| AC2 | Active-draft and dialog-state persistence tests | Existing drafts are returned without overwrite; state is read back from MongoDB | Verified in core |
+| AC2 | Active-draft and dialog-state persistence tests | Existing drafts are returned without overwrite; a separate-context restart test verifies MongoDB restoration | Implemented; final rerun required |
 | AC3 | Concurrent delivery, submission id and stale-update tests | One logical result; `201 -> 202 -> 201` does not roll state back | Verified in core |
 | AC4 | Payload, score, ownership and confirmed-read tests | Contract validation and owner isolation are enforced without an LLM | Verified in core |
 | AC5 | Java interface documentation and full Gradle verification | Core interface is documented; bot/API/FE end-to-end checks and human acceptance remain external | Partially verified |
@@ -95,11 +97,15 @@ concurrent first state creation, and dialog-state restoration.
 Full bot usage, confirm/cancel/delete transitions, HTTP reads and diary UI verification remain assigned
 to BE2-02/05, BE1-04 and FE1-03. They must not be reported as completed by this storage-only branch.
 
-The core integration test and full Java 21 build were executed successfully on 2026-09-24:
+The full Java 21 build passed after merging `develop` at commit
+`8e547000d329b6515cc0f0afe2873dfa151906e3`. A separate-context restart regression test was then added;
+the following checks must be rerun and recorded for the final commit before merge:
 
 ```powershell
 .\gradlew.bat :backend:api:test --tests org.healthtg.persistence.CoreStorageIntegrationTest --rerun-tasks --no-build-cache --no-daemon --console=plain
-.\gradlew.bat clean :backend:core:test :backend:api:test :backend:bot:test :backend:api:bootJar :backend:bot:bootJar validateContracts :contract-validator:validate --rerun-tasks --no-build-cache --no-daemon --console=plain
+.\gradlew.bat clean :backend:core:test :backend:api:test :backend:bot:test :analytics:test :backend:api:bootJar :backend:bot:bootJar validateContracts :contract-validator:validate --rerun-tasks --no-build-cache --no-daemon --console=plain
 ```
 
-The verified commit must be recorded in the PR description after these changes are committed.
+The verified commit and final results must be recorded in the PR description after these changes are
+committed. AC1 and AC5 remain partial until BE2 invokes the core services and the available end-to-end
+flow is accepted by another participant.
