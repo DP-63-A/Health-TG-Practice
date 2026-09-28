@@ -2,18 +2,27 @@ package org.healthtg.core.entry;
 
 import org.springframework.stereotype.Repository;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Repository
 @ConditionalOnProperty(name = "health-tg.core.storage.enabled", matchIfMissing = true)
 class MongoEntryStore implements EntryStore {
     private final MongoEntryRepository repository;
+    private final MongoTemplate mongoTemplate;
 
-    MongoEntryStore(MongoEntryRepository repository) {
+    MongoEntryStore(MongoEntryRepository repository, MongoTemplate mongoTemplate) {
         this.repository = repository;
+        this.mongoTemplate = mongoTemplate;
     }
 
     @Override
@@ -49,11 +58,43 @@ class MongoEntryStore implements EntryStore {
                 .toList();
     }
 
+    @Override
+    public Optional<Entry> replaceIfCurrent(Entry current, Entry replacement) {
+        Query query = Query.query(Criteria.where("_id").is(current.id().toString())
+                .and("ownerId").is(current.ownerId().toString())
+                .and("revision").is(current.revision())
+                .and("status").is(current.status().code()));
+        Update update = new Update()
+                .set("status", replacement.status().code())
+                .set("occurredAt", replacement.occurredAt())
+                .set("updatedAt", replacement.updatedAt())
+                .set("revision", replacement.revision())
+                .set("payload", replacement.payload())
+                .set("fieldOrigins", replacement.fieldOrigins())
+                .set("submissionId", replacement.submissionId())
+                .push("history").slice(-10).each(snapshot(current));
+        MongoEntryDocument changed = mongoTemplate.findAndModify(query, update,
+                FindAndModifyOptions.options().returnNew(true), MongoEntryDocument.class);
+        return Optional.ofNullable(changed).map(MongoEntryStore::toDomain);
+    }
+
+    private static Map<String, Object> snapshot(Entry entry) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("revision", entry.revision());
+        snapshot.put("status", entry.status().code());
+        snapshot.put("occurredAt", entry.occurredAt());
+        snapshot.put("updatedAt", entry.updatedAt());
+        snapshot.put("payload", entry.payload());
+        snapshot.put("fieldOrigins", entry.fieldOrigins());
+        snapshot.put("submissionId", entry.submissionId());
+        return snapshot;
+    }
+
     private static MongoEntryDocument toDocument(Entry entry) {
         return new MongoEntryDocument(entry.id().toString(), entry.ownerId().toString(), entry.type().code(),
                 entry.status().code(), entry.sourceKind().code(), entry.sourceRef(), entry.occurredAt(),
                 entry.createdAt(), entry.updatedAt(), entry.revision(), entry.payload(), entry.fieldOrigins(),
-                entry.submissionId(), entry.telegramUpdateKey());
+                entry.submissionId(), entry.telegramUpdateKey(), List.of());
     }
 
     private static Entry toDomain(MongoEntryDocument document) {

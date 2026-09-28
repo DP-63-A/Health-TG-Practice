@@ -8,6 +8,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.List;
 
 @Document("entries")
 @CompoundIndexes({
@@ -32,6 +33,7 @@ record MongoEntryDocument(
         Map<String, Object> payload,
         Map<String, String> fieldOrigins,
         String submissionId,
-        @Indexed(unique = true) String telegramUpdateKey
+        @Indexed(unique = true) String telegramUpdateKey,
+        List<Map<String, Object>> history
 ) {
 }

@@ -38,6 +38,7 @@ class ApiApplicationIsolationTest {
         assertThrows(ClassNotFoundException.class, () -> Class.forName("org.telegram.telegrambots.meta.generics.TelegramClient"));
         assertFalse(context.containsBean("botRuntime"));
         assertFalse(context.containsBean("runtimeSettings"));
+        assertFalse(context.containsBean("entriesController"));
         var response = http.getForEntity("/api/v1/me", String.class);
         assertEquals(401, response.getStatusCode().value());
         assertNotNull(response.getHeaders().getFirst("X-Request-Id"));

@@ -4,6 +4,7 @@ import org.healthtg.core.dialog.DialogState;
 import org.healthtg.core.dialog.DialogStateService;
 import org.healthtg.core.dialog.SaveDialogStateCommand;
 import org.healthtg.core.entry.CheckinCategory;
+import org.healthtg.core.entry.ConfirmEntryCommand;
 import org.healthtg.core.entry.CreateCheckinCommand;
 import org.healthtg.core.entry.CreateDraftCommand;
 import org.healthtg.core.entry.DraftCreationResult;
@@ -13,9 +14,13 @@ import org.healthtg.core.entry.EntryStatus;
 import org.healthtg.core.entry.EntryStore;
 import org.healthtg.core.entry.EntryType;
 import org.healthtg.core.entry.ListConfirmedEntriesQuery;
+import org.healthtg.core.entry.ListEntriesQuery;
 import org.healthtg.core.entry.OwnerContext;
+import org.healthtg.core.entry.PatchEntryCommand;
 import org.healthtg.core.entry.SourceKind;
 import org.healthtg.core.entry.TelegramUpdateKey;
+import org.healthtg.core.entry.EntryVersionConflictException;
+import org.healthtg.core.entry.EntryNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -361,6 +366,114 @@ class CoreStorageIntegrationTest {
         List<Entry> checkins = entries.listConfirmedEntries(new ListConfirmedEntriesQuery(owner,
                 LocalDate.of(2026, 9, 19), LocalDate.of(2026, 9, 19), warsaw, Set.of(EntryType.CHECKIN)));
         assertEquals(List.of(boundary.id()), checkins.stream().map(Entry::id).toList());
+    }
+
+    @Test
+    void concurrentPatchUsesRevisionAndKeepsBoundedHistory() throws Exception {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Entry draft = entries.createDraft(draft(owner, 800, null, metrics("steps", 1000))).entry();
+        PatchEntryCommand first = new PatchEntryCommand(owner, draft.id(), 1, null,
+                Map.of("value", 2000), Map.of("value", "reported"));
+        PatchEntryCommand second = new PatchEntryCommand(owner, draft.id(), 1, null,
+                Map.of("value", 3000), Map.of("value", "reported"));
+
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var results = executor.invokeAll(List.of(() -> entries.patch(first), () -> entries.patch(second)));
+            int successes = 0;
+            int conflicts = 0;
+            for (var result : results) {
+                try {
+                    result.get();
+                    successes++;
+                } catch (java.util.concurrent.ExecutionException exception) {
+                    if (exception.getCause() instanceof EntryVersionConflictException) conflicts++;
+                    else throw exception;
+                }
+            }
+            assertEquals(1, successes);
+            assertEquals(1, conflicts);
+        }
+
+        Entry current = entries.requireEntry(owner, draft.id());
+        assertEquals(2, current.revision());
+        for (int revision = 2; revision <= 12; revision++) {
+            current = entries.patch(new PatchEntryCommand(owner, draft.id(), revision, null,
+                    Map.of("value", 3000 + revision), Map.of("value", "reported")));
+        }
+        org.bson.Document stored = mongoTemplate.getCollection("entries")
+                .find(new org.bson.Document("_id", draft.id().toString())).first();
+        assertEquals(10, stored.getList("history", org.bson.Document.class).size());
+        assertEquals(13, current.revision());
+    }
+
+    @Test
+    void concurrentConfirmIsIdempotentAndTransitionsRemainExcludedFromDiary() throws Exception {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Map<String, Object> complete = new LinkedHashMap<>(metrics("steps", 1000));
+        complete.put("unit", "count");
+        complete.put("local_date", "2026-09-23");
+        Entry draft = entries.createDraft(draft(owner, 900, null, complete)).entry();
+        ConfirmEntryCommand command = new ConfirmEntryCommand(owner, draft.id(), "confirm-900", 1);
+
+        try (var executor = Executors.newFixedThreadPool(8)) {
+            List<Callable<Entry>> calls = new ArrayList<>();
+            for (int i = 0; i < 8; i++) calls.add(() -> entries.confirm(command));
+            Set<UUID> ids = new HashSet<>();
+            for (var result : executor.invokeAll(calls)) ids.add(result.get().id());
+            assertEquals(Set.of(draft.id()), ids);
+        }
+        Entry confirmed = entries.confirm(command);
+        assertEquals(EntryStatus.CONFIRMED, confirmed.status());
+        assertEquals(2, confirmed.revision());
+
+        Entry deleted = entries.delete(owner, draft.id(), confirmed.revision());
+        assertEquals(EntryStatus.DELETED, deleted.status());
+        assertTrue(entries.listEntries(new ListEntriesQuery(owner, EntryStatus.CONFIRMED, null,
+                null, null, ZoneId.of("UTC"))).isEmpty());
+
+        OwnerContext secondOwner = new OwnerContext(UUID.randomUUID());
+        Entry secondDraft = entries.createDraft(draft(secondOwner, 901, null, complete)).entry();
+        Entry cancelled = entries.cancel(secondOwner, secondDraft.id());
+        assertEquals(EntryStatus.CANCELLED, cancelled.status());
+        assertEquals(cancelled, entries.cancel(secondOwner, secondDraft.id()));
+        assertTrue(entries.findActiveDraft(secondOwner).isEmpty());
+    }
+
+    @Test
+    void ownerIsolationAppliesToReadsAndMutations() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        OwnerContext stranger = new OwnerContext(UUID.randomUUID());
+        Entry draft = entries.createDraft(draft(owner, 950, "secret-submission", metrics("steps", 1000))).entry();
+
+        assertThrows(EntryNotFoundException.class, () -> entries.requireEntry(stranger, draft.id()));
+        assertThrows(EntryNotFoundException.class, () -> entries.patch(new PatchEntryCommand(
+                stranger, draft.id(), draft.revision(), null, Map.of("value", 9999), null)));
+        assertThrows(EntryNotFoundException.class, () -> entries.cancel(stranger, draft.id()));
+        assertThrows(EntryNotFoundException.class, () -> entries.confirm(new ConfirmEntryCommand(
+                stranger, draft.id(), "secret-submission", draft.revision())));
+        assertEquals(1000, entries.requireEntry(owner, draft.id()).payload().get("value"));
+    }
+
+    @Test
+    void changingMealMassKeepsPerHundredGramNutrientsUnscaled() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Map<String, Object> nutrients = Map.of("energy_kcal", 165, "protein_g", 8,
+                "fat_g", 5, "carbs_g", 22);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("description", "meal");
+        payload.put("mass_g", 200);
+        payload.put("nutrients", nutrients);
+        payload.put("nutrients_basis", "per_100g");
+        Entry draft = entries.createDraft(new CreateDraftCommand(owner, EntryType.MEAL, SourceKind.TEXT,
+                Map.of(), Instant.parse("2026-09-23T08:00:00Z"), payload, Map.of(), null,
+                new TelegramUpdateKey("main", 960))).entry();
+
+        Entry changed = entries.patch(new PatchEntryCommand(owner, draft.id(), draft.revision(), null,
+                Map.of("mass_g", 150), Map.of("mass_g", "reported")));
+
+        assertEquals(150, changed.payload().get("mass_g"));
+        assertEquals(nutrients, changed.payload().get("nutrients"));
+        assertEquals("per_100g", changed.payload().get("nutrients_basis"));
     }
 
     private static CreateDraftCommand draft(OwnerContext owner, long updateId, String submissionId,

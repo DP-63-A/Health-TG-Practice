@@ -32,6 +32,15 @@ final class EntryPayloadValidator {
         }
     }
 
+    static void validateConfirmed(EntryType type, Map<String, Object> payload) {
+        validateDraft(type, payload);
+        if (type == EntryType.METRICS
+                && (!(payload.get("unit") instanceof String unit) || unit.isBlank()
+                || !(payload.get("local_date") instanceof String date) || date.isBlank())) {
+            throw invalid("Confirmed metrics require unit and local_date");
+        }
+    }
+
     private static void validateMeal(Map<String, Object> payload) {
         rejectUnknown(payload, MEAL_FIELDS);
         requireText(payload, "description", 2000);

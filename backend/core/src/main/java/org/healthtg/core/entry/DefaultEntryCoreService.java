@@ -101,6 +101,123 @@ class DefaultEntryCoreService implements EntryCoreService {
                 .toList();
     }
 
+    @Override
+    public List<Entry> listEntries(ListEntriesQuery query) {
+        if (query.status() != EntryStatus.CONFIRMED && query.status() != EntryStatus.DRAFT) {
+            throw new EntryValidationException("Only confirmed and draft entries may be listed");
+        }
+        return store.findByOwnerAndStatus(query.owner().userId(), query.status()).stream()
+                .filter(entry -> query.type() == null || entry.type() == query.type())
+                .filter(entry -> {
+                    LocalDate date = entry.occurredAt().atZone(query.timezone()).toLocalDate();
+                    return (query.from() == null || !date.isBefore(query.from()))
+                            && (query.to() == null || !date.isAfter(query.to()));
+                })
+                .sorted(Comparator.comparing(Entry::occurredAt).thenComparing(Entry::id).reversed())
+                .toList();
+    }
+
+    @Override
+    public Entry requireEntry(OwnerContext owner, UUID entryId) {
+        return store.findById(entryId).filter(entry -> entry.ownerId().equals(owner.userId()))
+                .orElseThrow(EntryNotFoundException::new);
+    }
+
+    @Override
+    public Entry patch(PatchEntryCommand command) {
+        Entry current = requireEntry(command.owner(), command.entryId());
+        if (current.status() != EntryStatus.DRAFT && current.status() != EntryStatus.CONFIRMED) {
+            throw new EntryStatusConflictException();
+        }
+        requireRevision(current, command.expectedRevision());
+        Map<String, Object> payload = merge(current.payload(), command.payload());
+        Map<String, String> origins = merge(current.fieldOrigins(), command.fieldOrigins());
+        if (current.status() == EntryStatus.CONFIRMED) {
+            EntryPayloadValidator.validateConfirmed(current.type(), payload);
+        } else {
+            EntryPayloadValidator.validateDraft(current.type(), payload);
+        }
+        Entry replacement = changed(current, current.status(), command.occurredAt() == null
+                ? current.occurredAt() : command.occurredAt(), payload, origins, current.submissionId());
+        return replaceOrConflict(current, replacement);
+    }
+
+    @Override
+    public Entry confirm(ConfirmEntryCommand command) {
+        Entry current = requireEntry(command.owner(), command.entryId());
+        Optional<Entry> repeated = store.findBySubmissionId(command.submissionId());
+        if (repeated.isPresent()) {
+            Entry entry = repeated.get();
+            if (!entry.id().equals(command.entryId())) {
+                throw new EntryStatusConflictException();
+            }
+            if (entry.status() == EntryStatus.CONFIRMED) return entry;
+        }
+        if (current.status() != EntryStatus.DRAFT) throw new EntryStatusConflictException();
+        requireRevision(current, command.expectedRevision());
+        EntryPayloadValidator.validateConfirmed(current.type(), current.payload());
+        Entry replacement = changed(current, EntryStatus.CONFIRMED, current.occurredAt(), current.payload(),
+                current.fieldOrigins(), command.submissionId());
+        try {
+            return replaceOrConflict(current, replacement);
+        } catch (DuplicateKeyException | EntryVersionConflictException conflict) {
+            Entry entry = store.findBySubmissionId(command.submissionId()).orElseThrow(() -> conflict);
+            if (entry.ownerId().equals(command.owner().userId()) && entry.id().equals(command.entryId())
+                    && entry.status() == EntryStatus.CONFIRMED) return entry;
+            throw new EntryStatusConflictException();
+        }
+    }
+
+    @Override
+    public Entry cancel(OwnerContext owner, UUID entryId) {
+        Entry current = requireEntry(owner, entryId);
+        if (current.status() == EntryStatus.CANCELLED) return current;
+        if (current.status() != EntryStatus.DRAFT) throw new EntryStatusConflictException();
+        try {
+            return replaceOrConflict(current, changed(current, EntryStatus.CANCELLED, current.occurredAt(),
+                    current.payload(), current.fieldOrigins(), current.submissionId()));
+        } catch (EntryVersionConflictException conflict) {
+            Entry actual = requireEntry(owner, entryId);
+            if (actual.status() == EntryStatus.CANCELLED) return actual;
+            throw conflict;
+        }
+    }
+
+    @Override
+    public Entry delete(OwnerContext owner, UUID entryId, long expectedRevision) {
+        Entry current = requireEntry(owner, entryId);
+        if (current.status() != EntryStatus.CONFIRMED) throw new EntryStatusConflictException();
+        requireRevision(current, expectedRevision);
+        return replaceOrConflict(current, changed(current, EntryStatus.DELETED, current.occurredAt(),
+                current.payload(), current.fieldOrigins(), current.submissionId()));
+    }
+
+    private Entry replaceOrConflict(Entry current, Entry replacement) {
+        return store.replaceIfCurrent(current, replacement).orElseGet(() -> {
+            Entry actual = store.findById(current.id()).orElseThrow(EntryNotFoundException::new);
+            if (!actual.ownerId().equals(current.ownerId())) throw new EntryNotFoundException();
+            throw new EntryVersionConflictException(actual);
+        });
+    }
+
+    private Entry changed(Entry current, EntryStatus status, Instant occurredAt, Map<String, Object> payload,
+                          Map<String, String> origins, String submissionId) {
+        return new Entry(current.id(), current.ownerId(), current.type(), status, current.sourceKind(),
+                current.sourceRef(), occurredAt, current.createdAt(), persistedNow(), current.revision() + 1,
+                payload, origins, submissionId, current.telegramUpdateKey());
+    }
+
+    private static void requireRevision(Entry current, long expectedRevision) {
+        if (current.revision() != expectedRevision) throw new EntryVersionConflictException(current);
+    }
+
+    private static <T> Map<String, T> merge(Map<String, T> current, Map<String, T> patch) {
+        if (patch == null) return current;
+        Map<String, T> result = new LinkedHashMap<>(current);
+        result.putAll(patch);
+        return result;
+    }
+
     private static Entry owned(Entry entry, OwnerContext owner) {
         if (!entry.ownerId().equals(owner.userId())) {
             throw new EntryOwnershipException("Telegram update key belongs to another owner");
