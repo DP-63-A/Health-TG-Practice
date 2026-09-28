@@ -2,11 +2,11 @@
 plugins { base }
 
 tasks.named("check") {
-    dependsOn(":backend:api:check", ":backend:bot:check")
+    dependsOn(":backend:core:check", ":backend:api:check", ":backend:bot:check")
 }
 tasks.named("assemble") {
-    dependsOn(":backend:api:assemble", ":backend:bot:assemble")
+    dependsOn(":backend:core:assemble", ":backend:api:assemble", ":backend:bot:assemble")
 }
 tasks.named("clean") {
-    dependsOn(":backend:api:clean", ":backend:bot:clean")
+    dependsOn(":backend:core:clean", ":backend:api:clean", ":backend:bot:clean")
 }

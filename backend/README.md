@@ -1,34 +1,33 @@
 # Backend
 
-Backend состоит из двух отдельных приложений одной Gradle-сборки на Java 21 и Spring Boot 3.5.6:
+Backend consists of two independently launched applications and one shared Java library on Java 21:
 
-| Модуль | Назначение | Инструкция |
+| Module | Purpose | Documentation |
 |---|---|---|
-| `:backend:api` | HTTP API: Telegram-аутентификация, сессии, `/api/v1/me`, проверка владельца, MongoDB persistence и readiness `/api/v1/healthz` | [API](api/README.md) |
-| `:backend:bot` | Telegram-бот: long polling, закрытый доступ, `/start`, `/state`, кнопки | [Бот](bot/README.md) |
+| `:backend:core` | Shared entry, draft, check-in, dialog-state and MongoDB persistence services | [BE1-03 storage](../docs/BE1-03-CORE-STORAGE.md) |
+| `:backend:api` | HTTP API, Telegram authentication, sessions, ownership checks and readiness | [API](api/README.md) |
+| `:backend:bot` | Telegram long polling, closed access, commands and keyboards | [Bot](bot/README.md) |
 
-У каждого приложения свои зависимости, `application.properties`, запускаемый JAR и процесс.
-Между модулями нет зависимости: запуск API не запускает Telegram polling; бот не запускает
-HTTP-сервер и не подключается к MongoDB. Общие классы пока не выделены: совместное хранение
-и сценарий сохранения отметок относятся к следующим задачам. Liquibase пока не подключён.
+`api` depends on `core` and provides its Spring/MongoDB runtime. The bot remains isolated from MongoDB
+until BE2-02/05 wires it to the public `EntryCoreService` and `DialogStateService` interfaces. Consumers
+must not access Spring Data repositories directly. The `core` module is a library: it has no `main`, HTTP
+port or independent process. API and bot remain separate applications and neither starts the other.
 
-## Сборка и тесты
+## Build and tests
 
-Из корня репозитория на Java 21:
+From the repository root on Java 21:
 
 ```powershell
-.\gradlew.bat :backend:api:test :backend:bot:test :backend:api:bootJar :backend:bot:bootJar
+.\gradlew.bat :backend:core:test :backend:api:test :backend:bot:test :backend:api:bootJar :backend:bot:bootJar
 ```
 
-Linux/macOS: те же задачи с `sh ./gradlew` вместо `.\gradlew.bat`.
-Для Windows с кириллицей в пути добавьте `'-Dorg.gradle.jvmargs=-Dfile.encoding=COMPAT'`.
-MongoDB-интеграционные тесты API требуют Docker; тесты бота работают без сети и токена.
-Общая задача `:backend:build` собирает и проверяет оба приложения, `:backend:clean` очищает их результаты.
-Отчёты находятся в `backend/api/build/reports/tests/test/` и `backend/bot/build/reports/tests/test/`.
+On Linux/macOS use `sh ./gradlew` instead of `.\gradlew.bat`. MongoDB integration tests in the API
+module require Docker; bot tests require neither a token nor network access. The aggregate
+`:backend:build` task checks all three modules.
 
-## Отдельный запуск
+## Separate application startup
 
-В двух терминалах с нужными переменными окружения:
+Start the API and bot in different terminals:
 
 ```powershell
 .\gradlew.bat :backend:api:bootRun
@@ -38,16 +37,9 @@ MongoDB-интеграционные тесты API требуют Docker; те�
 .\gradlew.bat :backend:bot:bootRun
 ```
 
-API требует доступную MongoDB; бот — токен и список разрешённых пользователей. Настройки и
-границы каждой реализации описаны по ссылкам выше. Прямой запуск через Gradle, JAR или IDEA
-не читает `.env` автоматически. Для API скрипт `scripts/run-backend.ps1` явно загружает этот
-файл и запускает только `:backend:api:bootRun`. См. [локальное окружение](../docs/local-environment.md):
-Compose запускает MongoDB, `/api/v1/healthz` проверяет её доступность из API.
-Для одного и того же Telegram-бота задавайте обоим приложениям одинаковые токен и allowlist.
+API requires MongoDB. Bot requires its token and allowlist. Direct Gradle, JAR and IDEA launches do not
+load `.env` automatically. `scripts/run-backend.ps1` loads the root `.env` and starts only the API.
+See [local environment](../docs/local-environment.md).
 
-После обновления структуры выполните Reload All Gradle Projects в IDEA. Для существующей
-конфигурации BotApplication выберите classpath `backend.bot.main` (название может иметь префикс
-проекта); локальные переменные окружения сохраните. Для HealthTgApplication используйте
-`backend.api.main`. Не сохраняйте секреты в общих файлах конфигурации запуска.
-
-Настоящую работу в Telegram и открытие Mini App проверяет человек по [чеклисту бота](bot/README.md#ручная-приёмка).
+After changing the structure, reload all Gradle projects in IDEA. Use classpath `backend.api.main` for
+`HealthTgApplication` and `backend.bot.main` for `BotApplication`. Never commit local secrets or IDs.

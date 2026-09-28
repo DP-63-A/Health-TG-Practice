@@ -21,6 +21,7 @@ import static org.mockito.Mockito.*;
         "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration,"
                 + "org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration,"
                 + "org.springframework.boot.autoconfigure.data.mongo.MongoRepositoriesAutoConfiguration",
+        "health-tg.core.storage.enabled=false",
         "health-tg.auth.telegram-bot-token=",
         "health-tg.auth.allowed-telegram-ids="
 })
