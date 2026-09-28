@@ -1,8 +1,5 @@
 package org.healthtg.persistence;
 
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
-
 import org.healthtg.core.dialog.DialogState;
 import org.healthtg.core.dialog.DialogStateService;
 import org.healthtg.core.dialog.SaveDialogStateCommand;
@@ -22,13 +19,10 @@ import org.healthtg.core.entry.TelegramUpdateKey;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.util.TestPropertyValues;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.MongoDBContainer;
@@ -36,7 +30,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -58,8 +51,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest
 @Testcontainers(disabledWithoutDocker = true)
 class CoreStorageIntegrationTest {
-    private static String restartDatabaseName;
-
     @Container
     static final MongoDBContainer MONGO = new MongoDBContainer(
             DockerImageName.parse("mongodb/mongodb-community-server:8.0-ubi9-slim")
@@ -239,12 +230,12 @@ class CoreStorageIntegrationTest {
 
     @Test
     void restoresDraftAndDialogStateAfterApplicationContextRestart() {
-        restartDatabaseName = "restart_" + UUID.randomUUID().toString().replace("-", "");
+        String restartDatabaseName = "restart_" + UUID.randomUUID().toString().replace("-", "");
         OwnerContext owner = new OwnerContext(UUID.randomUUID());
         Entry savedDraft;
         DialogState savedDialog;
 
-        try (AnnotationConfigApplicationContext first = restartContext()) {
+        try (AnnotationConfigApplicationContext first = restartContext(restartDatabaseName)) {
             EntryCoreService firstEntries = first.getBean(EntryCoreService.class);
             DialogStateService firstDialogs = first.getBean(DialogStateService.class);
             savedDraft = firstEntries.createDraft(draft(owner, 60, "restart-submission", metrics("steps", 1234)))
@@ -253,7 +244,7 @@ class CoreStorageIntegrationTest {
                     Map.of("metric", "steps"), new TelegramUpdateKey("main", 61)));
         }
 
-        try (AnnotationConfigApplicationContext second = restartContext()) {
+        try (AnnotationConfigApplicationContext second = restartContext(restartDatabaseName)) {
             EntryCoreService secondEntries = second.getBean(EntryCoreService.class);
             DialogStateService secondDialogs = second.getBean(DialogStateService.class);
             assertEquals(savedDraft, secondEntries.findActiveDraft(owner).orElseThrow());
@@ -390,27 +381,14 @@ class CoreStorageIntegrationTest {
                 persistedAt, persistedAt, 1, payload, Map.of(), null, updateKey);
     }
 
-    private static AnnotationConfigApplicationContext restartContext() {
-        return new AnnotationConfigApplicationContext(RestartStorageConfiguration.class);
-    }
-
-    @TestConfiguration(proxyBeanMethods = false)
-    @ComponentScan(basePackages = {"org.healthtg.core.entry", "org.healthtg.core.dialog"})
-    @EnableMongoRepositories(basePackages = {"org.healthtg.core.entry", "org.healthtg.core.dialog"})
-    static class RestartStorageConfiguration {
-        @Bean
-        MongoClient mongoClient() {
-            return MongoClients.create(MONGO.getReplicaSetUrl());
-        }
-
-        @Bean
-        MongoTemplate mongoTemplate(MongoClient mongoClient) {
-            return new MongoTemplate(mongoClient, restartDatabaseName);
-        }
-
-        @Bean
-        Clock clock() {
-            return Clock.systemUTC();
-        }
+    private static AnnotationConfigApplicationContext restartContext(String databaseName) {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
+        TestPropertyValues.of(
+                "restart.mongo.uri=" + MONGO.getReplicaSetUrl(),
+                "restart.mongo.database=" + databaseName
+        ).applyTo(context);
+        context.register(RestartStorageTestConfiguration.class);
+        context.refresh();
+        return context;
     }
 }
