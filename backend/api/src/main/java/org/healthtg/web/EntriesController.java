@@ -92,8 +92,9 @@ public class EntriesController {
     }
 
     @PostMapping("/{id}/cancel")
-    public ResponseEntity<EntryResponse> cancel(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id) {
-        return response(entries.cancel(owner(user), id));
+    public ResponseEntity<EntryResponse> cancel(@AuthenticationPrincipal CurrentUser user, @PathVariable UUID id,
+                                                @RequestHeader("If-Match") String ifMatch) {
+        return response(entries.cancel(owner(user), id, parseEtag(ifMatch)));
     }
 
     @DeleteMapping("/{id}")

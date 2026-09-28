@@ -18,6 +18,7 @@ final class EntryPayloadValidator {
     private static final Set<String> METRIC_CODES = Set.of("steps", "sleep_duration_min", "heart_rate");
     private static final Set<String> NUTRIENT_BASES = Set.of("per_100g", "per_serving", "unknown");
     private static final Set<String> HEART_RATE_QUALIFIERS = Set.of("instant", "resting");
+    private static final Set<String> FIELD_ORIGINS = Set.of("reported", "extracted", "estimated", "computed");
 
     private EntryPayloadValidator() {
     }
@@ -41,13 +42,21 @@ final class EntryPayloadValidator {
         }
     }
 
+    static void validateOrigins(Map<String, String> origins) {
+        for (Map.Entry<String, String> origin : origins.entrySet()) {
+            if (origin.getKey() == null || origin.getKey().isBlank() || !FIELD_ORIGINS.contains(origin.getValue())) {
+                throw invalid("Unknown field origin");
+            }
+        }
+    }
+
     private static void validateMeal(Map<String, Object> payload) {
         rejectUnknown(payload, MEAL_FIELDS);
         requireText(payload, "description", 2000);
         validateNonNegativeNumber(payload, "mass_g", true);
 
         Object nutrients = payload.get("nutrients");
-        if (nutrients != null) {
+        if (payload.containsKey("nutrients")) {
             if (!(nutrients instanceof Map<?, ?> nutrientMap)) {
                 throw invalid("nutrients must be an object");
             }

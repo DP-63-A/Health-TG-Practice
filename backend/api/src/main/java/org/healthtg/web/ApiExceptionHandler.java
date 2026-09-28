@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import jakarta.validation.ConstraintViolationException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -70,7 +71,7 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler({MissingRequestHeaderException.class, MethodArgumentTypeMismatchException.class,
-            HandlerMethodValidationException.class})
+            HandlerMethodValidationException.class, ConstraintViolationException.class})
     ResponseEntity<ApiError> invalidHttpInput(HttpServletRequest request) {
         return error(request, HttpStatus.UNPROCESSABLE_ENTITY, "VALIDATION_ERROR", "Request validation failed");
     }

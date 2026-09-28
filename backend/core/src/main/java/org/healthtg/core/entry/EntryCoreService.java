@@ -21,7 +21,7 @@ public interface EntryCoreService {
 
     Entry confirm(ConfirmEntryCommand command);
 
-    Entry cancel(OwnerContext owner, UUID entryId);
+    Entry cancel(OwnerContext owner, UUID entryId, long expectedRevision);
 
     Entry delete(OwnerContext owner, UUID entryId, long expectedRevision);
 }

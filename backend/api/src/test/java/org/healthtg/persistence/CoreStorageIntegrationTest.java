@@ -433,9 +433,9 @@ class CoreStorageIntegrationTest {
 
         OwnerContext secondOwner = new OwnerContext(UUID.randomUUID());
         Entry secondDraft = entries.createDraft(draft(secondOwner, 901, null, complete)).entry();
-        Entry cancelled = entries.cancel(secondOwner, secondDraft.id());
+        Entry cancelled = entries.cancel(secondOwner, secondDraft.id(), secondDraft.revision());
         assertEquals(EntryStatus.CANCELLED, cancelled.status());
-        assertEquals(cancelled, entries.cancel(secondOwner, secondDraft.id()));
+        assertEquals(cancelled, entries.cancel(secondOwner, secondDraft.id(), secondDraft.revision()));
         assertTrue(entries.findActiveDraft(secondOwner).isEmpty());
     }
 
@@ -448,7 +448,7 @@ class CoreStorageIntegrationTest {
         assertThrows(EntryNotFoundException.class, () -> entries.requireEntry(stranger, draft.id()));
         assertThrows(EntryNotFoundException.class, () -> entries.patch(new PatchEntryCommand(
                 stranger, draft.id(), draft.revision(), null, Map.of("value", 9999), null)));
-        assertThrows(EntryNotFoundException.class, () -> entries.cancel(stranger, draft.id()));
+        assertThrows(EntryNotFoundException.class, () -> entries.cancel(stranger, draft.id(), draft.revision()));
         assertThrows(EntryNotFoundException.class, () -> entries.confirm(new ConfirmEntryCommand(
                 stranger, draft.id(), "secret-submission", draft.revision())));
         assertEquals(1000, entries.requireEntry(owner, draft.id()).payload().get("value"));
@@ -474,6 +474,101 @@ class CoreStorageIntegrationTest {
         assertEquals(150, changed.payload().get("mass_g"));
         assertEquals(nutrients, changed.payload().get("nutrients"));
         assertEquals("per_100g", changed.payload().get("nutrients_basis"));
+    }
+
+    @Test
+    void partialNutrientPatchPreservesNestedFieldsForDraftAndConfirmedEntry() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Map<String, Object> nutrients = Map.of("energy_kcal", 165, "protein_g", 8,
+                "fat_g", 5, "carbs_g", 22);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("description", "meal");
+        payload.put("mass_g", 200);
+        payload.put("nutrients", nutrients);
+        payload.put("nutrients_basis", "per_100g");
+        Entry draft = entries.createDraft(new CreateDraftCommand(owner, EntryType.MEAL, SourceKind.TEXT,
+                Map.of(), Instant.parse("2026-09-23T08:00:00Z"), payload, Map.of(), null,
+                new TelegramUpdateKey("main", 970))).entry();
+
+        Entry patchedDraft = entries.patch(new PatchEntryCommand(owner, draft.id(), 1, null,
+                Map.of("nutrients", Map.of("energy_kcal", 180)), null));
+        assertEquals(Map.of("energy_kcal", 180, "protein_g", 8, "fat_g", 5, "carbs_g", 22),
+                patchedDraft.payload().get("nutrients"));
+
+        Entry confirmed = entries.confirm(new ConfirmEntryCommand(owner, draft.id(), "confirm-970", 2));
+        Entry patchedConfirmed = entries.patch(new PatchEntryCommand(owner, draft.id(), confirmed.revision(), null,
+                Map.of("nutrients", Map.of("energy_kcal", 190)), null));
+        assertEquals(Map.of("energy_kcal", 190, "protein_g", 8, "fat_g", 5, "carbs_g", 22),
+                patchedConfirmed.payload().get("nutrients"));
+    }
+
+    @Test
+    void nullablePatchValuesRemainValidAndInvalidOriginsDoNotMutateEntry() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("description", "meal");
+        payload.put("mass_g", 200);
+        Entry draft = entries.createDraft(new CreateDraftCommand(owner, EntryType.MEAL, SourceKind.TEXT,
+                Map.of(), Instant.parse("2026-09-23T08:00:00Z"), payload, Map.of(), null,
+                new TelegramUpdateKey("main", 980))).entry();
+
+        Map<String, Object> clearMass = new LinkedHashMap<>();
+        clearMass.put("mass_g", null);
+        Entry cleared = entries.patch(new PatchEntryCommand(owner, draft.id(), 1, null, clearMass,
+                Map.of("mass_g", "reported")));
+        assertTrue(cleared.payload().containsKey("mass_g"));
+        assertEquals(null, cleared.payload().get("mass_g"));
+
+        assertThrows(IllegalArgumentException.class, () -> entries.patch(new PatchEntryCommand(
+                owner, draft.id(), cleared.revision(), null, null, Map.of("mass_g", "made_up"))));
+        assertEquals(cleared, entries.requireEntry(owner, draft.id()));
+    }
+
+    @Test
+    void staleCancelCannotUndoNewerPatch() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Entry draft = entries.createDraft(draft(owner, 990, null, metrics("steps", 1000))).entry();
+        Entry patched = entries.patch(new PatchEntryCommand(owner, draft.id(), 1, null,
+                Map.of("value", 2000), Map.of("value", "reported")));
+
+        assertThrows(EntryVersionConflictException.class, () -> entries.cancel(owner, draft.id(), 1));
+        assertEquals(patched, entries.requireEntry(owner, draft.id()));
+        assertEquals(EntryStatus.CANCELLED, entries.cancel(owner, draft.id(), 2).status());
+    }
+
+    @Test
+    void sameSubmissionCannotConfirmTwoDifferentDraftsConcurrently() throws Exception {
+        OwnerContext firstOwner = new OwnerContext(UUID.randomUUID());
+        OwnerContext secondOwner = new OwnerContext(UUID.randomUUID());
+        Map<String, Object> complete = new LinkedHashMap<>(metrics("steps", 1000));
+        complete.put("unit", "count");
+        complete.put("local_date", "2026-09-23");
+        Entry first = entries.createDraft(draft(firstOwner, 1000, null, complete)).entry();
+        Entry second = entries.createDraft(draft(secondOwner, 1001, null, complete)).entry();
+
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var results = executor.invokeAll(List.of(
+                    () -> entries.confirm(new ConfirmEntryCommand(firstOwner, first.id(), "shared-submit", 1)),
+                    () -> entries.confirm(new ConfirmEntryCommand(secondOwner, second.id(), "shared-submit", 1))));
+            int confirmed = 0;
+            int conflicts = 0;
+            for (var result : results) {
+                try {
+                    result.get();
+                    confirmed++;
+                } catch (java.util.concurrent.ExecutionException exception) {
+                    if (exception.getCause() instanceof org.healthtg.core.entry.EntryStatusConflictException) {
+                        conflicts++;
+                    } else {
+                        throw exception;
+                    }
+                }
+            }
+            assertEquals(1, confirmed);
+            assertEquals(1, conflicts);
+        }
+        assertEquals(1, mongoTemplate.getCollection("entries")
+                .countDocuments(new org.bson.Document("submissionId", "shared-submit")));
     }
 
     private static CreateDraftCommand draft(OwnerContext owner, long updateId, String submissionId,

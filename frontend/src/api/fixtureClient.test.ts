@@ -46,7 +46,7 @@ describe('FE1-04 fixture transitions', () => {
   it('cancels a draft and excludes it from confirmed entries', async () => {
     const id = '22222222-2222-4222-8222-222222222207'
     const before = await api.get(id)
-    const cancelled = await api.cancel(id)
+    const cancelled = await api.cancel(id, before.revision)
     expect(cancelled.status).toBe('cancelled')
     expect(cancelled.revision).toBe(before.revision + 1)
     expect((await api.list({ status: 'confirmed', limit: 100 })).items.some((item) => item.id === id)).toBe(false)

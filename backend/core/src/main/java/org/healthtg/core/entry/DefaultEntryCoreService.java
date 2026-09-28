@@ -48,6 +48,7 @@ class DefaultEntryCoreService implements EntryCoreService {
     @Override
     public DraftCreationResult createDraft(CreateDraftCommand command) {
         EntryPayloadValidator.validateDraft(command.type(), command.payload());
+        EntryPayloadValidator.validateOrigins(command.fieldOrigins());
         String updateKey = command.updateKey().storageKey();
         Optional<Entry> repeated = store.findByTelegramUpdateKey(updateKey);
         if (repeated.isEmpty() && command.submissionId() != null) {
@@ -130,8 +131,9 @@ class DefaultEntryCoreService implements EntryCoreService {
             throw new EntryStatusConflictException();
         }
         requireRevision(current, command.expectedRevision());
-        Map<String, Object> payload = merge(current.payload(), command.payload());
+        Map<String, Object> payload = mergePayload(current.payload(), command.payload());
         Map<String, String> origins = merge(current.fieldOrigins(), command.fieldOrigins());
+        EntryPayloadValidator.validateOrigins(origins);
         if (current.status() == EntryStatus.CONFIRMED) {
             EntryPayloadValidator.validateConfirmed(current.type(), payload);
         } else {
@@ -169,10 +171,11 @@ class DefaultEntryCoreService implements EntryCoreService {
     }
 
     @Override
-    public Entry cancel(OwnerContext owner, UUID entryId) {
+    public Entry cancel(OwnerContext owner, UUID entryId, long expectedRevision) {
         Entry current = requireEntry(owner, entryId);
-        if (current.status() == EntryStatus.CANCELLED) return current;
+        if (current.status() == EntryStatus.CANCELLED && current.revision() == expectedRevision + 1) return current;
         if (current.status() != EntryStatus.DRAFT) throw new EntryStatusConflictException();
+        requireRevision(current, expectedRevision);
         try {
             return replaceOrConflict(current, changed(current, EntryStatus.CANCELLED, current.occurredAt(),
                     current.payload(), current.fieldOrigins(), current.submissionId()));
@@ -215,6 +218,20 @@ class DefaultEntryCoreService implements EntryCoreService {
         if (patch == null) return current;
         Map<String, T> result = new LinkedHashMap<>(current);
         result.putAll(patch);
+        return result;
+    }
+
+    private static Map<String, Object> mergePayload(Map<String, Object> current, Map<String, Object> patch) {
+        Map<String, Object> result = merge(current, patch);
+        if (patch == null || !patch.containsKey("nutrients")) return result;
+        Object currentNutrients = current.get("nutrients");
+        Object patchNutrients = patch.get("nutrients");
+        if (currentNutrients instanceof Map<?, ?> currentMap && patchNutrients instanceof Map<?, ?> patchMap) {
+            Map<String, Object> nutrients = new LinkedHashMap<>();
+            currentMap.forEach((key, value) -> nutrients.put(String.valueOf(key), value));
+            patchMap.forEach((key, value) -> nutrients.put(String.valueOf(key), value));
+            result.put("nutrients", nutrients);
+        }
         return result;
     }
 
