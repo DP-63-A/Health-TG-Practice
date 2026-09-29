@@ -4,6 +4,7 @@ import org.healthtg.core.entry.Entry;
 import org.healthtg.core.entry.EntryCoreService;
 import org.healthtg.core.entry.EntryStatus;
 import org.healthtg.core.entry.EntryType;
+import org.healthtg.core.entry.EntryValidationException;
 import org.healthtg.core.entry.SourceKind;
 import org.healthtg.session.SessionService;
 import org.healthtg.user.UserService;
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -62,6 +64,21 @@ class EntriesHttpValidationTest {
                         .content("{\"expected_revision\":1,\"payload\":{\"mass_g\":null}}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.payload.mass_g").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test
+    void nullFieldOriginReturnsValidationError() throws Exception {
+        when(entries.patch(argThat(command -> command.fieldOrigins() != null
+                && command.fieldOrigins().containsKey("mass_g")
+                && command.fieldOrigins().get("mass_g") == null)))
+                .thenThrow(new EntryValidationException("Unknown field origin"));
+
+        mockMvc.perform(patch("/api/v1/entries/{id}", ENTRY)
+                        .header("Authorization", "Bearer test-session")
+                        .contentType("application/json")
+                        .content("{\"expected_revision\":1,\"field_origins\":{\"mass_g\":null}}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 
     private static Entry entryWithNullMass() {

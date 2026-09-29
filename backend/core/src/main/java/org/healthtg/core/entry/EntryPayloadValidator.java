@@ -44,7 +44,8 @@ final class EntryPayloadValidator {
 
     static void validateOrigins(Map<String, String> origins) {
         for (Map.Entry<String, String> origin : origins.entrySet()) {
-            if (origin.getKey() == null || origin.getKey().isBlank() || !FIELD_ORIGINS.contains(origin.getValue())) {
+            if (origin.getKey() == null || origin.getKey().isBlank() || origin.getValue() == null
+                    || !FIELD_ORIGINS.contains(origin.getValue())) {
                 throw invalid("Unknown field origin");
             }
         }

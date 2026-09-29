@@ -13,6 +13,7 @@ the owner from that session. Missing and foreign identifiers both return `404 RE
   `field_origins` fields. Payload objects are merged at their top level and then validated.
 - `POST /entries/{id}/confirm` accepts `submission_id` and `expected_revision`. Repeating the same
   submission for the same entry returns the already confirmed result.
+  Draft creation always leaves `submission_id` null; the key is assigned by the first confirm attempt.
 - `POST /entries/{id}/cancel` cancels a draft and requires `If-Match: "<revision>"`. Repeating the
   same completed cancellation is idempotent; a stale action after a newer patch returns 409.
 - `DELETE /entries/{id}` logically deletes a confirmed entry and requires `If-Match: "<revision>"`.

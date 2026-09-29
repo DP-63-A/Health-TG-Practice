@@ -13,6 +13,8 @@ import org.healthtg.core.entry.EntryCoreService;
 import org.healthtg.core.entry.EntryStatus;
 import org.healthtg.core.entry.EntryStore;
 import org.healthtg.core.entry.EntryType;
+import org.healthtg.core.entry.EntryStatusConflictException;
+import org.healthtg.core.entry.EntryValidationException;
 import org.healthtg.core.entry.ListConfirmedEntriesQuery;
 import org.healthtg.core.entry.ListEntriesQuery;
 import org.healthtg.core.entry.OwnerContext;
@@ -124,14 +126,14 @@ class CoreStorageIntegrationTest {
     }
 
     @Test
-    void keepsOneActiveDraftAndDeduplicatesSubmissionId() {
+    void keepsOneActiveDraftAndDeduplicatesTelegramUpdate() {
         OwnerContext owner = new OwnerContext(UUID.randomUUID());
-        CreateDraftCommand first = draft(owner, 10, "submission-1", metrics("steps", 1000));
+        CreateDraftCommand first = draft(owner, 10, metrics("steps", 1000));
         DraftCreationResult created = entries.createDraft(first);
         DraftCreationResult repeated = entries.createDraft(
-                draft(owner, 11, "submission-1", metrics("steps", 9000)));
+                draft(owner, 10, metrics("steps", 9000)));
         DraftCreationResult another = entries.createDraft(
-                draft(owner, 12, "submission-2", metrics("steps", 2000)));
+                draft(owner, 12, metrics("steps", 2000)));
 
         assertEquals(DraftCreationResult.Outcome.CREATED, created.outcome());
         assertEquals(DraftCreationResult.Outcome.EXISTING_UPDATE, repeated.outcome());
@@ -144,13 +146,13 @@ class CoreStorageIntegrationTest {
     }
 
     @Test
-    void concurrentSubmissionIdReturnsOneDraft() throws Exception {
+    void concurrentDraftCreationReturnsOneActiveDraft() throws Exception {
         OwnerContext owner = new OwnerContext(UUID.randomUUID());
         List<Callable<DraftCreationResult>> calls = new ArrayList<>();
         for (int index = 0; index < 8; index++) {
             int updateId = 700 + index;
             calls.add(() -> entries.createDraft(
-                    draft(owner, updateId, "same-submission", metrics("steps", 1000))));
+                    draft(owner, updateId, metrics("steps", 1000))));
         }
 
         try (var executor = Executors.newFixedThreadPool(8)) {
@@ -164,26 +166,26 @@ class CoreStorageIntegrationTest {
     @Test
     void allowsIncompleteMetricsDraftButRejectsInvalidNumbers() {
         OwnerContext owner = new OwnerContext(UUID.randomUUID());
-        Entry incomplete = entries.createDraft(draft(owner, 20, null, metrics("heart_rate", 72.4))).entry();
+        Entry incomplete = entries.createDraft(draft(owner, 20, metrics("heart_rate", 72.4))).entry();
         assertFalse(incomplete.payload().containsKey("local_date"));
         assertFalse(incomplete.payload().containsKey("unit"));
 
         OwnerContext secondOwner = new OwnerContext(UUID.randomUUID());
         assertThrows(IllegalArgumentException.class,
-                () -> entries.createDraft(draft(secondOwner, 21, null, metrics("steps", -1))));
+                () -> entries.createDraft(draft(secondOwner, 21, metrics("steps", -1))));
         assertThrows(IllegalArgumentException.class,
-                () -> entries.createDraft(draft(secondOwner, 22, null, metrics("heart_rate", Double.NaN))));
+                () -> entries.createDraft(draft(secondOwner, 22, metrics("heart_rate", Double.NaN))));
         assertThrows(IllegalArgumentException.class,
                 () -> entries.createDraft(
-                        draft(secondOwner, 23, null, metrics("heart_rate", Double.POSITIVE_INFINITY))));
+                        draft(secondOwner, 23, metrics("heart_rate", Double.POSITIVE_INFINITY))));
         assertThrows(IllegalArgumentException.class,
-                () -> entries.createDraft(draft(secondOwner, 24, null, metrics("sleep_duration_min", -1))));
+                () -> entries.createDraft(draft(secondOwner, 24, metrics("sleep_duration_min", -1))));
         assertThrows(IllegalArgumentException.class,
-                () -> entries.createDraft(draft(secondOwner, 25, null, Map.of("steps", 1000))));
+                () -> entries.createDraft(draft(secondOwner, 25, Map.of("steps", 1000))));
 
         CreateDraftCommand negativeMeal = new CreateDraftCommand(secondOwner, EntryType.MEAL, SourceKind.TEXT,
                 Map.of(), Instant.parse("2026-09-23T08:00:00Z"),
-                Map.of("description", "meal", "mass_g", -1), Map.of(), null,
+                Map.of("description", "meal", "mass_g", -1), Map.of(),
                 new TelegramUpdateKey("main", 26));
         assertThrows(IllegalArgumentException.class, () -> entries.createDraft(negativeMeal));
 
@@ -191,13 +193,13 @@ class CoreStorageIntegrationTest {
         nullBasisPayload.put("description", "meal");
         nullBasisPayload.put("nutrients_basis", null);
         CreateDraftCommand nullBasis = new CreateDraftCommand(secondOwner, EntryType.MEAL, SourceKind.TEXT,
-                Map.of(), Instant.parse("2026-09-23T08:00:00Z"), nullBasisPayload, Map.of(), null,
+                Map.of(), Instant.parse("2026-09-23T08:00:00Z"), nullBasisPayload, Map.of(),
                 new TelegramUpdateKey("main", 27));
         assertThrows(IllegalArgumentException.class, () -> entries.createDraft(nullBasis));
 
         OwnerContext thirdOwner = new OwnerContext(UUID.randomUUID());
         CreateDraftCommand omittedBasis = new CreateDraftCommand(thirdOwner, EntryType.MEAL, SourceKind.TEXT,
-                Map.of(), Instant.parse("2026-09-23T08:00:00Z"), Map.of("description", "meal"), Map.of(), null,
+                Map.of(), Instant.parse("2026-09-23T08:00:00Z"), Map.of("description", "meal"), Map.of(),
                 new TelegramUpdateKey("main", 28));
         assertFalse(entries.createDraft(omittedBasis).entry().payload().containsKey("nutrients_basis"));
     }
@@ -206,12 +208,12 @@ class CoreStorageIntegrationTest {
     void scopesDraftsByOwnerAndRejectsCrossOwnerUpdateCollision() {
         OwnerContext first = new OwnerContext(UUID.randomUUID());
         OwnerContext second = new OwnerContext(UUID.randomUUID());
-        entries.createDraft(draft(first, 30, null, metrics("steps", 1000)));
+        entries.createDraft(draft(first, 30, metrics("steps", 1000)));
 
         assertTrue(entries.findActiveDraft(first).isPresent());
         assertTrue(entries.findActiveDraft(second).isEmpty());
         assertThrows(IllegalStateException.class,
-                () -> entries.createDraft(draft(second, 30, null, metrics("steps", 2000))));
+                () -> entries.createDraft(draft(second, 30, metrics("steps", 2000))));
     }
 
     @Test
@@ -243,7 +245,7 @@ class CoreStorageIntegrationTest {
         try (AnnotationConfigApplicationContext first = restartContext(restartDatabaseName)) {
             EntryCoreService firstEntries = first.getBean(EntryCoreService.class);
             DialogStateService firstDialogs = first.getBean(DialogStateService.class);
-            savedDraft = firstEntries.createDraft(draft(owner, 60, "restart-submission", metrics("steps", 1234)))
+            savedDraft = firstEntries.createDraft(draft(owner, 60, metrics("steps", 1234)))
                     .entry();
             savedDialog = firstDialogs.save(new SaveDialogStateCommand(owner, savedDraft.id(), "awaiting_unit",
                     Map.of("metric", "steps"), new TelegramUpdateKey("main", 61)));
@@ -306,7 +308,7 @@ class CoreStorageIntegrationTest {
         OwnerContext first = new OwnerContext(UUID.randomUUID());
         OwnerContext second = new OwnerContext(UUID.randomUUID());
         Entry secondDraft = entries.createDraft(
-                draft(second, 301, null, metrics("steps", 1000))).entry();
+                draft(second, 301, metrics("steps", 1000))).entry();
 
         assertThrows(IllegalArgumentException.class, () -> dialogs.save(new SaveDialogStateCommand(
                 first, UUID.randomUUID(), "awaiting_value", Map.of(), new TelegramUpdateKey("main", 302))));
@@ -346,7 +348,7 @@ class CoreStorageIntegrationTest {
                 Instant.parse("2026-09-18T21:59:59Z"), new TelegramUpdateKey("main", 502)));
         entries.createCheckin(new CreateCheckinCommand(anotherOwner, CheckinCategory.MOOD, 5,
                 Instant.parse("2026-09-19T08:00:00Z"), new TelegramUpdateKey("main", 503)));
-        entries.createDraft(draft(owner, 504, null, metrics("steps", 1000)));
+        entries.createDraft(draft(owner, 504, metrics("steps", 1000)));
 
         entryStore.save(stored(owner, EntryStatus.CANCELLED, EntryType.NOTE, "cancelled-505",
                 Instant.parse("2026-09-19T09:00:00Z"), Map.of("text", "cancelled")));
@@ -371,7 +373,7 @@ class CoreStorageIntegrationTest {
     @Test
     void concurrentPatchUsesRevisionAndKeepsBoundedHistory() throws Exception {
         OwnerContext owner = new OwnerContext(UUID.randomUUID());
-        Entry draft = entries.createDraft(draft(owner, 800, null, metrics("steps", 1000))).entry();
+        Entry draft = entries.createDraft(draft(owner, 800, metrics("steps", 1000))).entry();
         PatchEntryCommand first = new PatchEntryCommand(owner, draft.id(), 1, null,
                 Map.of("value", 2000), Map.of("value", "reported"));
         PatchEntryCommand second = new PatchEntryCommand(owner, draft.id(), 1, null,
@@ -412,7 +414,7 @@ class CoreStorageIntegrationTest {
         Map<String, Object> complete = new LinkedHashMap<>(metrics("steps", 1000));
         complete.put("unit", "count");
         complete.put("local_date", "2026-09-23");
-        Entry draft = entries.createDraft(draft(owner, 900, null, complete)).entry();
+        Entry draft = entries.createDraft(draft(owner, 900, complete)).entry();
         ConfirmEntryCommand command = new ConfirmEntryCommand(owner, draft.id(), "confirm-900", 1);
 
         try (var executor = Executors.newFixedThreadPool(8)) {
@@ -432,7 +434,7 @@ class CoreStorageIntegrationTest {
                 null, null, ZoneId.of("UTC"))).isEmpty());
 
         OwnerContext secondOwner = new OwnerContext(UUID.randomUUID());
-        Entry secondDraft = entries.createDraft(draft(secondOwner, 901, null, complete)).entry();
+        Entry secondDraft = entries.createDraft(draft(secondOwner, 901, complete)).entry();
         Entry cancelled = entries.cancel(secondOwner, secondDraft.id(), secondDraft.revision());
         assertEquals(EntryStatus.CANCELLED, cancelled.status());
         assertEquals(cancelled, entries.cancel(secondOwner, secondDraft.id(), secondDraft.revision()));
@@ -443,7 +445,7 @@ class CoreStorageIntegrationTest {
     void ownerIsolationAppliesToReadsAndMutations() {
         OwnerContext owner = new OwnerContext(UUID.randomUUID());
         OwnerContext stranger = new OwnerContext(UUID.randomUUID());
-        Entry draft = entries.createDraft(draft(owner, 950, "secret-submission", metrics("steps", 1000))).entry();
+        Entry draft = entries.createDraft(draft(owner, 950, metrics("steps", 1000))).entry();
 
         assertThrows(EntryNotFoundException.class, () -> entries.requireEntry(stranger, draft.id()));
         assertThrows(EntryNotFoundException.class, () -> entries.patch(new PatchEntryCommand(
@@ -465,7 +467,7 @@ class CoreStorageIntegrationTest {
         payload.put("nutrients", nutrients);
         payload.put("nutrients_basis", "per_100g");
         Entry draft = entries.createDraft(new CreateDraftCommand(owner, EntryType.MEAL, SourceKind.TEXT,
-                Map.of(), Instant.parse("2026-09-23T08:00:00Z"), payload, Map.of(), null,
+                Map.of(), Instant.parse("2026-09-23T08:00:00Z"), payload, Map.of(),
                 new TelegramUpdateKey("main", 960))).entry();
 
         Entry changed = entries.patch(new PatchEntryCommand(owner, draft.id(), draft.revision(), null,
@@ -487,7 +489,7 @@ class CoreStorageIntegrationTest {
         payload.put("nutrients", nutrients);
         payload.put("nutrients_basis", "per_100g");
         Entry draft = entries.createDraft(new CreateDraftCommand(owner, EntryType.MEAL, SourceKind.TEXT,
-                Map.of(), Instant.parse("2026-09-23T08:00:00Z"), payload, Map.of(), null,
+                Map.of(), Instant.parse("2026-09-23T08:00:00Z"), payload, Map.of(),
                 new TelegramUpdateKey("main", 970))).entry();
 
         Entry patchedDraft = entries.patch(new PatchEntryCommand(owner, draft.id(), 1, null,
@@ -509,7 +511,7 @@ class CoreStorageIntegrationTest {
         payload.put("description", "meal");
         payload.put("mass_g", 200);
         Entry draft = entries.createDraft(new CreateDraftCommand(owner, EntryType.MEAL, SourceKind.TEXT,
-                Map.of(), Instant.parse("2026-09-23T08:00:00Z"), payload, Map.of(), null,
+                Map.of(), Instant.parse("2026-09-23T08:00:00Z"), payload, Map.of(),
                 new TelegramUpdateKey("main", 980))).entry();
 
         Map<String, Object> clearMass = new LinkedHashMap<>();
@@ -522,18 +524,45 @@ class CoreStorageIntegrationTest {
         assertThrows(IllegalArgumentException.class, () -> entries.patch(new PatchEntryCommand(
                 owner, draft.id(), cleared.revision(), null, null, Map.of("mass_g", "made_up"))));
         assertEquals(cleared, entries.requireEntry(owner, draft.id()));
+
+        Map<String, String> nullOrigin = new LinkedHashMap<>();
+        nullOrigin.put("mass_g", null);
+        assertThrows(EntryValidationException.class, () -> entries.patch(new PatchEntryCommand(
+                owner, draft.id(), cleared.revision(), null, null, nullOrigin)));
+        assertEquals(cleared, entries.requireEntry(owner, draft.id()));
     }
 
     @Test
     void staleCancelCannotUndoNewerPatch() {
         OwnerContext owner = new OwnerContext(UUID.randomUUID());
-        Entry draft = entries.createDraft(draft(owner, 990, null, metrics("steps", 1000))).entry();
+        Entry draft = entries.createDraft(draft(owner, 990, metrics("steps", 1000))).entry();
         Entry patched = entries.patch(new PatchEntryCommand(owner, draft.id(), 1, null,
                 Map.of("value", 2000), Map.of("value", "reported")));
 
         assertThrows(EntryVersionConflictException.class, () -> entries.cancel(owner, draft.id(), 1));
         assertEquals(patched, entries.requireEntry(owner, draft.id()));
-        assertEquals(EntryStatus.CANCELLED, entries.cancel(owner, draft.id(), 2).status());
+        Entry cancelled = entries.cancel(owner, draft.id(), 2);
+        assertEquals(EntryStatus.CANCELLED, cancelled.status());
+        assertThrows(EntryStatusConflictException.class, () -> entries.cancel(owner, draft.id(), 1));
+    }
+
+    @Test
+    void concurrentCancelWithSameRevisionIsIdempotent() throws Exception {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Entry draft = entries.createDraft(draft(owner, 991, metrics("steps", 1000))).entry();
+        List<Callable<Entry>> calls = new ArrayList<>();
+        for (int index = 0; index < 8; index++) {
+            calls.add(() -> entries.cancel(owner, draft.id(), draft.revision()));
+        }
+
+        try (var executor = Executors.newFixedThreadPool(8)) {
+            Set<Entry> results = new HashSet<>();
+            for (var result : executor.invokeAll(calls)) results.add(result.get());
+            assertEquals(1, results.size());
+            Entry cancelled = results.iterator().next();
+            assertEquals(EntryStatus.CANCELLED, cancelled.status());
+            assertEquals(draft.revision() + 1, cancelled.revision());
+        }
     }
 
     @Test
@@ -543,8 +572,8 @@ class CoreStorageIntegrationTest {
         Map<String, Object> complete = new LinkedHashMap<>(metrics("steps", 1000));
         complete.put("unit", "count");
         complete.put("local_date", "2026-09-23");
-        Entry first = entries.createDraft(draft(firstOwner, 1000, null, complete)).entry();
-        Entry second = entries.createDraft(draft(secondOwner, 1001, null, complete)).entry();
+        Entry first = entries.createDraft(draft(firstOwner, 1000, complete)).entry();
+        Entry second = entries.createDraft(draft(secondOwner, 1001, complete)).entry();
 
         try (var executor = Executors.newFixedThreadPool(2)) {
             var results = executor.invokeAll(List.of(
@@ -571,10 +600,9 @@ class CoreStorageIntegrationTest {
                 .countDocuments(new org.bson.Document("submissionId", "shared-submit")));
     }
 
-    private static CreateDraftCommand draft(OwnerContext owner, long updateId, String submissionId,
-                                             Map<String, Object> payload) {
+    private static CreateDraftCommand draft(OwnerContext owner, long updateId, Map<String, Object> payload) {
         return new CreateDraftCommand(owner, EntryType.METRICS, SourceKind.TEXT, Map.of(),
-                Instant.parse("2026-09-23T08:00:00Z"), payload, Map.of(), submissionId,
+                Instant.parse("2026-09-23T08:00:00Z"), payload, Map.of(),
                 new TelegramUpdateKey("main", updateId));
     }
 

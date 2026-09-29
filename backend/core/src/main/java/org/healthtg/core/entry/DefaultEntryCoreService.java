@@ -51,9 +51,6 @@ class DefaultEntryCoreService implements EntryCoreService {
         EntryPayloadValidator.validateOrigins(command.fieldOrigins());
         String updateKey = command.updateKey().storageKey();
         Optional<Entry> repeated = store.findByTelegramUpdateKey(updateKey);
-        if (repeated.isEmpty() && command.submissionId() != null) {
-            repeated = store.findBySubmissionId(command.submissionId());
-        }
         if (repeated.isPresent()) {
             return new DraftCreationResult(owned(repeated.get(), command.owner()),
                     DraftCreationResult.Outcome.EXISTING_UPDATE);
@@ -68,14 +65,11 @@ class DefaultEntryCoreService implements EntryCoreService {
         sourceRef.putIfAbsent("telegram_update_id", command.updateKey().updateId());
         Entry draft = new Entry(UUID.randomUUID(), command.owner().userId(), command.type(), EntryStatus.DRAFT,
                 command.sourceKind(), sourceRef, command.occurredAt(), now, now, 1, command.payload(),
-                command.fieldOrigins(), command.submissionId(), updateKey);
+                command.fieldOrigins(), null, updateKey);
         try {
             return new DraftCreationResult(store.save(draft), DraftCreationResult.Outcome.CREATED);
         } catch (DuplicateKeyException duplicate) {
             Optional<Entry> sameUpdate = store.findByTelegramUpdateKey(updateKey);
-            if (sameUpdate.isEmpty() && command.submissionId() != null) {
-                sameUpdate = store.findBySubmissionId(command.submissionId());
-            }
             if (sameUpdate.isPresent()) {
                 return new DraftCreationResult(owned(sameUpdate.get(), command.owner()),
                         DraftCreationResult.Outcome.EXISTING_UPDATE);
@@ -181,7 +175,7 @@ class DefaultEntryCoreService implements EntryCoreService {
                     current.payload(), current.fieldOrigins(), current.submissionId()));
         } catch (EntryVersionConflictException conflict) {
             Entry actual = requireEntry(owner, entryId);
-            if (actual.status() == EntryStatus.CANCELLED) return actual;
+            if (actual.status() == EntryStatus.CANCELLED && actual.revision() == expectedRevision + 1) return actual;
             throw conflict;
         }
     }
