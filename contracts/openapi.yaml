@@ -267,6 +267,14 @@ paths:
       tags: [entries]
       operationId: cancelEntry
       summary: Cancel a draft without analytics impact
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          description: 'Strong ETag of current revision, e.g. `"3"`'
+          schema:
+            type: string
+            pattern: '^"[1-9][0-9]*"$'
       responses:
         "200":
           description: Cancelled entry

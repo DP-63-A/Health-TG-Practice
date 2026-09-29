@@ -16,4 +16,6 @@ public interface EntryStore {
     Optional<Entry> findActiveDraft(UUID ownerId);
 
     List<Entry> findByOwnerAndStatus(UUID ownerId, EntryStatus status);
+
+    Optional<Entry> replaceIfCurrent(Entry current, Entry replacement);
 }

@@ -357,7 +357,7 @@ export default function EntryPage() {
     setFieldErrors({})
 
     try {
-      await entriesApi.cancel(entry.id)
+      await entriesApi.cancel(entry.id, entry.revision)
       requestRefresh('mutation')
       if (mountedRef.current && activeIdRef.current === entry.id) navigate('/diary', { replace: true })
     } catch (cause) {

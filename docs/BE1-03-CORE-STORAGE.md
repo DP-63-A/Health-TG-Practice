@@ -94,8 +94,9 @@ active draft and dialog state survive the restart unchanged.
 | AC4 | Payload, score, ownership and confirmed-read tests | Contract validation and owner isolation are enforced without an LLM | Verified in core |
 | AC5 | Java interface documentation and full Gradle verification | Core interface is documented; bot/API/FE end-to-end checks and human acceptance remain external | Partially verified |
 
-Full bot usage, confirm/cancel/delete transitions, HTTP reads and diary UI verification remain assigned
-to BE2-02/05, BE1-04 and FE1-03. They must not be reported as completed by this storage-only branch.
+Full bot usage and diary UI verification remain assigned to BE2-02/05 and FE1-03. BE1-04 now extends
+this storage interface with atomic patch, confirm, cancel and logical-delete operations; its HTTP and
+concurrency evidence is documented in `docs/BE1-04-ENTRIES-API.md`.
 
 The full Java 21 build passed after merging `develop` at commit
 `8e547000d329b6515cc0f0afe2873dfa151906e3`. A separate-context restart regression test was then added;
