@@ -70,6 +70,11 @@ Check-in category/score steps and draft review state are persisted with `DialogS
 context is restored from MongoDB before processing a callback after application restart. Telegram
 handlers do not import Spring Data repositories or `MongoTemplate`.
 
+Useful partial parser results that require clarification are stored as versioned dialog context without
+inventing missing values. Invalid or incompatible persisted selector context is logged without personal
+data and reset to `idle`. Callback redelivery restores the last accepted callback, so it returns the
+current keyboard without repeating a storage operation.
+
 ## Persistence
 
 MongoDB collections:
@@ -111,7 +116,7 @@ BE1-04 extends this storage interface with atomic patch, confirm, cancel and log
 its HTTP and concurrency evidence is documented in `docs/BE1-04-ENTRIES-API.md`.
 
 The full Java 21 build passed on 2026-09-29 with Docker enabled. Test reports contained 53 API tests,
-281 bot tests and 30 analytics tests, with zero failures and zero skipped tests. The verified commit must
+286 bot tests and 30 analytics tests, with zero failures and zero skipped tests. The verified commit must
 be recorded in the PR after committing these changes. Commands used:
 
 ```powershell

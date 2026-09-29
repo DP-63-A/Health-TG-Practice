@@ -4,6 +4,8 @@ import org.healthtg.bot.checkin.CheckinSelector;
 import org.healthtg.bot.text.TextInputParser;
 import org.healthtg.bot.text.TextParseResult;
 import org.healthtg.core.dialog.DialogStateService;
+import org.healthtg.core.dialog.DialogState;
+import org.healthtg.core.dialog.SaveDialogStateCommand;
 import org.healthtg.core.entry.CreateCheckinCommand;
 import org.healthtg.core.entry.CreateDraftCommand;
 import org.healthtg.core.entry.DraftCreationResult;
@@ -25,13 +27,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 class CoreBotFlowTest {
@@ -109,6 +114,65 @@ class CoreBotFlowTest {
         assertEquals("cancel:" + draft.id() + ":3", action.rows().getFirst().getFirst().callbackData());
         verify(parser, never()).parse(any());
         verify(entries, never()).createDraft(any());
+    }
+
+    @Test
+    void clarificationPersistsUsefulPartialData() {
+        var data = new TextParseResult.ParsedData("metrics",
+                Map.of("code", "heart_rate", "value", 72), Map.of("value", "reported"),
+                java.time.LocalDate.of(2026, 9, 24), null);
+        when(parser.parse("24.09.2026 пульс 72")).thenReturn(new TextParseResult(
+                TextParseResult.Outcome.NEEDS_CLARIFICATION, "24.09.2026 пульс 72", data, List.of()));
+
+        flow.handleMessage(message(40, "24.09.2026 пульс 72"));
+
+        ArgumentCaptor<SaveDialogStateCommand> saved = ArgumentCaptor.forClass(SaveDialogStateCommand.class);
+        verify(dialogs).save(saved.capture());
+        assertEquals("text_clarification", saved.getValue().step());
+        assertEquals(data.payload(), saved.getValue().context().get("payload"));
+        assertEquals("2026-09-24", saved.getValue().context().get("date"));
+        verify(entries, never()).createDraft(any());
+    }
+
+    @Test
+    void malformedCancelParametersDoNotMasqueradeAsBusinessConflict() {
+        var action = assertInstanceOf(BotAction.AnswerCallback.class,
+                flow.handleCallback(callback(50, "cancel:not-a-uuid:nope")).getFirst());
+
+        assertEquals("Некорректные параметры", action.text());
+        verify(entries, never()).cancel(any(), any(), anyLong());
+    }
+
+    @Test
+    void corruptedRestoredSelectorStateFallsBackToIdle() {
+        when(dialogs.find(any())).thenReturn(Optional.of(new DialogState(OWNER_ID, null,
+                "checkin_score", Map.of("schema_version", 1, "selector_id", "broken", "start_update", 10),
+                1, NOW, "main:10")));
+
+        var action = assertInstanceOf(BotAction.AnswerCallback.class,
+                flow.handleCallback(callback(51, "q:00000000000000000000000000000000:v3")).getFirst());
+
+        assertEquals("Кнопка устарела", action.text());
+        ArgumentCaptor<SaveDialogStateCommand> saved = ArgumentCaptor.forClass(SaveDialogStateCommand.class);
+        verify(dialogs).save(saved.capture());
+        assertEquals("idle", saved.getValue().step());
+    }
+
+    @Test
+    void concurrentScoreCallbacksPersistOneCheckin() throws Exception {
+        var categories = (BotAction.SendInlineMessage) flow.beginCheckin(message(60, "/state")).getFirst();
+        String category = categories.rows().getFirst().getFirst().callbackData();
+        var scores = (BotAction.SendInlineMessage) flow.handleCallback(callback(61, category)).get(1);
+        String score = scores.rows().getFirst().get(4).callbackData();
+
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var calls = List.of(
+                    (java.util.concurrent.Callable<List<BotAction>>) () -> flow.handleCallback(callback(62, score)),
+                    (java.util.concurrent.Callable<List<BotAction>>) () -> flow.handleCallback(callback(63, score)));
+            for (var result : executor.invokeAll(calls)) result.get();
+        }
+
+        verify(entries, times(1)).createCheckin(any());
     }
 
     private static BotUpdate message(long updateId, String text) {

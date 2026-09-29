@@ -97,11 +97,21 @@ public final class CheckinSelector {
     }
 
     public synchronized void restore(long owner, UUID selectionId, long startUpdate, long lastUpdate,
-                                     CheckinCategory category) {
+                                     String lastCallback, CheckinCategory category) {
         if (owner <= 0 || selectionId == null || startUpdate < 0 || lastUpdate < startUpdate) {
             throw new IllegalArgumentException("Invalid restored checkin session");
         }
-        sessions.putIfAbsent(owner, new Session(selectionId, owner, startUpdate, lastUpdate, category));
+        Session restored = new Session(selectionId, owner, startUpdate, lastUpdate, category);
+        restored.lastCallback = lastCallback;
+        sessions.putIfAbsent(owner, restored);
+    }
+
+    public synchronized boolean hasSession(long owner) { return sessions.containsKey(owner); }
+
+    public synchronized UUID selectionId(long owner) {
+        Session session = sessions.get(owner);
+        if (session == null) throw new IllegalStateException("Checkin session not found");
+        return session.id;
     }
 
     public synchronized long startUpdate(long owner) {
@@ -114,6 +124,12 @@ public final class CheckinSelector {
         Session session = sessions.get(owner);
         if (session == null) throw new IllegalStateException("Checkin session not found");
         return session.category;
+    }
+
+    public synchronized String lastCallback(long owner) {
+        Session session = sessions.get(owner);
+        if (session == null) throw new IllegalStateException("Checkin session not found");
+        return session.lastCallback;
     }
 
     private static boolean validContext(long owner, long chatId, long updateId) {

@@ -7,6 +7,8 @@ import org.healthtg.core.entry.OwnerContext;
 import org.healthtg.user.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.util.TestPropertyValues;
+import org.springframework.boot.SpringApplication;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -15,11 +17,13 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.time.Clock;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 @Testcontainers(disabledWithoutDocker = true)
 class BotCoreStorageIntegrationTest {
@@ -33,6 +37,7 @@ class BotCoreStorageIntegrationTest {
         String database = "bot_core_" + UUID.randomUUID().toString().replace("-", "");
         UUID draftId;
         UUID draftOwner;
+        String restoredCategoryCallback;
         String restoredScoreCallback;
 
         try (var first = context(database)) {
@@ -62,6 +67,7 @@ class BotCoreStorageIntegrationTest {
             var restartCategories = (BotAction.SendInlineMessage) flow.beginCheckin(
                     message(3003, 30, "/state")).getFirst();
             String restartCategory = restartCategories.rows().get(2).getFirst().callbackData();
+            restoredCategoryCallback = restartCategory;
             var restartScores = (BotAction.SendInlineMessage) flow.handleCallback(
                     callback(3003, 31, restartCategory)).get(1);
             restoredScoreCallback = restartScores.rows().getFirst().get(3).callbackData();
@@ -76,6 +82,8 @@ class BotCoreStorageIntegrationTest {
             assertEquals(draftId, restored.id());
             assertEquals("draft_review", dialogs.find(new OwnerContext(draftOwner)).orElseThrow().step());
 
+            var replayedCategory = flow.handleCallback(callback(3003, 31, restoredCategoryCallback));
+            assertTrue(replayedCategory.get(1) instanceof BotAction.SendInlineMessage);
             flow.handleCallback(callback(3003, 32, restoredScoreCallback));
             UUID restoredCheckinOwner = users.findOrCreate(3003).id();
             assertEquals(1, entries.listConfirmedEntries(new org.healthtg.core.entry.ListConfirmedEntriesQuery(
@@ -90,6 +98,30 @@ class BotCoreStorageIntegrationTest {
             assertEquals(EntryStatus.CANCELLED,
                     entries.requireEntry(new OwnerContext(draftOwner), draftId).status());
             restarted.getBean(org.springframework.data.mongodb.core.MongoTemplate.class).getDb().drop();
+        }
+    }
+
+    @Test
+    void productionBotApplicationDiscoversCoreMongoRepositories() {
+        SpringApplication application = new SpringApplication(BotApplication.class);
+        application.setDefaultProperties(Map.of(
+                "spring.main.web-application-type", "none",
+                "spring.data.mongodb.uri", MONGO.getReplicaSetUrl(),
+                "spring.data.mongodb.database", "bot_startup_" + UUID.randomUUID().toString().replace("-", ""),
+                "spring.data.mongodb.auto-index-creation", "true"));
+        application.addInitializers(context -> context.addBeanFactoryPostProcessor(factory -> {
+            var registry = (BeanDefinitionRegistry) factory;
+            registry.removeBeanDefinition("runtimeSettings");
+            registry.removeBeanDefinition("botRuntime");
+            factory.registerSingleton("runtimeSettings", mock(RuntimeSettings.class));
+            factory.registerSingleton("botRuntime", mock(BotRuntime.class));
+        }));
+
+        try (var context = application.run()) {
+            assertTrue(context.containsBean("mongoEntryRepository"));
+            assertTrue(context.containsBean("mongoDialogStateRepository"));
+            assertTrue(context.containsBean("mongoUserRepository"));
+            assertTrue(context.containsBean("botFlow"));
         }
     }
 
