@@ -55,6 +55,20 @@ describe('entries API facade', () => {
 
     expect(calls).toEqual([['/entries/22222222-2222-4222-8222-222222222201', '"3"']])
   })
+
+  it('passes a quoted current revision when cancelling a draft', async () => {
+    const calls: unknown[][] = []
+    const api = createEntriesApi(createClient({
+      post: async <TResponse,>(path: string, options?: Parameters<ApiClient['post']>[1]) => {
+        calls.push([path, new Headers(options?.headers).get('If-Match')])
+        return {} as TResponse
+      },
+    }))
+
+    await api.cancel('22222222-2222-4222-8222-222222222201', 3)
+
+    expect(calls).toEqual([['/entries/22222222-2222-4222-8222-222222222201/cancel', '"3"']])
+  })
 })
 
 function createClient(overrides: Partial<ApiClient>): ApiClient {

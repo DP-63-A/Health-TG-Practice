@@ -14,6 +14,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.telegram:telegrambots-client:9.2.0")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("com.networknt:json-schema-validator:1.5.6")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -21,5 +22,8 @@ tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
     options.release.set(21)
 }
-tasks.test { useJUnitPlatform() }
+tasks.test {
+    useJUnitPlatform()
+    systemProperty("contracts.root", rootProject.projectDir.resolve("contracts").absolutePath)
+}
 springBoot { mainClass.set("org.healthtg.bot.BotApplication") }

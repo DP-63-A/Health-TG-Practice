@@ -142,7 +142,7 @@ describe('FE1-04 entry review and correction', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Не сохранять' }))
 
-    await waitFor(() => expect(cancel).toHaveBeenCalledWith(entry.id))
+    await waitFor(() => expect(cancel).toHaveBeenCalledWith(entry.id, entry.revision))
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
   })
 

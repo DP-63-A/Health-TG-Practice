@@ -12,7 +12,10 @@ export function createEntriesApi(client: ApiClient = apiClient) {
       client.patch<Entry, EntryPatchRequest>(`/entries/${encodeURIComponent(id)}`, { body }),
     confirm: (id: string, body: ConfirmRequest) =>
       client.post<Entry, ConfirmRequest>(`/entries/${encodeURIComponent(id)}/confirm`, { body }),
-    cancel: (id: string) => client.post<Entry>(`/entries/${encodeURIComponent(id)}/cancel`),
+    cancel: (id: string, revision: number) =>
+      client.post<Entry>(`/entries/${encodeURIComponent(id)}/cancel`, {
+        headers: { 'If-Match': `"${revision}"` },
+      }),
     delete: (id: string, revision: number) =>
       client.delete<Entry>(`/entries/${encodeURIComponent(id)}`, {
         headers: { 'If-Match': `"${revision}"` },

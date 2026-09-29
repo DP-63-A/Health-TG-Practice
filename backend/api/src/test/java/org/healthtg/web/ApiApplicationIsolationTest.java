@@ -21,6 +21,7 @@ import static org.mockito.Mockito.*;
         "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration,"
                 + "org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration,"
                 + "org.springframework.boot.autoconfigure.data.mongo.MongoRepositoriesAutoConfiguration",
+        "health-tg.core.storage.enabled=false",
         "health-tg.auth.telegram-bot-token=",
         "health-tg.auth.allowed-telegram-ids="
 })
@@ -37,6 +38,7 @@ class ApiApplicationIsolationTest {
         assertThrows(ClassNotFoundException.class, () -> Class.forName("org.telegram.telegrambots.meta.generics.TelegramClient"));
         assertFalse(context.containsBean("botRuntime"));
         assertFalse(context.containsBean("runtimeSettings"));
+        assertFalse(context.containsBean("entriesController"));
         var response = http.getForEntity("/api/v1/me", String.class);
         assertEquals(401, response.getStatusCode().value());
         assertNotNull(response.getHeaders().getFirst("X-Request-Id"));

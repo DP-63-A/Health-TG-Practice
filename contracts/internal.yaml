@@ -130,9 +130,6 @@ components:
           type: object
           additionalProperties:
             $ref: ./schemas/common.json#/$defs/FieldOrigin
-        idempotency_key:
-          type: string
-          description: Optional key to collapse duplicate draft creation attempts
       allOf:
         - if:
             properties:
