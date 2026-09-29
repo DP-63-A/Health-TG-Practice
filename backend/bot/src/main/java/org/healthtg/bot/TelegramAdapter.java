@@ -1,6 +1,7 @@
 package org.healthtg.bot;
 
 import java.util.List;
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.menubutton.SetChatMenuButton;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -8,6 +9,9 @@ import org.telegram.telegrambots.meta.api.objects.menubutton.MenuButtonCommands;
 import org.telegram.telegrambots.meta.api.objects.menubutton.MenuButtonWebApp;
 import org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -32,6 +36,15 @@ public final class TelegramAdapter {
                         .isPersistent(message.keyboard().persistent()).resizeKeyboard(message.keyboard().resize()).build();
                 client.execute(SendMessage.builder().chatId(message.chatId()).text(message.text())
                         .replyMarkup(keyboard).build());
+            } else if (action instanceof BotAction.SendInlineMessage message) {
+                List<InlineKeyboardRow> rows = message.rows().stream().map(row -> new InlineKeyboardRow(
+                        row.stream().map(button -> InlineKeyboardButton.builder().text(button.text())
+                                .callbackData(button.callbackData()).build()).toList())).toList();
+                client.execute(SendMessage.builder().chatId(message.chatId()).text(message.text())
+                        .replyMarkup(InlineKeyboardMarkup.builder().keyboard(rows).build()).build());
+            } else if (action instanceof BotAction.AnswerCallback answer) {
+                client.execute(AnswerCallbackQuery.builder().callbackQueryId(answer.callbackId())
+                        .text(answer.text()).build());
             } else if (action instanceof BotAction.SetMenuButton menu) {
                 var button = menu.url() == null ? new MenuButtonCommands()
                         : MenuButtonWebApp.builder().text(menu.label())
@@ -42,7 +55,18 @@ public final class TelegramAdapter {
     }
 
     public static BotUpdate project(Update update) {
-        if (update == null || update.getMessage() == null) return null;
+        if (update == null || update.getUpdateId() == null) return null;
+        if (update.getCallbackQuery() != null) {
+            var callback = update.getCallbackQuery();
+            if (callback.getFrom() == null || callback.getFrom().getId() == null
+                    || callback.getFrom().getIsBot() == null || callback.getMessage() == null
+                    || callback.getMessage().getChatId() == null || callback.getMessage().getChat() == null
+                    || !"private".equals(callback.getMessage().getChat().getType())) return null;
+            return new BotUpdate(update.getUpdateId(), BotUpdate.Kind.CALLBACK, BotUpdate.ChatType.PRIVATE,
+                    callback.getMessage().getChatId(), callback.getFrom().getId(), callback.getFrom().getIsBot(),
+                    null, List.of(), callback.getId(), callback.getData());
+        }
+        if (update.getMessage() == null) return null;
         var message = update.getMessage();
         if (message.getChat() == null || message.getChatId() == null || message.getFrom() == null
                 || message.getFrom().getId() == null || message.getFrom().getIsBot() == null) return null;
@@ -52,7 +76,7 @@ public final class TelegramAdapter {
         var entities = message.getEntities() == null ? List.<BotUpdate.Entity>of()
                 : message.getEntities().stream().filter(e -> e != null && e.getOffset() != null && e.getLength() != null)
                 .map(e -> new BotUpdate.Entity(e.getType(), e.getOffset(), e.getLength())).toList();
-        return new BotUpdate(BotUpdate.Kind.MESSAGE, type, message.getChatId(), message.getFrom().getId(),
-                message.getFrom().getIsBot(), message.getText(), entities);
+        return new BotUpdate(update.getUpdateId(), BotUpdate.Kind.MESSAGE, type, message.getChatId(),
+                message.getFrom().getId(), message.getFrom().getIsBot(), message.getText(), entities, null, null);
     }
 }

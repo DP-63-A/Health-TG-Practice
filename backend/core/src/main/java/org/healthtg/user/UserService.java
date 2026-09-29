@@ -1,20 +1,27 @@
 package org.healthtg.user;
 
-import org.healthtg.auth.AuthProperties;
-import org.healthtg.auth.AuthFailureException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
+import java.time.ZoneId;
 import java.util.UUID;
 
 @Service
 public class UserService {
     private final UserStore userStore;
-    private final AuthProperties properties;
+    private final ZoneId defaultTimezone;
 
-    public UserService(UserStore userStore, AuthProperties properties) {
+    @Autowired
+    public UserService(UserStore userStore,
+                       @Value("${health-tg.auth.default-timezone:Europe/Warsaw}") String defaultTimezone) {
+        this(userStore, ZoneId.of(defaultTimezone));
+    }
+
+    public UserService(UserStore userStore, ZoneId defaultTimezone) {
         this.userStore = userStore;
-        this.properties = properties;
+        this.defaultTimezone = defaultTimezone;
     }
 
     public UserAccount findOrCreate(long telegramId) {
@@ -23,14 +30,13 @@ public class UserService {
 
     private UserAccount createOrReadConcurrent(long telegramId) {
         try {
-            return userStore.save(new UserAccount(
-                    UUID.randomUUID(), telegramId, properties.defaultTimezone(), true));
+            return userStore.save(new UserAccount(UUID.randomUUID(), telegramId, defaultTimezone, true));
         } catch (DuplicateKeyException duplicate) {
             return userStore.findByTelegramId(telegramId).orElseThrow(() -> duplicate);
         }
     }
 
     public UserAccount requireById(UUID id) {
-        return userStore.findById(id).orElseThrow(() -> new AuthFailureException("Session missing or expired"));
+        return userStore.findById(id).orElseThrow(UserNotFoundException::new);
     }
 }

@@ -15,7 +15,8 @@ It is not an HTTP API and Telegram handlers must not access Mongo repositories d
 
 All calls require `OwnerContext`, produced from the authenticated user. A Telegram consumer supplies a
 stable `TelegramUpdateKey(botKey, updateId)`. Re-delivery of that update returns the existing result.
-Draft callers may additionally supply a stable `submissionId` for idempotency across transports.
+Draft creation uses the stable Telegram update key for delivery idempotency. `submissionId` remains
+null until the first BE1-04 confirmation attempt.
 
 ## Confirmed entry reads
 
@@ -54,8 +55,20 @@ cannot create two active drafts.
 Draft payloads are validated by entry type against the agreed contract fields. Unknown fields and
 invalid enum values are rejected. Incomplete metric drafts are accepted: `unit` and `local_date` may be
 absent until confirmation, while `code` and `value` remain required. Numeric values must be finite;
-steps, sleep, meal mass and nutrients cannot be negative. Confirmation and transition validation belong
-to the remaining BE1-03/BE1-04 work.
+steps, sleep, meal mass and nutrients cannot be negative. Confirmation and transitions are provided by
+BE1-04.
+
+## Telegram integration
+
+`backend:bot` depends on `backend:core` and invokes only its public services. `CoreBotFlow` maps the
+allowlisted Telegram identity through the shared `UserService`, so bot-created entries and API diary
+reads use the same owner UUID. Parsed text is passed to `EntryCoreService.createDraft`; a completed
+quick-checkin selection is passed to `EntryCoreService.createCheckin`. Active drafts are never
+overwritten: the bot offers the common BE1-04 revision-protected cancel operation instead.
+
+Check-in category/score steps and draft review state are persisted with `DialogStateService`. Selector
+context is restored from MongoDB before processing a callback after application restart. Telegram
+handlers do not import Spring Data repositories or `MongoTemplate`.
 
 ## Persistence
 
@@ -88,25 +101,23 @@ active draft and dialog state survive the restart unchanged.
 
 | Criterion | Verification | Current result | Status |
 |---|---|---|---|
-| AC1 | MongoDB tests for `createDraft` and `createCheckin` | Core methods are covered; invocation from the Telegram bot belongs to BE2-02/05 | Partially verified |
-| AC2 | Active-draft and dialog-state persistence tests | Existing drafts are returned without overwrite; a separate-context restart test verifies MongoDB restoration | Implemented; final rerun required |
+| AC1 | `BotCoreStorageIntegrationTest` and core MongoDB tests | Bot text/check-in flows invoke public core services | Verified |
+| AC2 | Active-draft and dialog-state persistence tests | Existing drafts are returned without overwrite; a separate-context restart test verifies MongoDB restoration | Verified |
 | AC3 | Concurrent delivery, submission id and stale-update tests | One logical result; `201 -> 202 -> 201` does not roll state back | Verified in core |
 | AC4 | Payload, score, ownership and confirmed-read tests | Contract validation and owner isolation are enforced without an LLM | Verified in core |
-| AC5 | Java interface documentation and full Gradle verification | Core interface is documented; bot/API/FE end-to-end checks and human acceptance remain external | Partially verified |
+| AC5 | `BotCoreStorageIntegrationTest` plus full Gradle verification | Bot to core to MongoDB and restart restoration passed; human review remains | Verified automatically; review pending |
 
-Full bot usage and diary UI verification remain assigned to BE2-02/05 and FE1-03. BE1-04 now extends
-this storage interface with atomic patch, confirm, cancel and logical-delete operations; its HTTP and
-concurrency evidence is documented in `docs/BE1-04-ENTRIES-API.md`.
+BE1-04 extends this storage interface with atomic patch, confirm, cancel and logical-delete operations;
+its HTTP and concurrency evidence is documented in `docs/BE1-04-ENTRIES-API.md`.
 
-The full Java 21 build passed after merging `develop` at commit
-`8e547000d329b6515cc0f0afe2873dfa151906e3`. A separate-context restart regression test was then added;
-the following checks must be rerun and recorded for the final commit before merge:
+The full Java 21 build passed on 2026-09-29 with Docker enabled. Test reports contained 53 API tests,
+281 bot tests and 30 analytics tests, with zero failures and zero skipped tests. The verified commit must
+be recorded in the PR after committing these changes. Commands used:
 
 ```powershell
 .\gradlew.bat :backend:api:test --tests org.healthtg.persistence.CoreStorageIntegrationTest --rerun-tasks --no-build-cache --no-daemon --console=plain
+.\gradlew.bat :backend:bot:test --tests org.healthtg.bot.CoreBotFlowTest --tests org.healthtg.bot.BotCoreStorageIntegrationTest --rerun-tasks --no-build-cache --no-daemon --console=plain
 .\gradlew.bat clean :backend:core:test :backend:api:test :backend:bot:test :analytics:test :backend:api:bootJar :backend:bot:bootJar validateContracts :contract-validator:validate --rerun-tasks --no-build-cache --no-daemon --console=plain
 ```
 
-The verified commit and final results must be recorded in the PR description after these changes are
-committed. AC1 and AC5 remain partial until BE2 invokes the core services and the available end-to-end
-flow is accepted by another participant.
+Final acceptance still requires review by another participant.

@@ -24,7 +24,7 @@ public final class CheckinSelector {
     public record Outcome(Status status, View view) {}
 
     private static final class Session {
-        final UUID id = UUID.randomUUID();
+        final UUID id;
         final long owner;
         final long startUpdate;
         long lastUpdate;
@@ -33,9 +33,15 @@ public final class CheckinSelector {
         CheckinSelection selection;
 
         Session(long owner, long updateId) {
+            this(UUID.randomUUID(), owner, updateId, updateId, null);
+        }
+
+        Session(UUID id, long owner, long startUpdate, long lastUpdate, CheckinCategory category) {
+            this.id = id;
             this.owner = owner;
-            this.startUpdate = updateId;
-            this.lastUpdate = updateId;
+            this.startUpdate = startUpdate;
+            this.lastUpdate = lastUpdate;
+            this.category = category;
         }
     }
 
@@ -88,6 +94,26 @@ public final class CheckinSelector {
         session.lastUpdate = updateId;
         session.lastCallback = data;
         return new Outcome(session.selection == null ? Status.ACCEPTED : Status.SELECTED, view(session));
+    }
+
+    public synchronized void restore(long owner, UUID selectionId, long startUpdate, long lastUpdate,
+                                     CheckinCategory category) {
+        if (owner <= 0 || selectionId == null || startUpdate < 0 || lastUpdate < startUpdate) {
+            throw new IllegalArgumentException("Invalid restored checkin session");
+        }
+        sessions.putIfAbsent(owner, new Session(selectionId, owner, startUpdate, lastUpdate, category));
+    }
+
+    public synchronized long startUpdate(long owner) {
+        Session session = sessions.get(owner);
+        if (session == null) throw new IllegalStateException("Checkin session not found");
+        return session.startUpdate;
+    }
+
+    public synchronized CheckinCategory category(long owner) {
+        Session session = sessions.get(owner);
+        if (session == null) throw new IllegalStateException("Checkin session not found");
+        return session.category;
     }
 
     private static boolean validContext(long owner, long chatId, long updateId) {

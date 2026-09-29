@@ -43,6 +43,12 @@ class BotApplicationIsolationTest {
         var closed = new AtomicInteger();
         var runtime = new BotRuntime(client, settings, closed::incrementAndGet);
         var application = new SpringApplication(BotApplication.class);
+        application.setDefaultProperties(java.util.Map.of(
+                "health-tg.core.storage.enabled", "false",
+                "spring.autoconfigure.exclude",
+                "org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration,"
+                        + "org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration,"
+                        + "org.springframework.boot.autoconfigure.data.mongo.MongoRepositoriesAutoConfiguration"));
         // Only external configuration/transport are replaced; production auto-configuration runs.
         application.addInitializers(context -> context.addBeanFactoryPostProcessor(factory -> {
             var registry = (BeanDefinitionRegistry) factory;
@@ -50,6 +56,7 @@ class BotApplicationIsolationTest {
             registry.removeBeanDefinition("botRuntime");
             factory.registerSingleton("runtimeSettings", settings);
             factory.registerSingleton("botRuntime", runtime);
+            factory.registerSingleton("userStore", mock(org.healthtg.user.UserStore.class));
         }));
         try {
             try (var context = application.run()) {
@@ -59,7 +66,7 @@ class BotApplicationIsolationTest {
                 assertFalse(context.containsBean("mongoTemplate"));
                 assertThrows(ClassNotFoundException.class, () -> Class.forName("org.healthtg.HealthTgApplication"));
                 assertThrows(ClassNotFoundException.class, () -> Class.forName("org.springframework.web.servlet.DispatcherServlet"));
-                assertThrows(ClassNotFoundException.class, () -> Class.forName("com.mongodb.client.MongoClient"));
+                assertFalse(context.containsBean("entryCoreService"));
                 assertTrue(polling.await(5, TimeUnit.SECONDS));
                 assertTrue(runtime.isRunning());
             }

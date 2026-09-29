@@ -23,15 +23,21 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
     private final TelegramClient client;
     private final RuntimeSettings settings;
     private final Runnable closeTransport;
+    private final BotFlow flow;
     private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> new Thread(r, "telegram-polling"));
     private volatile boolean running;
     private boolean closed;
     private Future<?> worker;
 
     public BotRuntime(TelegramClient client, RuntimeSettings settings, Runnable closeTransport) {
+        this(client, settings, closeTransport, BotFlow.unavailable());
+    }
+
+    public BotRuntime(TelegramClient client, RuntimeSettings settings, Runnable closeTransport, BotFlow flow) {
         this.client = client;
         this.settings = settings;
         this.closeTransport = closeTransport;
+        this.flow = flow;
     }
 
     @Override public synchronized void start() {
@@ -45,7 +51,7 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
             }
             var me = client.execute(new GetMe());
             if (me == null || !Boolean.TRUE.equals(me.getIsBot())) throw new TelegramApiException("Missing bot identity");
-            BotHandler handler = new BotHandler(settings.forUsername(me.getUserName()), QuickCheckin.unavailable());
+            BotHandler handler = new BotHandler(settings.forUsername(me.getUserName()), QuickCheckin.unavailable(), flow);
             client.execute(SetMyCommands.builder().scope(new BotCommandScopeAllPrivateChats())
                     .commands(List.of(new BotCommand("start", "Открыть учебный дневник"),
                             new BotCommand("state", "Отметить состояние"))).build());
@@ -72,7 +78,7 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
                 List<org.telegram.telegrambots.meta.api.objects.Update> updates;
                 try {
                     updates = client.execute(GetUpdates.builder().offset(offset).timeout(30).limit(100)
-                            .allowedUpdates(List.of("message")).build());
+                            .allowedUpdates(List.of("message", "callback_query")).build());
                     networkFailures = 0;
                 } catch (TelegramApiException e) {
                     if (fatal(e)) { LOG.error("Telegram отклонил polling. Проверьте токен и что бот запущен только в одном месте."); break; }
