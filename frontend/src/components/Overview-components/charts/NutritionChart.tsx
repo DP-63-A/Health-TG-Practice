@@ -11,7 +11,7 @@ import { useId } from 'react'
   } from 'recharts'
 
 import type { AnalyticsResponse } from '../../../overview/analytics.types'
-  
+
   import {
     formatCalories,
     formatChartDate,
@@ -34,10 +34,8 @@ import type { AnalyticsResponse } from '../../../overview/analytics.types'
     point.energy_kcal !== null)
 
     function selectDay(date: string) {
-      const point = series.find((item) => item.date
-      === date)
-
-      if (point && point.energy_kcal !== null) {
+      const point = series.find((item) => item.date === date)
+      if (point) {
         onSelectDay?.(point.date)
       }
     }
@@ -159,7 +157,12 @@ import type { AnalyticsResponse } from '../../../overview/analytics.types'
               </ResponsiveContainer>
             </div>
 
-            <details className="nutrition-chart__details">
+
+          </>
+        )}
+
+      {series.length > 0 && (
+        <details className="nutrition-chart__details">
               <summary>Значения по дням</summary>
 
               <table>
@@ -175,8 +178,7 @@ import type { AnalyticsResponse } from '../../../overview/analytics.types'
                   {series.map((point) => (
                     <tr key={point.date}>
                       <th scope="row">
-                        {point.energy_kcal !== null &&
-                        onSelectDay ? (
+                        {onSelectDay ? (
                           <button
                             type="button"
                             onClick={() =>
@@ -185,7 +187,7 @@ import type { AnalyticsResponse } from '../../../overview/analytics.types'
                               `Выбрать день
                               ${formatTooltipDate(point.date)}: ` +
 
-                              formatCalories(point.energy_kcal)
+                              (point.energy_kcal === null ? 'Нет данных' : formatCalories(point.energy_kcal))
                             }
                           >
 
@@ -208,8 +210,7 @@ import type { AnalyticsResponse } from '../../../overview/analytics.types'
                 </tbody>
               </table>
             </details>
-          </>
-        )}
-      </section>
+      )}
+    </section>
     )
   }

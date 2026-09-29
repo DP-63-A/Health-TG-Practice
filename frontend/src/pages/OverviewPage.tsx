@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { Card, StateView } from '../components/ui'
 
 import { NutritionCard } from '../components/Overview-components/NutritionCard'
@@ -25,6 +25,11 @@ import type {
   AnalyticsPeriod,
   CheckinCategory,
 } from '../overview/analytics.types'
+
+import type {
+    DiaryDrilldown,
+    DiaryNavigationState,
+  } from '../api/types'
 
 import './OverviewPage.css'
 
@@ -66,6 +71,33 @@ export function buildDiaryUrl(
   return `/diary?${params.toString()}`
 }
 
+///////
+function parsePeriod(value: string | null): AnalyticsPeriod {
+  if (
+    value === 'today' ||
+    value === 'days_7' ||
+    value === 'days_21'
+  ) {
+    return value
+  }
+
+  return 'days_7'
+}
+
+function parseCategory(value: string | null): CheckinCategory {
+  if (
+    value === 'sleep_quality' ||
+    value === 'digestion_comfort' ||
+    value === 'wellbeing' ||
+    value === 'mood'
+  ) {
+    return value
+  }
+
+  return 'mood'
+}
+//////////
+
 function OverviewPage() {
   const { state: authState, markSessionExpired } = useAuth()
   const timezone =
@@ -79,13 +111,92 @@ function OverviewPage() {
     })
 
   const navigate = useNavigate()
+  const location = useLocation()
+  
+  function openDiary(date: string, kind: ChartKind) {
+    if (
+      analyticsState.status !== 'success' &&
+      analyticsState.status !== 'empty'
+    ) {
+      return
+    }
 
-  function openDiary(
-  date: string,
-  kind: ChartKind,
-) {
-  navigate(buildDiaryUrl(date, kind))
-}
+    const data = analyticsState.data
+
+    if (
+      data.period.kind !== period ||
+      (timezone && data.period.timezone !== timezone)
+    ) {
+      return
+    }
+
+    let drilldown: DiaryDrilldown
+
+    if (kind === 'nutrition') {
+      const point = data.series.nutrition.find(
+        (item) => item.date === date,
+      )
+
+      if (!point) return
+
+      drilldown = {
+        kind,
+        date: point.date,
+        sourceIds: point.source.map((source) =>
+        source.entry_id),
+        hasValue: point.energy_kcal !== null,
+      }
+    } else if (kind === 'checkin') {
+      const series = data.series.checkin
+
+      if (series.category !== checkinCategory) return
+
+      const point = series.points.find(
+        (item) => item.date === date,
+      )
+
+      if (!point) return
+
+      drilldown = {
+        kind,
+        date: point.date,
+        category: series.category,
+        sourceIds: point.source ?
+        [point.source.entry_id] : [],
+        hasValue: point.value !== null,
+      }
+    } else {
+      const point = data.series[kind].find(
+        (item) => item.date === date,
+      )
+
+      if (!point) return
+
+      drilldown = {
+        kind,
+        date: point.date,
+        sourceIds: point.source ?
+        [point.source.entry_id] : [],
+        hasValue: point.value !== null,
+      }
+    }
+
+    drilldown.sourceIds = [...new
+    Set(drilldown.sourceIds)]
+
+    const returnParams = new
+    URLSearchParams(location.search)
+    returnParams.set('period', period)
+    returnParams.set('checkin_category',
+    checkinCategory)
+
+    const state: DiaryNavigationState = {
+      drilldown,
+      overviewReturnTo: `/overview?${returnParams.toString()}`,
+    }
+
+    navigate(buildDiaryUrl(date, kind), { state }) 
+  } 
 
   const [refreshCount, setRefreshCount] =
     useState(0)
@@ -96,11 +207,47 @@ function OverviewPage() {
   const [reloadKey, setReloadKey] =
     useState(0)
 
-  const [period, setPeriod] =
-    useState<AnalyticsPeriod>('days_7')
+  // const [period, setPeriod] =
+  //   useState<AnalyticsPeriod>('days_7')
 
-  const [checkinCategory, setCheckinCategory] =
-    useState<CheckinCategory>('mood')
+  // const [checkinCategory, setCheckinCategory] =
+  //   useState<CheckinCategory>('mood')
+
+  const [searchParams, setSearchParams] = useSearchParams()
+
+const period = parsePeriod(
+  searchParams.get('period'),
+)
+
+const checkinCategory = parseCategory(
+  searchParams.get('checkin_category'),
+)
+
+function updatePeriod(value: AnalyticsPeriod) {
+  setSearchParams(
+    (current) => {
+      const next = new URLSearchParams(current)
+
+      next.set('period', value)
+
+      return next
+    },
+    { replace: true },
+  )
+}
+
+function updateCategory(value: CheckinCategory) {
+  setSearchParams(
+    (current) => {
+      const next = new URLSearchParams(current)
+
+      next.set('checkin_category', value)
+
+      return next
+    },
+    { replace: true },
+  )
+}
 
   // Общий механизм обновления FE1.
 
@@ -189,12 +336,12 @@ function OverviewPage() {
       <div className="overview-filters">
         <label htmlFor="overview-period">Период</label>
         <select
-          id="overview-period"
-          value={period}
-          onChange={(event) => {
-            setPeriod(event.target.value as AnalyticsPeriod)
-          }}
-        >
+  id="overview-period"
+  value={period}
+  onChange={(event) => {
+    updatePeriod(event.target.value as AnalyticsPeriod)
+  }}
+>
           <option value="today">Сегодня</option>
           <option value="days_7">7 дней</option>
           <option value="days_21">21 день</option>
@@ -294,63 +441,39 @@ function OverviewPage() {
 
       {/* Питание */}
 
-{analyticsState.status === 'success' && (
-  <NutritionChart
-    series={analyticsState.data.series.nutrition}
-    onSelectDay={(date) => openDiary(date, 'nutrition')}
-  />
-)}
+ {(
+    analyticsState.status === 'success' ||
+    analyticsState.status === 'empty'
+  ) && (
+    <>
+      <NutritionChart
+        series={analyticsState.data.series.nutrition}
+        onSelectDay={(date) => openDiary(date,
+        'nutrition')}
+      />
 
-      {analyticsState.status === 'empty' && (
-        <NutritionChart series={[]} />
-      )}
+      <SleepChart
+        series={analyticsState.data.series.sleep}
+        onSelectDay={(date) => openDiary(date,
+        'sleep')}
+      />
 
-      {/* Сон */}
+      <StepsChart
+        series={analyticsState.data.series.steps}
+        onSelectDay={(date) => openDiary(date,
+        'steps')}
+      />
 
-      {analyticsState.status === 'success' && (
-        <SleepChart
-  series={analyticsState.data.series.sleep}
-  onSelectDay={(date) => openDiary(date, 'sleep')}
-/>
-      )}
-
-      {analyticsState.status === 'empty' && (
-        <SleepChart series={[]} />
-      )}
-
-      {/* Шаги */}
-
-      {analyticsState.status === 'success' && (
-        <StepsChart
-  series={analyticsState.data.series.steps}
-  onSelectDay={(date) => openDiary(date, 'steps')}
-/>
-      )}
-
-      {analyticsState.status === 'empty' && (
-        <StepsChart series={[]} />
-      )}
-
-      {/* Состояние */}
-
-      {analyticsState.status === 'success' && (
-        <CheckinChart
-  series={analyticsState.data.series.checkin}
-  selectedCategory={checkinCategory}
-  onCategoryChange={setCheckinCategory}
-  onSelectDay={(date) => openDiary(date, 'checkin')}
-/>
-      )}
-
-
-      {analyticsState.status === 'empty' && (
-        <CheckinChart
-          series={analyticsState.data.series.checkin}
-          selectedCategory={checkinCategory}
-          onCategoryChange={setCheckinCategory}
-        />
-      )}
-
+      <CheckinChart
+        series={analyticsState.data.series.checkin}
+        selectedCategory={checkinCategory}
+        onCategoryChange={updateCategory}
+        onSelectDay={(date) => openDiary(date,
+        'checkin')}
+      />
+    </>
+  )}
+  
       {/* Отладочная информация FE1 */}
 
       <p className="refresh-status">

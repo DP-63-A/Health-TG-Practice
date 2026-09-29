@@ -37,10 +37,6 @@ afterEach(() => {
   cleanup()
 })
 
-// Открываем существующую таблицу под графиком.
-// Так тесты проверяют доступный выбор дня,
-// который работает без мыши и без наведения на SVG.
-
 function getChartTable() {
   const summary = screen.getByText('Значения по дням')
 
@@ -131,11 +127,11 @@ describe('NutritionChart', () => {
 
     expect(
       table.getAllByRole('button'),
-    ).toHaveLength(1)
+    ).toHaveLength(2)
 
     fireEvent.click(
       table.getByRole('button', {
-        name: /Выбрать день/,
+        name: /16\.09\.2026/,
       }),
     )
 
@@ -166,10 +162,10 @@ describe('NutritionChart', () => {
       name: /Выбрать день/,
     })
 
-    expect(buttons).toHaveLength(2)
+    expect(buttons).toHaveLength(3)
 
-    // Выбираем второй существующий день.
-    fireEvent.click(buttons[1])
+    // Выбираем день после пропуска.
+    fireEvent.click(buttons[2])
 
     expect(onSelectDay).toHaveBeenCalledWith(
       '2026-09-16',
@@ -198,7 +194,7 @@ describe('NutritionChart', () => {
 
     fireEvent.click(
       table.getByRole('button', {
-        name: /Выбрать день/,
+        name: /16\.09\.2026/,
       }),
     )
 
@@ -256,11 +252,11 @@ describe('SleepChart', () => {
 
     expect(
       table.getAllByRole('button'),
-    ).toHaveLength(1)
+    ).toHaveLength(2)
 
     fireEvent.click(
       table.getByRole('button', {
-        name: /Выбрать день/,
+        name: /16\.09\.2026/,
       }),
     )
 
@@ -291,7 +287,7 @@ describe('SleepChart', () => {
 
     fireEvent.click(
       table.getByRole('button', {
-        name: /Выбрать день/,
+        name: /16\.09\.2026/,
       }),
     )
 
@@ -339,11 +335,11 @@ describe('StepsChart', () => {
 
     expect(
       table.getAllByRole('button'),
-    ).toHaveLength(1)
+    ).toHaveLength(2)
 
     fireEvent.click(
       table.getByRole('button', {
-        name: /Выбрать день/,
+        name: /16\.09\.2026/,
       }),
     )
 
@@ -371,7 +367,7 @@ describe('StepsChart', () => {
 
     expect(
       table.getAllByRole('button'),
-    ).toHaveLength(1)
+    ).toHaveLength(2)
 
     expect(
       table.getByText(formatSteps(0)),
@@ -379,7 +375,7 @@ describe('StepsChart', () => {
 
     fireEvent.click(
       table.getByRole('button', {
-        name: /Выбрать день/,
+        name: /16\.09\.2026/,
       }),
     )
 
@@ -430,11 +426,11 @@ describe('CheckinChart', () => {
 
     expect(
       table.getAllByRole('button'),
-    ).toHaveLength(1)
+    ).toHaveLength(2)
 
     fireEvent.click(
       table.getByRole('button', {
-        name: /Выбрать день/,
+        name: /16\.09\.2026/,
       }),
     )
 
@@ -524,4 +520,73 @@ describe('CheckinChart', () => {
       ),
     ).toBeVisible()
   })
+})
+describe('empty day selection', () => {
+  it.each(['nutrition', 'sleep', 'steps', 'checkin'] as const)(
+    'allows selecting a day in an entirely empty %s series',
+    (kind) => {
+      const onSelectDay = vi.fn()
+      const date = '2026-09-16'
+      if (kind === 'nutrition') {
+        render(<NutritionChart series={[nutritionPoint(date, null)]} onSelectDay={onSelectDay} />)
+      } else if (kind === 'sleep') {
+        render(<SleepChart series={[sleepPoint(date, null)]} onSelectDay={onSelectDay} />)
+      } else if (kind === 'steps') {
+        render(<StepsChart series={[stepsPoint(date, null)]} onSelectDay={onSelectDay} />)
+      } else {
+        render(<CheckinChart series={{ category: 'wellbeing', points: [checkinPoint(date, null)] }} onSelectDay={onSelectDay} />)
+      }
+      expect(screen.getByRole('status')).toBeVisible()
+      const table = getChartTable()
+      const button = table.getByRole('button', { name: /16\.09\.2026.*Нет данных/ })
+      expect(button).toBeEnabled()
+      fireEvent.click(button)
+      if (kind === 'checkin') {
+        expect(onSelectDay).toHaveBeenCalledExactlyOnceWith(date, 'wellbeing')
+      } else {
+        expect(onSelectDay).toHaveBeenCalledExactlyOnceWith(date)
+      }
+    },
+  )
+
+  it.each(['nutrition', 'sleep', 'steps', 'checkin'] as const)(
+    'selects the missing date without substituting its neighbour: %s',
+    (kind) => {
+      const onSelectDay = vi.fn()
+      const date = '2026-09-15'
+      const next = '2026-09-16'
+      if (kind === 'nutrition') {
+        render(<NutritionChart series={[nutritionPoint(date, null), nutritionPoint(next, 330)]} onSelectDay={onSelectDay} />)
+      } else if (kind === 'sleep') {
+        render(<SleepChart series={[sleepPoint(date, null), sleepPoint(next, 450)]} onSelectDay={onSelectDay} />)
+      } else if (kind === 'steps') {
+        render(<StepsChart series={[stepsPoint(date, null), stepsPoint(next, 10000)]} onSelectDay={onSelectDay} />)
+      } else {
+        render(<CheckinChart series={{ category: 'mood', points: [checkinPoint(date, null), checkinPoint(next, 4)] }} onSelectDay={onSelectDay} />)
+      }
+      fireEvent.click(getChartTable().getByRole('button', { name: /15\.09\.2026.*Нет данных/ }))
+      if (kind === 'checkin') {
+        expect(onSelectDay).toHaveBeenCalledExactlyOnceWith(date, 'mood')
+      } else {
+        expect(onSelectDay).toHaveBeenCalledExactlyOnceWith(date)
+      }
+    },
+  )
+
+  it.each(['loading', 'category mismatch'] as const)(
+    'does not offer empty checkin dates during %s',
+    (reason) => {
+      const onSelectDay = vi.fn()
+      render(
+        <CheckinChart
+          series={{ category: 'mood', points: [checkinPoint('2026-09-16', null)] }}
+          selectedCategory={reason === 'category mismatch' ? 'wellbeing' : 'mood'}
+          isLoading={reason === 'loading'}
+          onSelectDay={onSelectDay}
+        />,
+      )
+      expect(screen.queryByText('Значения по дням')).not.toBeInTheDocument()
+      expect(onSelectDay).not.toHaveBeenCalled()
+    },
+  )
 })

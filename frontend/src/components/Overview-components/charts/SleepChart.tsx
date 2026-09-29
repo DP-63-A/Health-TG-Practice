@@ -34,12 +34,10 @@ import { useId } from 'react'
       (point) => point.value !== null,
     )
 
-    function selectDay(date: string) {
-      const point = series.find(
-        (item) => item.date === date,
-      )
 
-      if (point && point.value !== null) {
+    function selectDay(date: string) {
+      const point = series.find((item) => item.date === date)
+      if (point) {
         onSelectDay?.(point.date)
       }
     }
@@ -184,7 +182,12 @@ import { useId } from 'react'
               </ResponsiveContainer>
             </div>
 
-            <details className="sleep-chart__details">
+
+          </>
+        )}
+
+      {series.length > 0 && (
+        <details className="sleep-chart__details">
               <summary>Значения по дням</summary>
 
               <table>
@@ -204,8 +207,7 @@ import { useId } from 'react'
                   {series.map((point) => (
                     <tr key={point.date}>
                       <th scope="row">
-                        {point.value !== null &&
-                        onSelectDay ? (
+                        {onSelectDay ? (
                           <button
                             type="button"
                             onClick={() =>
@@ -216,8 +218,7 @@ import { useId } from 'react'
                               formatTooltipDate(point.date),
                               'сон:',
 
-                              formatSleep(point.value
-                              ),
+                              (point.value === null ? 'Нет данных' : formatSleep(point.value)),
                             ].join(' ')}
                           >
 
@@ -239,8 +240,7 @@ import { useId } from 'react'
                 </tbody>
               </table>
             </details>
-          </>
-        )}
-      </section>
+      )}
+    </section>
     )
   }

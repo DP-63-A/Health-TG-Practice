@@ -1,4 +1,3 @@
-
 import { useId } from 'react'
 
 import {
@@ -88,15 +87,9 @@ export function CheckinChart({
   )
 
   function selectDay(date: string) {
-    if (isLoading || !matchesCategory) {
-      return
-    }
-
-    const point = series.points.find(
-      (item) => item.date === date,
-    )
-
-    if (point && point.value !== null) {
+    if (isLoading || !matchesCategory) return
+    const point = series.points.find((item) => item.date === date)
+    if (point) {
       onSelectDay?.(point.date, series.category)
     }
   }
@@ -271,7 +264,12 @@ export function CheckinChart({
             </ResponsiveContainer>
           </div>
 
-          <details className="checkin-chart__details">
+
+        </>
+      )}
+
+      {!isLoading && matchesCategory && series.points.length > 0 && (
+        <details className="checkin-chart__details">
             <summary>
               Значения по дням
             </summary>
@@ -297,8 +295,7 @@ export function CheckinChart({
                 {series.points.map((point) => (
                   <tr key={point.date}>
                     <th scope="row">
-                      {point.value !== null &&
-                      onSelectDay ? (
+                      {onSelectDay ? (
                         <button
                           type="button"
                           onClick={() =>
@@ -326,7 +323,6 @@ export function CheckinChart({
               </tbody>
             </table>
           </details>
-        </>
       )}
     </section>
   )
