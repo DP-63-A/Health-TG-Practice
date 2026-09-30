@@ -72,7 +72,9 @@ handlers do not import Spring Data repositories or `MongoTemplate`.
 
 Useful partial parser results that require clarification are stored as versioned dialog context without
 inventing missing values. The next answer is combined with the stored original input and passed through
-the same parser again; this continuation also works after application restart. Invalid or incompatible
+the same parser again. Stored payload, field origins and temporal fields are then used as the merge base,
+so a parser result containing only newly clarified fields cannot discard earlier data. This continuation
+also works after application restart. Invalid or incompatible
 persisted selector context is logged without personal data and reset to `idle`. Callback redelivery
 restores the last accepted callback, so it returns the current keyboard without repeating a storage
 operation.

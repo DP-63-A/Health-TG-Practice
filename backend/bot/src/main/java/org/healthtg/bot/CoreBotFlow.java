@@ -79,8 +79,11 @@ public final class CoreBotFlow implements BotFlow {
         var active = entries.findActiveDraft(owner);
         if (active.isPresent()) return activeDraft(update, active.get().id(), active.get().revision());
 
-        String input = clarificationInput(owner, update.text(), update.updateId());
+        Optional<ClarificationContext> clarification = readClarification(owner, update.updateId());
+        String input = clarification.map(value -> value.originalText() + " " + update.text())
+                .orElse(update.text());
         TextParseResult parsed = parser.parse(input);
+        if (clarification.isPresent()) parsed = mergeClarification(clarification.get(), parsed);
         if (parsed.outcome() == TextParseResult.Outcome.NEEDS_CLARIFICATION && parsed.data() != null) {
             saveClarification(owner, parsed, update.updateId());
             return List.of(new BotAction.SendInlineMessage(update.chatId(),
@@ -222,20 +225,69 @@ public final class CoreBotFlow implements BotFlow {
         save(owner, null, "text_clarification", context, updateId);
     }
 
-    private String clarificationInput(OwnerContext owner, String nextText, long updateId) {
+    private Optional<ClarificationContext> readClarification(OwnerContext owner, long updateId) {
         Optional<DialogState> previous = dialogs.find(owner)
                 .filter(state -> "text_clarification".equals(state.step()));
-        if (previous.isEmpty()) return nextText;
-        Object version = previous.get().context().get("schema_version");
-        Object original = previous.get().context().get("original_text");
-        if (version instanceof Number schema && schema.intValue() == DIALOG_SCHEMA_VERSION
-                && original instanceof String text && !text.isBlank()) {
-            return text + " " + nextText;
+        if (previous.isEmpty()) return Optional.empty();
+        try {
+            Map<String, Object> context = previous.get().context();
+            Object version = context.get("schema_version");
+            Object original = context.get("original_text");
+            Object type = context.get("type");
+            if (!(version instanceof Number schema) || schema.intValue() != DIALOG_SCHEMA_VERSION
+                    || !(original instanceof String text) || text.isBlank()
+                    || !(type instanceof String entryType) || entryType.isBlank()) {
+                throw new IllegalArgumentException("Incomplete clarification state");
+            }
+            Map<String, Object> payload = objectMap(context.get("payload"));
+            Map<String, String> origins = stringMap(context.get("field_origins"));
+            LocalDate date = context.get("date") instanceof String value ? LocalDate.parse(value) : null;
+            LocalTime time = context.get("time") instanceof String value ? LocalTime.parse(value) : null;
+            return Optional.of(new ClarificationContext(entryType, payload, origins, date, time, text));
+        } catch (IllegalArgumentException invalid) {
+            LOG.warn("Stored text clarification state is invalid; resetting it without personal data");
+            save(owner, null, "idle", Map.of("schema_version", DIALOG_SCHEMA_VERSION), updateId);
+            return Optional.empty();
         }
-        LOG.warn("Stored text clarification state is invalid; resetting it without personal data");
-        save(owner, null, "idle", Map.of("schema_version", DIALOG_SCHEMA_VERSION), updateId);
-        return nextText;
     }
+
+    private static TextParseResult mergeClarification(ClarificationContext previous, TextParseResult parsed) {
+        if (parsed.data() == null || !previous.type().equals(parsed.data().type())) return parsed;
+        Map<String, Object> payload = new LinkedHashMap<>(previous.payload());
+        payload.putAll(parsed.data().payload());
+        Map<String, String> origins = new LinkedHashMap<>(previous.fieldOrigins());
+        origins.putAll(parsed.data().fieldOrigins());
+        var merged = new TextParseResult.ParsedData(previous.type(), payload, origins,
+                parsed.data().date() == null ? previous.date() : parsed.data().date(),
+                parsed.data().time() == null ? previous.time() : parsed.data().time());
+        return new TextParseResult(parsed.outcome(), parsed.originalText(), merged, parsed.issues());
+    }
+
+    private static Map<String, Object> objectMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) throw new IllegalArgumentException("Invalid payload state");
+        Map<String, Object> result = new LinkedHashMap<>();
+        map.forEach((key, item) -> {
+            if (!(key instanceof String field)) throw new IllegalArgumentException("Invalid payload key");
+            result.put(field, item);
+        });
+        return result;
+    }
+
+    private static Map<String, String> stringMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) throw new IllegalArgumentException("Invalid origins state");
+        Map<String, String> result = new LinkedHashMap<>();
+        map.forEach((key, item) -> {
+            if (!(key instanceof String field) || !(item instanceof String origin)) {
+                throw new IllegalArgumentException("Invalid origin state");
+            }
+            result.put(field, origin);
+        });
+        return result;
+    }
+
+    private record ClarificationContext(String type, Map<String, Object> payload,
+                                        Map<String, String> fieldOrigins, LocalDate date,
+                                        LocalTime time, String originalText) {}
 
     private Instant occurredAt(LocalDate date, LocalTime time, ZoneId zone) {
         ZonedDateTime now = ZonedDateTime.ofInstant(clock.instant(), zone);

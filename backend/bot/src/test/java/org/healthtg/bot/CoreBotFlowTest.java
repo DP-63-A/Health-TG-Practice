@@ -141,17 +141,15 @@ class CoreBotFlowTest {
                 "text_clarification", Map.of("schema_version", 1, "type", "metrics",
                 "payload", partial, "field_origins", Map.of("value", "reported"),
                 "original_text", "24.09.2026 пульс 72"), 1, NOW, "main:40")));
-        Map<String, Object> complete = new java.util.LinkedHashMap<>(partial);
-        complete.put("unit", "bpm");
         var parsed = new TextParseResult(TextParseResult.Outcome.PARSED,
                 "24.09.2026 пульс 72 ударов в минуту",
-                new TextParseResult.ParsedData("metrics", complete,
-                        Map.of("value", "reported", "unit", "reported"),
-                        java.time.LocalDate.of(2026, 9, 24), null), List.of());
+                new TextParseResult.ParsedData("metrics", Map.of("unit", "bpm"),
+                        Map.of("unit", "reported"), null, null), List.of());
         when(parser.parse("24.09.2026 пульс 72 ударов в минуту")).thenReturn(parsed);
         Entry draft = new Entry(UUID.randomUUID(), OWNER_ID, EntryType.METRICS, EntryStatus.DRAFT,
-                SourceKind.TEXT, Map.of(), NOW, NOW, NOW, 1, complete,
-                parsed.data().fieldOrigins(), null, "main:41");
+                SourceKind.TEXT, Map.of(), NOW, NOW, NOW, 1,
+                Map.of("code", "heart_rate", "value", 72, "local_date", "2026-09-24", "unit", "bpm"),
+                Map.of("value", "reported", "unit", "reported"), null, "main:41");
         when(entries.createDraft(any())).thenReturn(
                 new DraftCreationResult(draft, DraftCreationResult.Outcome.CREATED));
 
@@ -160,7 +158,11 @@ class CoreBotFlowTest {
         verify(parser).parse("24.09.2026 пульс 72 ударов в минуту");
         ArgumentCaptor<CreateDraftCommand> command = ArgumentCaptor.forClass(CreateDraftCommand.class);
         verify(entries).createDraft(command.capture());
+        assertEquals("heart_rate", command.getValue().payload().get("code"));
+        assertEquals(72, command.getValue().payload().get("value"));
+        assertEquals("2026-09-24", command.getValue().payload().get("local_date"));
         assertEquals("bpm", command.getValue().payload().get("unit"));
+        assertEquals("reported", command.getValue().fieldOrigins().get("value"));
         assertEquals(41, command.getValue().updateKey().updateId());
     }
 

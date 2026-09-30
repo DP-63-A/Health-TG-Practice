@@ -59,7 +59,6 @@ class BotApplicationIsolationTest {
             factory.registerSingleton("botRuntime", runtime);
             factory.registerSingleton("telegramTransport",
                     new TelegramTransport(client, () -> {}));
-            factory.registerSingleton("userStore", mock(org.healthtg.user.UserStore.class));
         }));
         try {
             try (var context = application.run()) {
@@ -80,5 +79,42 @@ class BotApplicationIsolationTest {
         } finally {
             runtime.close();
         }
+    }
+
+    @Test
+    void storageDisabledStartsRealRuntimeWithUnavailableFlow() throws Exception {
+        var client = mock(TelegramClient.class);
+        var webhook = new WebhookInfo();
+        webhook.setUrl("");
+        when(client.execute(any(GetWebhookInfo.class))).thenReturn(webhook);
+        var me = new User(9999L, "Synthetic bot", true);
+        me.setUserName("storage_disabled_bot");
+        when(client.execute(any(GetMe.class))).thenReturn(me);
+        when(client.execute(any(GetUpdates.class))).thenReturn(new java.util.ArrayList<>());
+        var settings = RuntimeSettings.from(RuntimeSettingsTest.environment());
+        var closed = new AtomicInteger();
+        var application = new SpringApplication(BotApplication.class);
+        application.setDefaultProperties(java.util.Map.of(
+                "health-tg.core.storage.enabled", "false",
+                "spring.autoconfigure.exclude",
+                "org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration,"
+                        + "org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration,"
+                        + "org.springframework.boot.autoconfigure.data.mongo.MongoRepositoriesAutoConfiguration"));
+        application.addInitializers(context -> context.addBeanFactoryPostProcessor(factory -> {
+            var registry = (BeanDefinitionRegistry) factory;
+            registry.removeBeanDefinition("runtimeSettings");
+            registry.removeBeanDefinition("telegramTransport");
+            factory.registerSingleton("runtimeSettings", settings);
+            factory.registerSingleton("telegramTransport", new TelegramTransport(client, closed::incrementAndGet));
+        }));
+
+        try (var context = application.run()) {
+            BotRuntime runtime = context.getBean(BotRuntime.class);
+            assertTrue(runtime.isRunning());
+            assertTrue(context.getBean(BotFlow.class).beginCheckin(null).isEmpty());
+            assertTrue(context.containsBean("unavailableUserStore"));
+            assertFalse(context.containsBean("mongoEntryRepository"));
+        }
+        assertEquals(1, closed.get());
     }
 }
