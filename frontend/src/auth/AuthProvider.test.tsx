@@ -1,12 +1,24 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
 import type { ApiClient, ApiMode } from '../api/client'
 import { fixtureApiClient } from '../api/fixtureClient'
 import { AuthGate } from './AuthGate'
 import { AuthProvider } from './AuthProvider'
+import { clearSessionToken, getSessionToken } from './session'
 
 describe('auth state screens', () => {
+  beforeEach(() => {
+    clearSessionToken()
+    vi.stubGlobal('Telegram', undefined)
+  })
+
+  afterEach(() => {
+    clearSessionToken()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
   it('shows loading state', () => {
     const client = createClient(() => new Promise(() => {}))
 
@@ -21,12 +33,49 @@ describe('auth state screens', () => {
     expect(await screen.findByText('Приложение загружено')).toBeInTheDocument()
   })
 
-  it('shows authRequired state for live mode', async () => {
-    renderWithAuth(createClient(), 'live')
+  it('authenticates live mode with the existing Telegram initData', async () => {
+    const initData = 'telegram-test-payload'
+    vi.stubGlobal('Telegram', { WebApp: { initData } })
+    const post = vi.spyOn(fixtureApiClient, 'post')
+
+    renderWithAuth(fixtureApiClient, 'live')
+
+    expect(await screen.findByText('App')).toBeInTheDocument()
+    expect(post).toHaveBeenCalledExactlyOnceWith('/auth/telegram', {
+      body: { init_data: initData },
+    })
+    expect(getSessionToken()).toBe('fixture-session')
+  })
+
+  it.each([
+    undefined,
+    {},
+    { WebApp: {} },
+    { WebApp: { initData: '' } },
+  ])('shows authRequired without Telegram initData (%j)', async (telegram) => {
+    vi.stubGlobal('Telegram', telegram)
+    const client = createClient()
+    const post = vi.spyOn(client, 'post')
+    const get = vi.spyOn(client, 'get')
+    renderWithAuth(client, 'live')
 
     expect(
       await screen.findByRole('heading', { name: 'Требуется авторизация' }),
     ).toBeInTheDocument()
+    expect(post).not.toHaveBeenCalled()
+    expect(get).not.toHaveBeenCalled()
+  })
+
+  it('shows authRequired when Telegram authentication fails', async () => {
+    vi.stubGlobal('Telegram', { WebApp: { initData: 'telegram-test-payload' } })
+    const client = createClient()
+    vi.spyOn(client, 'post').mockRejectedValue(new Error('Authentication failed'))
+
+    renderWithAuth(client, 'live')
+
+    expect(await screen.findByRole('heading', { name: 'Требуется авторизация' })).toBeInTheDocument()
+    expect(screen.getByText('Authentication failed')).toBeInTheDocument()
+    expect(getSessionToken()).toBeNull()
   })
 
   it('shows networkError state', async () => {
