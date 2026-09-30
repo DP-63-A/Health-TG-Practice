@@ -1,0 +1,110 @@
+.checkin-chart {
+    --checkin-chart-color: var(--tg-theme-button-color, #2563eb);
+
+    min-width: 0;
+    margin-top: 20px;
+    padding: 16px;
+    box-sizing: border-box;
+    border: 1px solid var(--tg-theme-hint-color,
+    #718096);
+    border-radius: 16px;
+    color: var(--tg-theme-text-color, #172033);
+    background: var(--tg-theme-bg-color, #fff);
+  }
+
+  .checkin-chart h2 {
+    margin: 0;
+    font-size: 20px;
+  }
+
+  .checkin-chart__control {
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .checkin-chart select {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid var(--tg-theme-hint-color,
+    #718096);
+    border-radius: 8px;
+    color: inherit;
+    background: var(--tg-theme-bg-color, #fff);
+    font: inherit;
+  }
+
+  .checkin-chart__scale {
+    margin: 12px 0;
+    line-height: 1.5;
+  }
+
+  .checkin-chart__plot {
+    width: 100%;
+    min-width: 0;
+    height: 240px;
+  }
+
+  .checkin-chart__tooltip {
+    display: grid;
+    gap: 4px;
+    padding: 10px;
+    border: 1px solid var(--tg-theme-hint-color,
+    #718096);
+    border-radius: 8px;
+    color: var(--tg-theme-text-color, #172033);
+    background: var(--tg-theme-bg-color, #fff);
+    pointer-events: none;
+  }
+
+  .checkin-chart__details {
+    margin-top: 12px;
+  }
+
+  .checkin-chart summary {
+    padding: 12px 0;
+    cursor: pointer;
+  }
+
+  .checkin-chart table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+  }
+
+  .checkin-chart caption {
+    padding: 8px 0;
+    text-align: left;
+  }
+
+  .checkin-chart th,
+  .checkin-chart td {
+    padding: 8px 4px;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .checkin-chart tbody th {
+    font-weight: normal;
+  }
+
+  .checkin-chart button {
+    min-height: 44px;
+    padding: 8px 4px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .checkin-chart button:focus-visible,
+  .checkin-chart select:focus-visible,
+  .checkin-chart summary:focus-visible {
+    outline: 2px solid var(--checkin-chart-color);
+    outline-offset: 3px;
+  }

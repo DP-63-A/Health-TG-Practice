@@ -22,28 +22,28 @@ function formatScore(
 export function CheckinCard({
   checkins,
 }: CheckinCardProps) {
-  const scores = [
-    {
-      key: 'sleep_quality',
-      label: 'Качество сна',
-      value: checkins?.sleep_quality,
-    },
-    {
-      key: 'digestion_comfort',
-      label: 'Комфорт пищеварения',
-      value: checkins?.digestion_comfort,
-    },
-    {
-      key: 'wellbeing',
-      label: 'Самочувствие',
-      value: checkins?.wellbeing,
-    },
-    {
-      key: 'mood',
-      label: 'Настроение',
-      value: checkins?.mood,
-    },
-  ]
+   const scores = [
+      {
+        key: 'sleep_quality',
+        label: 'Качество сна',
+        value: checkins?.sleep_quality.score,
+      },
+      {
+        key: 'digestion_comfort',
+        label: 'Комфорт пищеварения',
+        value: checkins?.digestion_comfort.score,
+      },
+      {
+        key: 'wellbeing',
+        label: 'Самочувствие',
+        value: checkins?.wellbeing.score,
+      },
+      {
+        key: 'mood',
+        label: 'Настроение',
+        value: checkins?.mood.score,
+      },
+    ]
 
   return (
     <section

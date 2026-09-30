@@ -1,135 +1,200 @@
 import type { AnalyticsResponse } from '../analytics.types'
 
-export const analyticsFixture: AnalyticsResponse = {
+  export const analyticsFixture: AnalyticsResponse =
+  {
     period: {
-    kind: 'days_7',
-    from: '2026-09-10',
-    to: '2026-09-16',
-    timezone: 'Europe/Warsaw',
-  },
-
-  cards: {
-    nutrition: {
-      energy_kcal: 930,
-      protein_g: 40,
-      fat_g: 20,
-      carbs_g: 80,
-      incomplete: false,
-      meals_with_energy: 2,
+      kind: 'days_7',
+      from: '2026-09-13',
+      to: '2026-09-19',
+      timezone: 'Europe/Warsaw',
     },
 
-    meal_count: {
-      count: 2,
+    cards: {
+      nutrition: {
+        energy_kcal: 930,
+        protein_g: 50,
+        fat_g: 30,
+        carbs_g: 110,
+        incomplete: false,
+        meals_with_energy: 2,
+      },
+
+      meal_count: {
+        count: 2,
+      },
+
+      sleep: {
+        total_minutes: 900,
+        average_minutes: 450,
+        days_with_data: 2,
+      },
+
+      steps: {
+        total: 5000,
+        average: 5000,
+        days_with_data: 1,
+      },
+
+      heart_rate: {
+        value_bpm: 72,
+        occurred_at: '2026-09-19T10:15:00Z',
+        qualifier: 'resting',
+        entry_id: '22222222-2222-4222-8222-222222222221',
+      },
+
+      checkins: {
+        sleep_quality: {
+          score: 4,
+          date: '2026-09-19',
+          entry_id: '22222222-2222-4222-8222-222222222222',
+        },
+        digestion_comfort: {
+          score: 5,
+          date: '2026-09-19',
+          entry_id: '22222222-2222-4222-8222-222222222223',
+        },
+        wellbeing: {
+          score: 3,
+          date: '2026-09-19',
+          entry_id: '22222222-2222-4222-8222-222222222224',
+        },
+        mood: {
+          score: 4,
+          date: '2026-09-19',
+          entry_id: '22222222-2222-4222-8222-222222222225',
+        },
+      },
     },
 
-    sleep: {
-      total_minutes: 450,
-      average_minutes: 450,
-      days_with_data: 1,
-    },
-
-    steps: {
-      total: 8432,
-      average: 8432,
-      days_with_data: 1,
-    },
-
-    heart_rate: {
-      value_bpm: 62,
-      occurred_at: '2026-09-16T06:05:00Z',
-      qualifier: 'resting',
-    },
-
-    checkins: {
-      sleep_quality: 4,
-      digestion_comfort: null,
-      wellbeing: 3,
-      mood: 4,
-    },
-  },
-
-  series: {
-    nutrition: [
-      { date: '2026-09-10', value: null },
-      { date: '2026-09-11', value: 600 },
-      { date: '2026-09-12', value: null },
-      { date: '2026-09-13', value: null },
-      { date: '2026-09-14', value: null },
-      { date: '2026-09-15', value: null },
-      { date: '2026-09-16', value: 330 },
-    ],
-
-    sleep: [
-      { date: '2026-09-10', value: null },
-      { date: '2026-09-11', value: null },
-      { date: '2026-09-12', value: null },
-      { date: '2026-09-13', value: null },
-      { date: '2026-09-14', value: null },
-      { date: '2026-09-15', value: null },
-      { date: '2026-09-16', value: 450 },
-    ],
-
-    steps: [
-      { date: '2026-09-10', value: null },
-      { date: '2026-09-11', value: null },
-      { date: '2026-09-12', value: null },
-      { date: '2026-09-13', value: null },
-      { date: '2026-09-14', value: null },
-      { date: '2026-09-15', value: null },
-      { date: '2026-09-16', value: 8432 },
-    ],
-
-    checkin: {
-      category: 'mood',
-
-      points: [
-        { date: '2026-09-10', value: null },
-        { date: '2026-09-11', value: null },
-        { date: '2026-09-12', value: null },
-        { date: '2026-09-13', value: null },
-        { date: '2026-09-14', value: null },
-        { date: '2026-09-15', value: null },
-        { date: '2026-09-16', value: 4 },
+    series: {
+      nutrition: [
+        {
+          date: '2026-09-19',
+          energy_kcal: 930,
+          source: [
+            {
+              entry_id: '22222222-2222-4222-8222-222222222210',
+              type: 'meal',
+              local_date: '2026-09-19',
+            },
+            {
+              entry_id: '22222222-2222-4222-8222-222222222211',
+              type: 'meal',
+              local_date: '2026-09-19',
+            },
+          ],
+        },
       ],
-    },
-  },
 
-  observations: {
-    days_in_period: 7,
-    days_with_any_data: 2,
-    generated_at: '2026-09-16T12:00:00Z',
-  },
+      sleep: [
+        {
+          date: '2026-09-14',
+          value: 420,
+          unit: 'min',
+          source: {
+            entry_id: '22222222-2222-4222-8222-222222222216',
+            type: 'metrics',
+            local_date: '2026-09-14',
+          },
+        },
+        {
+          date: '2026-09-16',
+          value: 480,
+          unit: 'min',
+          source: {
+            entry_id: '22222222-2222-4222-8222-222222222217',
+            type: 'metrics',
+            local_date: '2026-09-16',
+          },
+        },
+      ],
 
-  sources: [
-    {
-      entry_id: '22222222-2222-4222-8222-222222222206',
-      type: 'meal',
-      local_date: '2026-09-11',
+      steps: [
+        {
+          date: '2026-09-19',
+          value: 5000,
+          unit: 'count',
+          source: {
+            entry_id: '22222222-2222-4222-8222-222222222215',
+            type: 'metrics',
+            local_date: '2026-09-19',
+          },
+        },
+      ],
+
+      checkin: {
+        category: 'mood',
+        points: [
+          {
+            date: '2026-09-19',
+            value: 4,
+            unit: 'score_1_5',
+            source: {
+              entry_id: '22222222-2222-4222-8222-222222222225',
+              type: 'checkin',
+              local_date: '2026-09-19',
+            },
+          },
+        ],
+      },
     },
-    {
-      entry_id: '22222222-2222-4222-8222-222222222201',
-      type: 'meal',
-      local_date: '2026-09-16',
+
+    observations: {
+      days_in_period: 7,
+      days_with_any_data: 3,
+      generated_at: '2026-09-19T20:05:00Z',
     },
-    {
-      entry_id: '22222222-2222-4222-8222-222222222203',
-      type: 'metrics',
-      local_date: '2026-09-16',
-    },
-    {
-      entry_id: '22222222-2222-4222-8222-222222222207',
-      type: 'metrics',
-      local_date: '2026-09-16',
-    },
-    {
-      entry_id: '22222222-2222-4222-8222-222222222208',
-      type: 'metrics',
-      local_date: '2026-09-16',
-    },
-    {
-      entry_id: '22222222-2222-4222-8222-222222222204',
-      type: 'checkin',
-      local_date: '2026-09-16',
-    },
-  ],
-}
+
+    sources: [
+      {
+        entry_id: '22222222-2222-4222-8222-222222222210',
+        type: 'meal',
+        local_date: '2026-09-19',
+      },
+      {
+        entry_id: '22222222-2222-4222-8222-222222222211',
+        type: 'meal',
+        local_date: '2026-09-19',
+      },
+      {
+        entry_id: '22222222-2222-4222-8222-222222222216',
+        type: 'metrics',
+        local_date: '2026-09-14',
+      },
+      {
+        entry_id: '22222222-2222-4222-8222-222222222217',
+        type: 'metrics',
+        local_date: '2026-09-16',
+      },
+      {
+        entry_id: '22222222-2222-4222-8222-222222222215',
+        type: 'metrics',
+        local_date: '2026-09-19',
+      },
+      {
+        entry_id: '22222222-2222-4222-8222-222222222221',
+        type: 'metrics',
+        local_date: '2026-09-19',
+      },
+      {
+        entry_id: '22222222-2222-4222-8222-222222222225',
+        type: 'checkin',
+        local_date: '2026-09-19',
+      },
+      {
+        entry_id: '22222222-2222-4222-8222-222222222222',
+        type: 'checkin',
+        local_date: '2026-09-19',
+      },
+      {
+        entry_id: '22222222-2222-4222-8222-222222222223',
+        type: 'checkin',
+        local_date: '2026-09-19',
+      },
+      {
+        entry_id: '22222222-2222-4222-8222-222222222224',
+        type: 'checkin',
+        local_date: '2026-09-19',
+      },
+    ],
+  }

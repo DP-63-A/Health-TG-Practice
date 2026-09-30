@@ -122,3 +122,16 @@ export interface ApiClient {
     options?: ApiRequestOptions,
   ): Promise<TResponse>
 }
+
+export interface DiaryDrilldown {
+    kind: 'nutrition' | 'sleep' | 'steps' | 'checkin'
+    date: string
+    category?: CheckinPayload['category']
+    sourceIds: string[]
+    hasValue: boolean
+  }
+
+  export interface DiaryNavigationState {
+    drilldown?: DiaryDrilldown
+    overviewReturnTo?: string
+  }
