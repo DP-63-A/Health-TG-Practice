@@ -1,7 +1,9 @@
-
 .meal-count-card {
+  --meal-accent: #e8a96a;
+  --meal-accent-soft: rgb(232 169 106 / 18%);
+
   padding: 20px;
-  border-radius: 16px;
+  border-radius: 20px;
 
   background: var(
     --tg-theme-secondary-bg-color,
@@ -14,15 +16,36 @@
   );
 }
 
+.meal-count-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 20px;
+}
+
 .meal-count-card__title {
-  margin: 0 0 20px;
+  margin: 0;
 
   font-size: 16px;
   font-weight: 600;
 }
 
+.meal-count-card__icon {
+  display: grid;
+  place-items: center;
+
+  width: 42px;
+  height: 42px;
+
+  border-radius: 14px;
+
+  color: var(--meal-accent);
+  background: var(--meal-accent-soft);
+}
+
 .meal-count-card__label {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 
   font-size: 13px;
 
@@ -32,11 +55,67 @@
   );
 }
 
-.meal-count-card__total {
-  margin: 0;
+.meal-count-card__value {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
 
-  font-size: 28px;
+.meal-count-card__value strong {
+  font-size: 34px;
+  line-height: 1;
   font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.meal-count-card__value span {
+  font-size: 14px;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.meal-count-card__visual {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  margin-top: 22px;
+  padding-top: 16px;
+
+  border-top: 1px solid
+    rgb(127 127 127 / 15%);
+}
+
+.meal-count-card__markers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.meal-count-card__marker {
+  width: 11px;
+  height: 11px;
+
+  border-radius: 50%;
+
+  background: var(--meal-accent);
+}
+
+.meal-count-card__remaining {
+  flex: 0 0 auto;
+
+  padding: 3px 7px;
+
+  border-radius: 999px;
+
+  font-size: 11px;
+  font-weight: 600;
+
+  color: var(--meal-accent);
+  background: var(--meal-accent-soft);
 }
 
 @media (max-width: 360px) {
@@ -44,7 +123,12 @@
     padding: 14px;
   }
 
-  .meal-count-card__total {
-    font-size: 24px;
+  .meal-count-card__value strong {
+    font-size: 30px;
+  }
+
+  .meal-count-card__icon {
+    width: 38px;
+    height: 38px;
   }
 }

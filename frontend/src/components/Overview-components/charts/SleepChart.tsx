@@ -1,246 +1,335 @@
 import { useId } from 'react'
-  import {
-    Bar,
-    BarChart,
-    CartesianGrid,
-    ReferenceDot,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-  } from 'recharts'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ReferenceDot,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 
-  import type { AnalyticsResponse } from '../../../overview/analytics.types'
-  import {
-    formatChartDate,
-    formatSleep,
-    formatTooltipDate,
-  } from '../../../overview/chartFormat'
+import type { AnalyticsResponse } from '../../../overview/analytics.types'
 
-  import './SleepChart.css'
+import {
+  formatChartDate,
+  formatSleep,
+  formatTooltipDate,
+} from '../../../overview/chartFormat'
 
-  interface SleepChartProps {
-    series: AnalyticsResponse['series']['sleep']
-    onSelectDay?: (date: string) => void
-  }
+import './SleepChart.css'
 
-  export function SleepChart({
-    series,
-    onSelectDay,
-  }: SleepChartProps) {
-    const titleId = useId()
+interface SleepChartProps {
+  series: AnalyticsResponse['series']['sleep']
+  onSelectDay?: (date: string) => void
+}
 
-    const hasValues = series.some(
-      (point) => point.value !== null,
+export function SleepChart({
+  series,
+  onSelectDay,
+}: SleepChartProps) {
+  const titleId = useId()
+
+  const hasValues = series.some(
+    (point) => point.value !== null,
+  )
+
+  function selectDay(date: string) {
+    const point = series.find(
+      (item) => item.date === date,
     )
 
-
-    function selectDay(date: string) {
-      const point = series.find((item) => item.date === date)
-      if (point) {
-        onSelectDay?.(point.date)
-      }
+    if (point) {
+      onSelectDay?.(point.date)
     }
+  }
 
-    return (
-      <section
-        className="sleep-chart"
-        aria-labelledby={titleId}
-      >
-        <h2 id={titleId}>Сон</h2>
+  return (
+    <section
+      className="sleep-chart"
+      aria-labelledby={titleId}
+    >
+      <div className="sleep-chart__header">
+        <div>
+          <h2 id={titleId}>
+            Сон
+          </h2>
 
-        <p className="sleep-chart__description">
-          Продолжительность сна по дате пробуждения
-        </p>
+          <p className="sleep-chart__description">
+            Продолжительность сна по дате пробуждения
+          </p>
+        </div>
 
-        {!hasValues ? (
-          <p role="status">
+        <div
+          className="sleep-chart__icon"
+          aria-hidden="true"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7Z" />
+          </svg>
+        </div>
+      </div>
+
+      {!hasValues ? (
+        <div
+          className="sleep-chart__empty"
+          role="status"
+        >
+          <span
+            className="sleep-chart__empty-icon"
+            aria-hidden="true"
+          >
+            —
+          </span>
+
+          <p>
             Нет данных о сне за выбранный период.
           </p>
-        ) : (
-          <>
-            <div className="sleep-chart__plot">
-              <ResponsiveContainer
-                width="100%"
-                height="100%"
-                minWidth={0}
+        </div>
+      ) : (
+        <>
+          <div className="sleep-chart__unit">
+            продолжительность сна
+          </div>
+
+          <div className="sleep-chart__plot">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              minWidth={0}
+            >
+              <BarChart
+                data={series}
+                accessibilityLayer
+                margin={{
+                  top: 8,
+                  right: 4,
+                  bottom: 4,
+                  left: 0,
+                }}
               >
-                <BarChart
-                  data={series}
-                  accessibilityLayer
-                  margin={{
-                    top: 12,
-                    right: 12,
-                    bottom: 8,
-                    left: 0,
+                <CartesianGrid
+                  stroke="currentColor"
+                  strokeOpacity={0.08}
+                  vertical={false}
+                />
+
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={formatChartDate}
+                  interval="preserveStartEnd"
+                  minTickGap={16}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{
+                    fill: 'currentColor',
+                    fontSize: 11,
                   }}
-                >
-                  <CartesianGrid
-                    stroke="currentColor"
-                    strokeOpacity={0.15}
-                    strokeDasharray="3 3"
-                    vertical={false}
-                  />
+                  tickMargin={10}
+                />
 
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={formatChartDate}
-                    interval="preserveStartEnd"
-                    minTickGap={16}
-                    tick={{
-                      fill: 'currentColor',
-                      fontSize: 12,
-                    }}
-                    tickLine={false}
-                  />
+                <YAxis
+                  domain={[0, 'auto']}
+                  tickFormatter={formatSleep}
+                  allowDecimals={false}
+                  width={72}
+                  tickCount={4}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{
+                    fill: 'currentColor',
+                    fontSize: 11,
+                  }}
+                />
 
-                  <YAxis
-                    domain={[0, 'auto']}
-                    tickFormatter={formatSleep}
-                    allowDecimals={false}
-                    width={88}
-                    tickCount={4}
-                    tick={{
-                      fill: 'currentColor',
-                      fontSize: 12,
-                    }}
-                    tickLine={false}
-                  />
+                <Tooltip
+                  cursor={{
+                    fill: 'currentColor',
+                    fillOpacity: 0.035,
+                  }}
+                  content={({
+                    active,
+                    label,
+                  }) => {
+                    if (
+                      !active ||
+                      typeof label !== 'string'
+                    ) {
+                      return null
+                    }
 
-                  <Tooltip
-                    cursor={{
-                      fill: 'currentColor',
-                      fillOpacity: 0.06,
-                    }}
-                    content={({ active, label }) => {
-                      if (
-                        !active ||
-                        typeof label !== 'string'
-                      ) {
-                        return null
-                      }
+                    const point = series.find(
+                      (item) =>
+                        item.date === label,
+                    )
 
-                      const point = series.find(
-                        (item) => item.date ===
-                        label,
-                      )
+                    if (
+                      !point ||
+                      point.value === null
+                    ) {
+                      return null
+                    }
 
-                      if (!point || point.value ===
-                      null) {
-                        return null
-                      }
+                    return (
+                      <div className="sleep-chart__tooltip">
+                        <span className="sleep-chart__tooltip-date">
+                          {formatTooltipDate(
+                            point.date,
+                          )}
+                        </span>
 
-                      return (
-                        <div className="sleep-chart__tooltip">
+                        <div className="sleep-chart__tooltip-value">
+                          <span
+                            className="sleep-chart__tooltip-dot"
+                            aria-hidden="true"
+                          />
+
                           <strong>
-
-                            {formatTooltipDate(point.
-                            date)}
+                            {formatSleep(
+                              point.value,
+                            )}
                           </strong>
-
-                          <span>
-
-                            {formatSleep(point.value)
-                            }
-                          </span>
                         </div>
-                      )
-                    }}
-                  />
+                      </div>
+                    )
+                  }}
+                />
 
-                  <Bar
-                    dataKey="value"
-                    name="Продолжительность сна"
-                    fill="var(--sleep-chart-color)"
-                    maxBarSize={40}
-                    isAnimationActive={false}
-                    onClick={(barData) => {
-  const date = barData.payload?.date
+                <Bar
+                  dataKey="value"
+                  name="Продолжительность сна"
+                  fill="var(--sleep-chart-color)"
+                  radius={[8, 8, 3, 3]}
+                  maxBarSize={34}
+                  isAnimationActive={false}
+                  onClick={(barData) => {
+                    const date =
+                      barData.payload?.date
 
-  if (typeof date === 'string') {
-    selectDay(date)
-  }
-}}
-                  />
+                    if (
+                      typeof date === 'string'
+                    ) {
+                      selectDay(date)
+                    }
+                  }}
+                />
 
-                  {series
-                    .filter((point) => point.value
-                    === 0)
-                    .map((point) => (
-                      <ReferenceDot
-                        key={point.date}
-                        x={point.date}
-                        y={0}
-                        r={4}
-                        fill="var(--sleep-chart-color)"
-                        stroke="currentColor"
-                        onClick={() =>
-                        selectDay(point.date)}
-                      />
-                    ))}
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+                {series
+                  .filter(
+                    (point) =>
+                      point.value === 0,
+                  )
+                  .map((point) => (
+                    <ReferenceDot
+                      key={point.date}
+                      x={point.date}
+                      y={0}
+                      r={4}
+                      fill="var(--sleep-chart-color)"
+                      stroke="currentColor"
+                      onClick={() =>
+                        selectDay(point.date)
+                      }
+                    />
+                  ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
 
-
-          </>
-        )}
+          {onSelectDay && (
+            <p className="sleep-chart__hint">
+              Нажмите на столбец, чтобы открыть
+              записи за выбранный день
+            </p>
+          )}
+        </>
+      )}
 
       {series.length > 0 && (
         <details className="sleep-chart__details">
-              <summary>Значения по дням</summary>
+          <summary>
+            Значения по дням
+          </summary>
 
-              <table>
-                <caption>
-                  Продолжительность сна по датам
-                  пробуждения
-                </caption>
+          <div className="sleep-chart__table-wrapper">
+            <table>
+              <caption>
+                Продолжительность сна по датам
+                пробуждения
+              </caption>
 
-                <thead>
-                  <tr>
-                    <th scope="col">Дата</th>
-                    <th scope="col">Сон</th>
+              <thead>
+                <tr>
+                  <th scope="col">
+                    Дата
+                  </th>
+
+                  <th scope="col">
+                    Сон
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {series.map((point) => (
+                  <tr key={point.date}>
+                    <th scope="row">
+                      {onSelectDay ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            selectDay(
+                              point.date,
+                            )
+                          }
+                          aria-label={[
+                            'Выбрать день',
+                            formatTooltipDate(
+                              point.date,
+                            ),
+                            'сон:',
+                            point.value === null
+                              ? 'Нет данных'
+                              : formatSleep(
+                                  point.value,
+                                ),
+                          ].join(' ')}
+                        >
+                          {formatTooltipDate(
+                            point.date,
+                          )}
+                        </button>
+                      ) : (
+                        formatTooltipDate(
+                          point.date,
+                        )
+                      )}
+                    </th>
+
+                    <td>
+                      {point.value === null
+                        ? 'Нет данных'
+                        : formatSleep(
+                            point.value,
+                          )}
+                    </td>
                   </tr>
-                </thead>
-
-                <tbody>
-                  {series.map((point) => (
-                    <tr key={point.date}>
-                      <th scope="row">
-                        {onSelectDay ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                            selectDay(point.date)}
-                            aria-label={[
-                              'Выбрать день',
-
-                              formatTooltipDate(point.date),
-                              'сон:',
-
-                              (point.value === null ? 'Нет данных' : formatSleep(point.value)),
-                            ].join(' ')}
-                          >
-
-                            {formatTooltipDate(point.date)}
-                          </button>
-                        ) : (
-
-                          formatTooltipDate(point.date)
-                        )}
-                      </th>
-
-                      <td>
-                        {point.value === null
-                          ? 'Нет данных'
-                          : formatSleep(point.value)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </details>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
       )}
     </section>
-    )
-  }
+  )
+}
