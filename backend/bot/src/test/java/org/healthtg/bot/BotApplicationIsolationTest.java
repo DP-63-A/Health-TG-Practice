@@ -54,8 +54,11 @@ class BotApplicationIsolationTest {
             var registry = (BeanDefinitionRegistry) factory;
             registry.removeBeanDefinition("runtimeSettings");
             registry.removeBeanDefinition("botRuntime");
+            registry.removeBeanDefinition("telegramTransport");
             factory.registerSingleton("runtimeSettings", settings);
             factory.registerSingleton("botRuntime", runtime);
+            factory.registerSingleton("telegramTransport",
+                    new TelegramTransport(client, () -> {}));
             factory.registerSingleton("userStore", mock(org.healthtg.user.UserStore.class));
         }));
         try {

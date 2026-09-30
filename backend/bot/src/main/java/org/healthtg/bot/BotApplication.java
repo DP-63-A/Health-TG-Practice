@@ -12,6 +12,7 @@ import org.healthtg.core.entry.EntryCoreService;
 import org.healthtg.user.UserService;
 import java.time.Clock;
 import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
+import org.telegram.telegrambots.meta.generics.TelegramClient;
 
 @SpringBootApplication(scanBasePackages = {"org.healthtg.bot", "org.healthtg.core", "org.healthtg.user"})
 public class BotApplication {
@@ -31,13 +32,18 @@ public class BotApplication {
         return new CoreBotFlow(users, entries, dialogs, clock);
     }
 
-    @Bean BotRuntime botRuntime(RuntimeSettings settings, BotFlow flow) {
+    @Bean TelegramTransport telegramTransport(RuntimeSettings settings) {
         OkHttpClient http = new OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(45, TimeUnit.SECONDS).callTimeout(50, TimeUnit.SECONDS).build();
-        return new BotRuntime(new OkHttpTelegramClient(http, settings.token()), settings, () -> {
+        TelegramClient client = new OkHttpTelegramClient(http, settings.token());
+        return new TelegramTransport(client, () -> {
             http.dispatcher().cancelAll();
             http.dispatcher().executorService().shutdownNow();
             http.connectionPool().evictAll();
-        }, flow);
+        });
+    }
+
+    @Bean BotRuntime botRuntime(RuntimeSettings settings, BotFlow flow, TelegramTransport transport) {
+        return new BotRuntime(transport.client(), settings, transport.close(), flow);
     }
 }

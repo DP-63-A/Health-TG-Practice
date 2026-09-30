@@ -135,6 +135,36 @@ class CoreBotFlowTest {
     }
 
     @Test
+    void clarificationContinuesFromPersistedStateAndCreatesDraft() {
+        Map<String, Object> partial = Map.of("code", "heart_rate", "value", 72, "local_date", "2026-09-24");
+        when(dialogs.find(any())).thenReturn(Optional.of(new DialogState(OWNER_ID, null,
+                "text_clarification", Map.of("schema_version", 1, "type", "metrics",
+                "payload", partial, "field_origins", Map.of("value", "reported"),
+                "original_text", "24.09.2026 пульс 72"), 1, NOW, "main:40")));
+        Map<String, Object> complete = new java.util.LinkedHashMap<>(partial);
+        complete.put("unit", "bpm");
+        var parsed = new TextParseResult(TextParseResult.Outcome.PARSED,
+                "24.09.2026 пульс 72 ударов в минуту",
+                new TextParseResult.ParsedData("metrics", complete,
+                        Map.of("value", "reported", "unit", "reported"),
+                        java.time.LocalDate.of(2026, 9, 24), null), List.of());
+        when(parser.parse("24.09.2026 пульс 72 ударов в минуту")).thenReturn(parsed);
+        Entry draft = new Entry(UUID.randomUUID(), OWNER_ID, EntryType.METRICS, EntryStatus.DRAFT,
+                SourceKind.TEXT, Map.of(), NOW, NOW, NOW, 1, complete,
+                parsed.data().fieldOrigins(), null, "main:41");
+        when(entries.createDraft(any())).thenReturn(
+                new DraftCreationResult(draft, DraftCreationResult.Outcome.CREATED));
+
+        flow.handleMessage(message(41, "ударов в минуту"));
+
+        verify(parser).parse("24.09.2026 пульс 72 ударов в минуту");
+        ArgumentCaptor<CreateDraftCommand> command = ArgumentCaptor.forClass(CreateDraftCommand.class);
+        verify(entries).createDraft(command.capture());
+        assertEquals("bpm", command.getValue().payload().get("unit"));
+        assertEquals(41, command.getValue().updateKey().updateId());
+    }
+
+    @Test
     void malformedCancelParametersDoNotMasqueradeAsBusinessConflict() {
         var action = assertInstanceOf(BotAction.AnswerCallback.class,
                 flow.handleCallback(callback(50, "cancel:not-a-uuid:nope")).getFirst());

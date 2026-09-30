@@ -79,7 +79,8 @@ public final class CoreBotFlow implements BotFlow {
         var active = entries.findActiveDraft(owner);
         if (active.isPresent()) return activeDraft(update, active.get().id(), active.get().revision());
 
-        TextParseResult parsed = parser.parse(update.text());
+        String input = clarificationInput(owner, update.text(), update.updateId());
+        TextParseResult parsed = parser.parse(input);
         if (parsed.outcome() == TextParseResult.Outcome.NEEDS_CLARIFICATION && parsed.data() != null) {
             saveClarification(owner, parsed, update.updateId());
             return List.of(new BotAction.SendInlineMessage(update.chatId(),
@@ -219,6 +220,21 @@ public final class CoreBotFlow implements BotFlow {
         if (data.date() != null) context.put("date", data.date().toString());
         if (data.time() != null) context.put("time", data.time().toString());
         save(owner, null, "text_clarification", context, updateId);
+    }
+
+    private String clarificationInput(OwnerContext owner, String nextText, long updateId) {
+        Optional<DialogState> previous = dialogs.find(owner)
+                .filter(state -> "text_clarification".equals(state.step()));
+        if (previous.isEmpty()) return nextText;
+        Object version = previous.get().context().get("schema_version");
+        Object original = previous.get().context().get("original_text");
+        if (version instanceof Number schema && schema.intValue() == DIALOG_SCHEMA_VERSION
+                && original instanceof String text && !text.isBlank()) {
+            return text + " " + nextText;
+        }
+        LOG.warn("Stored text clarification state is invalid; resetting it without personal data");
+        save(owner, null, "idle", Map.of("schema_version", DIALOG_SCHEMA_VERSION), updateId);
+        return nextText;
     }
 
     private Instant occurredAt(LocalDate date, LocalTime time, ZoneId zone) {

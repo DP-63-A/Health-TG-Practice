@@ -19,11 +19,21 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.telegram.telegrambots.meta.api.methods.GetMe;
+import org.telegram.telegrambots.meta.api.methods.updates.GetUpdates;
+import org.telegram.telegrambots.meta.api.methods.updates.GetWebhookInfo;
+import org.telegram.telegrambots.meta.api.objects.User;
+import org.telegram.telegrambots.meta.api.objects.WebhookInfo;
+import org.telegram.telegrambots.meta.generics.TelegramClient;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 @Testcontainers(disabledWithoutDocker = true)
 class BotCoreStorageIntegrationTest {
@@ -37,6 +47,7 @@ class BotCoreStorageIntegrationTest {
         String database = "bot_core_" + UUID.randomUUID().toString().replace("-", "");
         UUID draftId;
         UUID draftOwner;
+        UUID clarificationOwner;
         String restoredCategoryCallback;
         String restoredScoreCallback;
 
@@ -71,6 +82,11 @@ class BotCoreStorageIntegrationTest {
             var restartScores = (BotAction.SendInlineMessage) flow.handleCallback(
                     callback(3003, 31, restartCategory)).get(1);
             restoredScoreCallback = restartScores.rows().getFirst().get(3).callbackData();
+
+            flow.handleMessage(message(4004, 40, "24.09.2026 пульс 72"));
+            clarificationOwner = users.findOrCreate(4004).id();
+            assertEquals("text_clarification", dialogs(first).find(new OwnerContext(clarificationOwner))
+                    .orElseThrow().step());
         }
 
         try (var restarted = context(database)) {
@@ -97,12 +113,27 @@ class BotCoreStorageIntegrationTest {
             assertFalse(entries.findActiveDraft(new OwnerContext(draftOwner)).isPresent());
             assertEquals(EntryStatus.CANCELLED,
                     entries.requireEntry(new OwnerContext(draftOwner), draftId).status());
+
+            flow.handleMessage(message(4004, 41, "ударов в минуту"));
+            var clarifiedDraft = entries.findActiveDraft(new OwnerContext(clarificationOwner)).orElseThrow();
+            assertEquals("bpm", clarifiedDraft.payload().get("unit"));
             restarted.getBean(org.springframework.data.mongodb.core.MongoTemplate.class).getDb().drop();
         }
     }
 
     @Test
-    void productionBotApplicationDiscoversCoreMongoRepositories() {
+    void productionBotApplicationDiscoversCoreMongoRepositories() throws Exception {
+        TelegramClient client = mock(TelegramClient.class);
+        WebhookInfo webhook = new WebhookInfo();
+        webhook.setUrl("");
+        when(client.execute(any(GetWebhookInfo.class))).thenReturn(webhook);
+        User bot = new User(9999L, "Synthetic bot", true);
+        bot.setUserName("storage_test_bot");
+        when(client.execute(any(GetMe.class))).thenReturn(bot);
+        when(client.execute(any(GetUpdates.class))).thenReturn(new java.util.ArrayList<>());
+        RuntimeSettings settings = RuntimeSettings.from(RuntimeSettingsTest.environment());
+        AtomicInteger closed = new AtomicInteger();
+        TelegramTransport transport = new TelegramTransport(client, closed::incrementAndGet);
         SpringApplication application = new SpringApplication(BotApplication.class);
         application.setDefaultProperties(Map.of(
                 "spring.main.web-application-type", "none",
@@ -112,9 +143,9 @@ class BotCoreStorageIntegrationTest {
         application.addInitializers(context -> context.addBeanFactoryPostProcessor(factory -> {
             var registry = (BeanDefinitionRegistry) factory;
             registry.removeBeanDefinition("runtimeSettings");
-            registry.removeBeanDefinition("botRuntime");
-            factory.registerSingleton("runtimeSettings", mock(RuntimeSettings.class));
-            factory.registerSingleton("botRuntime", mock(BotRuntime.class));
+            registry.removeBeanDefinition("telegramTransport");
+            factory.registerSingleton("runtimeSettings", settings);
+            factory.registerSingleton("telegramTransport", transport);
         }));
 
         try (var context = application.run()) {
@@ -122,12 +153,20 @@ class BotCoreStorageIntegrationTest {
             assertTrue(context.containsBean("mongoDialogStateRepository"));
             assertTrue(context.containsBean("mongoUserRepository"));
             assertTrue(context.containsBean("botFlow"));
+            BotRuntime runtime = context.getBean(BotRuntime.class);
+            assertTrue(runtime.isRunning());
+            assertTrue(context.getBean(BotFlow.class) instanceof CoreBotFlow);
         }
+        assertEquals(1, closed.get());
     }
 
     private static CoreBotFlow flow(AnnotationConfigApplicationContext context) {
         return new CoreBotFlow(context.getBean(UserService.class), context.getBean(EntryCoreService.class),
                 context.getBean(DialogStateService.class), context.getBean(Clock.class));
+    }
+
+    private static DialogStateService dialogs(AnnotationConfigApplicationContext context) {
+        return context.getBean(DialogStateService.class);
     }
 
     private static AnnotationConfigApplicationContext context(String database) {
