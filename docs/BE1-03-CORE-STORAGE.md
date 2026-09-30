@@ -12,6 +12,15 @@ It is not an HTTP API and Telegram handlers must not access Mongo repositories d
   confirmed entries for an inclusive local-date period and optional entry-type filter.
 - `DialogStateService.save(SaveDialogStateCommand)` persists a conversation step and context.
 - `DialogStateService.find(OwnerContext)` restores the conversation after process restart.
+- `DialogStateService.clearIfCurrent(owner, activeEntryId, expectedRevision, updateKey)` clears only
+  the observed draft conversation. It returns `false` when the state no longer references that draft,
+  its dialog revision changed, the update is stale, or the MongoDB version check loses a race. The
+  operation never retries against a newer state; dialog and entry revisions are independent.
+
+Callers use the state returned by `save()` as authoritative. A repeated or older update returns the
+current persisted state without accepting the proposed context, so check-in keyboards must render its
+selector ID. Draft cancellation observes the dialog before cancelling the entry and conditionally
+clears only that same observed state afterwards.
 
 All calls require `OwnerContext`, produced from the authenticated user. A Telegram consumer supplies a
 stable `TelegramUpdateKey(botKey, updateId)`. Re-delivery of that update returns the existing result.

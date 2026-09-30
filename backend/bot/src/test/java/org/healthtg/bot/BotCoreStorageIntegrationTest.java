@@ -135,11 +135,7 @@ class BotCoreStorageIntegrationTest {
         AtomicInteger closed = new AtomicInteger();
         TelegramTransport transport = new TelegramTransport(client, closed::incrementAndGet);
         SpringApplication application = new SpringApplication(BotApplication.class);
-        application.setDefaultProperties(Map.of(
-                "spring.main.web-application-type", "none",
-                "spring.data.mongodb.uri", MONGO.getReplicaSetUrl(),
-                "spring.data.mongodb.database", "bot_startup_" + UUID.randomUUID().toString().replace("-", ""),
-                "spring.data.mongodb.auto-index-creation", "true"));
+        application.setDefaultProperties(Map.of("spring.main.web-application-type", "none"));
         application.addInitializers(context -> context.addBeanFactoryPostProcessor(factory -> {
             var registry = (BeanDefinitionRegistry) factory;
             registry.removeBeanDefinition("runtimeSettings");
@@ -148,7 +144,11 @@ class BotCoreStorageIntegrationTest {
             factory.registerSingleton("telegramTransport", transport);
         }));
 
-        try (var context = application.run()) {
+        String database = "bot_startup_" + UUID.randomUUID().toString().replace("-", "");
+        try (var context = application.run(
+                "--spring.data.mongodb.uri=" + MONGO.getReplicaSetUrl(),
+                "--spring.data.mongodb.database=" + database,
+                "--spring.data.mongodb.auto-index-creation=true")) {
             assertTrue(context.containsBean("mongoEntryRepository"));
             assertTrue(context.containsBean("mongoDialogStateRepository"));
             assertTrue(context.containsBean("mongoUserRepository"));

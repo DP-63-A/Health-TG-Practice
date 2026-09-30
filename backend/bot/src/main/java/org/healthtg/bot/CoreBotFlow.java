@@ -64,11 +64,25 @@ public final class CoreBotFlow implements BotFlow {
         OwnerContext owner = new OwnerContext(user.id());
         var active = entries.findActiveDraft(owner);
         if (active.isPresent()) return activeDraft(update, active.get().id(), active.get().revision());
-        CheckinSelector.Outcome outcome = selector.begin(update.senderId(), update.chatId(), update.updateId());
-        save(owner, null, "checkin_category", Map.of("schema_version", DIALOG_SCHEMA_VERSION,
-                "selector_id", selector.selectionId(update.senderId()).toString(),
+        CheckinSelector proposed = new CheckinSelector();
+        CheckinSelector.Outcome outcome = proposed.begin(update.senderId(), update.chatId(), update.updateId());
+        if (outcome.status() == CheckinSelector.Status.REJECTED) return List.of(inline(update.chatId(), outcome.view()));
+        DialogState saved = save(owner, null, "checkin_category", Map.of("schema_version", DIALOG_SCHEMA_VERSION,
+                "selector_id", proposed.selectionId(update.senderId()).toString(),
                 "start_update", update.updateId()), update.updateId());
-        return List.of(inline(update.chatId(), outcome.view()));
+        if (!saved.step().startsWith("checkin_")) {
+            return List.of(new BotAction.SendInlineMessage(update.chatId(),
+                    "Команда уже обработана. Продолжите текущий диалог или отправьте новую /state.", List.of()));
+        }
+        CheckinSelector accepted = new CheckinSelector();
+        try {
+            restoreInto(accepted, update.senderId(), saved);
+        } catch (IllegalArgumentException | IndexOutOfBoundsException corrupted) {
+            return List.of(new BotAction.SendInlineMessage(update.chatId(),
+                    "Не удалось восстановить отметку. Отправьте новую /state.", List.of()));
+        }
+        return List.of(inline(update.chatId(), accepted.begin(update.senderId(), update.chatId(),
+                accepted.startUpdate(update.senderId())).view()));
     }
 
     @Override
@@ -117,7 +131,15 @@ public final class CoreBotFlow implements BotFlow {
         OwnerContext owner = new OwnerContext(user.id());
         if (update.callbackData().startsWith("cancel:")) return cancel(update, owner);
 
-        restoreSelector(update.senderId(), owner, update.updateId());
+        synchronized (selector) {
+            return handleCheckinCallback(update, owner);
+        }
+    }
+
+    private List<BotAction> handleCheckinCallback(BotUpdate update, OwnerContext owner) {
+        if (!restoreSelector(update.senderId(), owner, update.updateId())) {
+            return List.of(new BotAction.AnswerCallback(update.callbackId(), "Кнопка устарела"));
+        }
         CheckinSelector.Outcome outcome = selector.callback(update.senderId(), update.chatId(),
                 update.updateId(), update.callbackData());
         if (outcome.status() == CheckinSelector.Status.REJECTED) {
@@ -128,6 +150,7 @@ public final class CoreBotFlow implements BotFlow {
             var category = org.healthtg.core.entry.CheckinCategory.fromCode(selection.category().code());
             entries.createCheckin(new CreateCheckinCommand(owner, category, selection.score(),
                     clock.instant(), key(update.updateId())));
+            selector.acknowledgeSelection(update.senderId());
             save(owner, null, "idle", Map.of(), update.updateId());
             return List.of(new BotAction.AnswerCallback(update.callbackId(), "Сохранено"),
                     new BotAction.SendInlineMessage(update.chatId(), "Отметка сохранена.", List.of()));
@@ -153,8 +176,11 @@ public final class CoreBotFlow implements BotFlow {
         }
         try {
             CancelParameters parameters = parsed.get();
+            Optional<DialogState> observed = dialogs.find(owner)
+                    .filter(state -> parameters.entryId().equals(state.activeEntryId()));
             entries.cancel(owner, parameters.entryId(), parameters.revision());
-            save(owner, null, "idle", Map.of(), update.updateId());
+            observed.ifPresent(state -> dialogs.clearIfCurrent(owner, parameters.entryId(),
+                    state.revision(), key(update.updateId())));
             return List.of(new BotAction.AnswerCallback(update.callbackId(), "Черновик отменён"));
         } catch (EntryNotFoundException | EntryStatusConflictException | EntryVersionConflictException conflict) {
             return List.of(new BotAction.AnswerCallback(update.callbackId(), "Черновик уже изменён"));
@@ -175,31 +201,42 @@ public final class CoreBotFlow implements BotFlow {
 
     private record CancelParameters(UUID entryId, long revision) {}
 
-    private void restoreSelector(long telegramId, OwnerContext owner, long currentUpdateId) {
-        if (selector.hasSession(telegramId)) return;
-        Optional<DialogState> stored = dialogs.find(owner).filter(state -> state.step().startsWith("checkin_"));
-        if (stored.isEmpty()) return;
+    private boolean restoreSelector(long telegramId, OwnerContext owner, long currentUpdateId) {
+        Optional<DialogState> stored = dialogs.find(owner);
+        if (stored.isEmpty()) return false;
+        if (!stored.get().step().startsWith("checkin_")) {
+            return "idle".equals(stored.get().step()) && selector.isComplete(telegramId);
+        }
+        if (selector.hasAcknowledgedSelection(telegramId)
+                && selector.selectionId(telegramId).toString().equals(stored.get().context().get("selector_id"))) {
+            return true;
+        }
         try {
-            DialogState state = stored.get();
-            Object version = state.context().get("schema_version");
-            Object id = state.context().get("selector_id");
-            Object start = state.context().get("start_update");
-            if (!(version instanceof Number schema) || schema.intValue() != DIALOG_SCHEMA_VERSION
-                    || !(id instanceof String token) || !(start instanceof Number first)) {
-                throw new IllegalArgumentException("Incomplete selector state");
-            }
-            String lastCallback = state.context().get("last_callback") instanceof String value ? value : null;
-            org.healthtg.bot.checkin.CheckinCategory category = null;
-            Object rawCategory = state.context().get("category");
-            if (rawCategory instanceof String name && !name.isBlank()) {
-                category = org.healthtg.bot.checkin.CheckinCategory.valueOf(name);
-            }
-            selector.restore(telegramId, UUID.fromString(token), first.longValue(),
-                    updateId(state.telegramUpdateKey()), lastCallback, category);
+            restoreInto(selector, telegramId, stored.get());
+            return true;
         } catch (IllegalArgumentException | IndexOutOfBoundsException corrupted) {
             LOG.warn("Stored check-in dialog state is invalid; resetting it without personal data");
             save(owner, null, "idle", Map.of("schema_version", DIALOG_SCHEMA_VERSION), currentUpdateId);
+            return false;
         }
+    }
+
+    private static void restoreInto(CheckinSelector target, long telegramId, DialogState state) {
+        Object version = state.context().get("schema_version");
+        Object id = state.context().get("selector_id");
+        Object start = state.context().get("start_update");
+        if (!(version instanceof Number schema) || schema.intValue() != DIALOG_SCHEMA_VERSION
+                || !(id instanceof String token) || !(start instanceof Number first)) {
+            throw new IllegalArgumentException("Incomplete selector state");
+        }
+        String lastCallback = state.context().get("last_callback") instanceof String value ? value : null;
+        org.healthtg.bot.checkin.CheckinCategory category = null;
+        Object rawCategory = state.context().get("category");
+        if (rawCategory instanceof String name && !name.isBlank()) {
+            category = org.healthtg.bot.checkin.CheckinCategory.valueOf(name);
+        }
+        target.replace(telegramId, UUID.fromString(token), first.longValue(),
+                updateId(state.telegramUpdateKey()), lastCallback, category);
     }
 
     private List<BotAction> activeDraft(BotUpdate update, UUID id, long revision) {
@@ -208,8 +245,8 @@ public final class CoreBotFlow implements BotFlow {
                 cancelRows(id, revision)));
     }
 
-    private void save(OwnerContext owner, UUID entryId, String step, Map<String, Object> context, long updateId) {
-        dialogs.save(new SaveDialogStateCommand(owner, entryId, step, context, key(updateId)));
+    private DialogState save(OwnerContext owner, UUID entryId, String step, Map<String, Object> context, long updateId) {
+        return dialogs.save(new SaveDialogStateCommand(owner, entryId, step, context, key(updateId)));
     }
 
     private void saveClarification(OwnerContext owner, TextParseResult parsed, long updateId) {

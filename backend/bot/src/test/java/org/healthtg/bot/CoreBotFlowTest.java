@@ -28,6 +28,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -54,7 +56,16 @@ class CoreBotFlowTest {
         when(users.findOrCreate(TELEGRAM_ID)).thenReturn(
                 new UserAccount(OWNER_ID, TELEGRAM_ID, ZoneId.of("Europe/Warsaw"), true));
         when(entries.findActiveDraft(any())).thenReturn(Optional.empty());
-        when(dialogs.find(any())).thenReturn(Optional.empty());
+        AtomicLong revision = new AtomicLong();
+        AtomicReference<DialogState> state = new AtomicReference<>();
+        when(dialogs.save(any())).thenAnswer(invocation -> {
+            SaveDialogStateCommand command = invocation.getArgument(0);
+            DialogState saved = new DialogState(command.owner().userId(), command.activeEntryId(), command.step(),
+                    command.context(), revision.incrementAndGet(), NOW, command.updateKey().storageKey());
+            state.set(saved);
+            return saved;
+        });
+        when(dialogs.find(any())).thenAnswer(invocation -> Optional.ofNullable(state.get()));
         flow = new CoreBotFlow(users, entries, dialogs, parser, new CheckinSelector(),
                 Clock.fixed(NOW, ZoneId.of("UTC")));
     }

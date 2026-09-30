@@ -31,6 +31,7 @@ public final class CheckinSelector {
         String lastCallback;
         CheckinCategory category;
         CheckinSelection selection;
+        boolean selectionAcknowledged;
 
         Session(long owner, long updateId) {
             this(UUID.randomUUID(), owner, updateId, updateId, null);
@@ -107,6 +108,34 @@ public final class CheckinSelector {
     }
 
     public synchronized boolean hasSession(long owner) { return sessions.containsKey(owner); }
+
+    public synchronized boolean isComplete(long owner) {
+        Session session = sessions.get(owner);
+        return session != null && session.selection != null;
+    }
+
+    public synchronized void acknowledgeSelection(long owner) {
+        Session session = sessions.get(owner);
+        if (session == null || session.selection == null) {
+            throw new IllegalStateException("No selected value to acknowledge");
+        }
+        session.selectionAcknowledged = true;
+    }
+
+    public synchronized boolean hasAcknowledgedSelection(long owner) {
+        Session session = sessions.get(owner);
+        return session != null && session.selectionAcknowledged;
+    }
+
+    public synchronized void replace(long owner, UUID selectionId, long startUpdate, long lastUpdate,
+                                     String lastCallback, CheckinCategory category) {
+        if (owner <= 0 || selectionId == null || startUpdate < 0 || lastUpdate < startUpdate) {
+            throw new IllegalArgumentException("Invalid restored checkin session");
+        }
+        sessions.remove(owner);
+        if (sessions.size() >= capacity) sessions.remove(sessions.keySet().iterator().next());
+        restore(owner, selectionId, startUpdate, lastUpdate, lastCallback, category);
+    }
 
     public synchronized UUID selectionId(long owner) {
         Session session = sessions.get(owner);
