@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.telegram.telegrambots.meta.api.methods.GetMe;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.updates.GetUpdates;
@@ -161,17 +162,26 @@ class BotRuntimeTest {
         assertEquals(1, closed.get());
     }
 
-    @Test void oneBrokenUpdateDoesNotStopProcessingFollowingMessages() throws Exception {
+    @Test void transientStorageFailureRetriesSameUpdateBeforeFollowingMessages() throws Exception {
         successfulHandshake("");
         BotFlow flow = mock(BotFlow.class);
-        when(flow.handleMessage(any()))
-                .thenThrow(new IllegalArgumentException("synthetic invalid message"))
-                .thenReturn(List.of(new BotAction.SendMessage(1001L, "Следующее сообщение обработано", null)));
+        var handled = new CopyOnWriteArrayList<String>();
+        AtomicInteger attempts = new AtomicInteger();
+        when(flow.handleMessage(any())).thenAnswer(invocation -> {
+            BotUpdate update = invocation.getArgument(0);
+            handled.add(update.text());
+            if (attempts.getAndIncrement() == 0) {
+                throw new DataAccessResourceFailureException("synthetic storage outage");
+            }
+            return List.of();
+        });
         var nextPoll = new CountDownLatch(1);
         AtomicInteger requested = new AtomicInteger();
+        var offsets = new CopyOnWriteArrayList<Integer>();
         when(client.execute(any(GetUpdates.class))).thenAnswer(invocation -> {
             GetUpdates request = invocation.getArgument(0);
-            if (requested.getAndIncrement() == 0) {
+            offsets.add(request.getOffset());
+            if (requested.getAndIncrement() < 2) {
                 var first = TelegramAdapterTest.message("первое");
                 var second = TelegramAdapterTest.message("второе");
                 second.setUpdateId(11);
@@ -185,10 +195,38 @@ class BotRuntimeTest {
 
         try (var runtime = runtime(flow)) {
             runtime.start();
-            assertTrue(nextPoll.await(5, TimeUnit.SECONDS));
+            assertTrue(nextPoll.await(8, TimeUnit.SECONDS));
             assertTrue(runtime.isRunning());
-            verify(flow, times(2)).handleMessage(any());
+            assertEquals(List.of("первое", "первое", "второе"), handled);
+            assertEquals(List.of(0, 0, 12), offsets);
         }
+    }
+
+    @Test void unexpectedRuntimeFailureStopsWithoutAcknowledgingOrReordering() throws Exception {
+        successfulHandshake("");
+        BotFlow flow = mock(BotFlow.class);
+        when(flow.handleMessage(any())).thenThrow(new IllegalArgumentException("synthetic programming error"));
+        when(client.execute(any(GetUpdates.class))).thenAnswer(invocation -> new java.util.ArrayList<>(List.of(
+                TelegramAdapterTest.message("первое"), TelegramAdapterTest.message("второе"))));
+
+        try (var runtime = runtime(flow)) {
+            runtime.start();
+            assertTrue(transportClosed.await(5, TimeUnit.SECONDS));
+            assertFalse(runtime.isRunning());
+            verify(flow, times(1)).handleMessage(any());
+            verify(client, times(1)).execute(any(GetUpdates.class));
+        }
+    }
+
+    @Test void storageRetryBackoffIsBoundedAtThirtySeconds() {
+        assertEquals(1_000, BotRuntime.storageRetryDelay(1));
+        assertEquals(2_000, BotRuntime.storageRetryDelay(2));
+        assertEquals(4_000, BotRuntime.storageRetryDelay(3));
+        assertEquals(8_000, BotRuntime.storageRetryDelay(4));
+        assertEquals(16_000, BotRuntime.storageRetryDelay(5));
+        assertEquals(30_000, BotRuntime.storageRetryDelay(6));
+        assertEquals(30_000, BotRuntime.storageRetryDelay(100));
+        assertThrows(IllegalArgumentException.class, () -> BotRuntime.storageRetryDelay(0));
     }
 
     @Test void failedDeliveryIsRetriedWithoutAcknowledgementThenSuccessfulDeliveryAdvancesOffset() throws Exception {

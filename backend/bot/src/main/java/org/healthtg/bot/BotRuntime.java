@@ -7,6 +7,8 @@ import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.SmartLifecycle;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.TransientDataAccessException;
 import org.telegram.telegrambots.meta.api.methods.GetMe;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.updates.GetUpdates;
@@ -73,6 +75,7 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
         int offset = 0;
         int networkFailures = 0;
         int deliveryFailures = 0;
+        int storageFailures = 0;
         try {
             while (running && !Thread.currentThread().isInterrupted()) {
                 List<org.telegram.telegrambots.meta.api.objects.Update> updates;
@@ -95,6 +98,7 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
                         adapter.accept(update);
                         offset = update.getUpdateId() + 1;
                         deliveryFailures = 0;
+                        storageFailures = 0;
                     } catch (TelegramApiException e) {
                         failed = true;
                         if (fatal(e) || ++deliveryFailures >= 3) {
@@ -104,10 +108,17 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
                         LOG.warn("Не удалось отправить ответ; повторим обработку. Уже отправленная часть ответа может повториться.");
                         if (!pause(2000)) return;
                         break;
+                    } catch (DataAccessResourceFailureException | TransientDataAccessException e) {
+                        failed = true;
+                        storageFailures = Math.min(storageFailures + 1, 6);
+                        long delayMillis = storageRetryDelay(storageFailures);
+                        LOG.warn("Временная ошибка хранилища. Сообщение не подтверждено; повтор через {} мс.",
+                                delayMillis);
+                        if (!pause(delayMillis)) return;
+                        break;
                     } catch (RuntimeException e) {
-                        LOG.error("Отдельное сообщение не обработано из-за внутренней ошибки; продолжаем без вывода персональных данных.");
-                        offset = update.getUpdateId() + 1;
-                        deliveryFailures = 0;
+                        LOG.error("Обработка остановлена из-за внутренней ошибки. Текущее сообщение не подтверждено. Требуется проверка причины.");
+                        return;
                     }
                 }
                 // Empty immediate responses must not produce a busy loop (e.g. during a proxy fault).
@@ -123,6 +134,10 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
     private static boolean fatal(TelegramApiException e) {
         return e instanceof TelegramApiRequestException request
                 && (Integer.valueOf(401).equals(request.getErrorCode()) || Integer.valueOf(409).equals(request.getErrorCode()));
+    }
+    static long storageRetryDelay(int failureCount) {
+        if (failureCount < 1) throw new IllegalArgumentException("failureCount must be positive");
+        return Math.min(30_000L, 1_000L << Math.min(failureCount - 1, 5));
     }
     private static boolean pause(long millis) {
         try { Thread.sleep(millis); return true; }
