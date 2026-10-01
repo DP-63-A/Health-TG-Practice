@@ -1,0 +1,25 @@
+.gradle/
+**/build/
+**/bin/
+.env
+.env.local
+.env.*.local
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# Frontend dependencies and generated output
+**/node_modules/
+frontend/dist/
+frontend/coverage/
+
+build-log.txt
+*.log

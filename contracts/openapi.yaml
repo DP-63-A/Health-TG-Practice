@@ -1,0 +1,461 @@
+openapi: 3.1.0
+info:
+  title: Health-TG Practice API
+  version: 0.1.0-be1-01
+  summary: Canonical Entry/User/Error contract for bot, diary, and analytics.
+  description: |
+    Public HTTP contract under `/api/v1`. Draft creation for the bot is **not** exposed here;
+    see `contracts/internal.yaml`.
+
+    Open decisions (pagination, 403/404, If-Match, auth body, analytics finalization)
+    are listed in `contracts/OPEN-DECISIONS.md` as PROPOSED.
+
+    Runtime owner/revision/idempotency rules: `contracts/rules/runtime-invariants.md`.
+  contact:
+    name: BE-1
+servers:
+  - url: /api/v1
+    description: Relative to API host
+tags:
+  - name: auth
+  - name: me
+  - name: entries
+  - name: analytics
+  - name: files
+  - name: system
+paths:
+  /auth/telegram:
+    post:
+      tags: [auth]
+      operationId: authTelegram
+      summary: Verify Telegram Mini App initData and create a 60-minute session
+      description: |
+        Server verifies signature and freshness (accepted training limit: 15 minutes).
+        Client must send the raw `initData` string. `initDataUnsafe` / client-supplied
+        `user_id` are not trusted.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/auth.json#/$defs/TelegramAuthRequest
+            examples:
+              sample:
+                value:
+                  init_data: "query_id=AAH...&user=%7B%22id%22%3A1%7D&auth_date=1710000000&hash=..."
+      responses:
+        "200":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/auth.json#/$defs/TelegramAuthResponse
+              examples:
+                ok:
+                  externalValue: ./examples/valid/auth-session.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Telegram user not allowlisted for the stand
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/error.json
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /me:
+    get:
+      tags: [me]
+      operationId: getMe
+      summary: Current user and timezone
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/user.json
+              examples:
+                me:
+                  externalValue: ./examples/valid/user-me.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /entries:
+    get:
+      tags: [entries]
+      operationId: listEntries
+      summary: Entry history with filters and pagination
+      description: |
+        Default `status=confirmed` for diary. Use `status=draft` for review screen.
+        `from`/`to` are inclusive local calendar dates (PROPOSED D2).
+        Pagination: `limit` + `cursor` (PROPOSED D1).
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: type
+          in: query
+          schema:
+            $ref: ./schemas/common.json#/$defs/EntryType
+        - name: status
+          in: query
+          description: Defaults to confirmed when omitted
+          schema:
+            $ref: ./schemas/common.json#/$defs/EntryStatus
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Page of entries
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/auth.json#/$defs/EntryListResponse
+              examples:
+                empty:
+                  externalValue: ./examples/valid/entries-empty.json
+                confirmed:
+                  externalValue: ./examples/valid/entries-list-confirmed.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /entries/{id}:
+    parameters:
+      - $ref: "#/components/parameters/EntryId"
+    get:
+      tags: [entries]
+      operationId: getEntry
+      summary: Entry card with source and current revision
+      responses:
+        "200":
+          description: Entry
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/entry.json
+              examples:
+                meal:
+                  externalValue: ./examples/valid/entry-meal.json
+                draft:
+                  externalValue: ./examples/valid/entry-draft-meal.json
+                zeroSteps:
+                  externalValue: ./examples/valid/entry-metrics-zero-steps.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [entries]
+      operationId: patchEntry
+      summary: Patch draft or confirmed entry with expected_revision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/auth.json#/$defs/EntryPatchRequest
+      responses:
+        "200":
+          description: Updated entry
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/entry.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/VersionConflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [entries]
+      operationId: deleteEntry
+      summary: Logical delete of a confirmed diary entry
+      description: |
+        Soft-delete: status becomes `deleted`; excluded from history and analytics.
+        Version via `If-Match` (PROPOSED D4). Intended for confirmed entries;
+        cancel drafts via POST .../cancel.
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          description: 'Strong ETag of current revision, e.g. `"3"`'
+          schema:
+            type: string
+            pattern: '^"[1-9][0-9]*"$'
+      responses:
+        "200":
+          description: Entry after logical delete
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/entry.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/VersionConflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /entries/{id}/confirm:
+    parameters:
+      - $ref: "#/components/parameters/EntryId"
+    post:
+      tags: [entries]
+      operationId: confirmEntry
+      summary: Confirm a draft; idempotent on submission_id
+      description: |
+        Same `submission_id` returns the prior result and does not create a new entry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./schemas/auth.json#/$defs/ConfirmRequest
+            examples:
+              confirm:
+                value:
+                  submission_id: "sub_01JABC"
+                  expected_revision: 2
+      responses:
+        "200":
+          description: Confirmed entry
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/entry.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/VersionConflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /entries/{id}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/EntryId"
+    post:
+      tags: [entries]
+      operationId: cancelEntry
+      summary: Cancel a draft without analytics impact
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          description: 'Strong ETag of current revision, e.g. `"3"`'
+          schema:
+            type: string
+            pattern: '^"[1-9][0-9]*"$'
+      responses:
+        "200":
+          description: Cancelled entry
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/entry.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Invalid status transition or conflict
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/error.json
+
+  /analytics:
+    get:
+      tags: [analytics]
+      operationId: getAnalytics
+      summary: Cards, series, observations, sources for a period
+      description: |
+        Schema owned jointly with BE3-01. Current file is a draft (OPEN-DECISIONS D9).
+        Only confirmed entries contribute. Unknown nutrients are null, never coerced to 0.
+      parameters:
+        - name: period
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [today, days_7, days_21]
+        - name: timezone
+          in: query
+          required: false
+          description: IANA timezone used to calculate local calendar dates. Defaults to Europe/Warsaw.
+          schema:
+            type: string
+            default: Europe/Warsaw
+            example: Europe/Warsaw
+        - name: checkin_category
+          in: query
+          description: Category for the state series block
+          schema:
+            $ref: ./schemas/common.json#/$defs/CheckinCategory
+      responses:
+        "200":
+          description: Analytics payload
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/analytics.json
+              examples:
+                week:
+                  externalValue: ./examples/valid/analytics-days7.json
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /files/{id}:
+    get:
+      tags: [files]
+      operationId: getFile
+      summary: Download own image binary
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Image bytes
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /healthz:
+    get:
+      tags: [system]
+      operationId: healthz
+      summary: Technical readiness without personal data
+      security: []
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/auth.json#/$defs/HealthzResponse
+              examples:
+                ok:
+                  value:
+                    status: ok
+                    checks:
+                      mongo: ok
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-session
+  parameters:
+    EntryId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Unauthorized:
+      description: Missing/invalid/expired session (401)
+      content:
+        application/json:
+          schema:
+            $ref: ./schemas/error.json
+          examples:
+            unauthorized:
+              value:
+                code: UNAUTHORIZED
+                message: Session missing or expired
+                request_id: req_01EXAMPLE
+    NotFound:
+      description: |
+        Missing or non-owned resource (PROPOSED D3 — uniform 404).
+      content:
+        application/json:
+          schema:
+            $ref: ./schemas/error.json
+          examples:
+            not_found:
+              value:
+                code: RESOURCE_NOT_FOUND
+                message: Resource not found
+                request_id: req_01EXAMPLE
+    VersionConflict:
+      description: Stale expected_revision / If-Match (409)
+      content:
+        application/json:
+          schema:
+            $ref: ./schemas/error.json
+          examples:
+            conflict:
+              externalValue: ./examples/valid/error-version-conflict.json
+    ValidationError:
+      description: Invalid input (422)
+      content:
+        application/json:
+          schema:
+            $ref: ./schemas/error.json
+          examples:
+            validation:
+              externalValue: ./examples/valid/error-validation.json
+    ServiceUnavailable:
+      description: Dependency unavailable (503)
+      content:
+        application/json:
+          schema:
+            $ref: ./schemas/error.json
+          examples:
+            unavailable:
+              value:
+                code: SERVICE_UNAVAILABLE
+                message: Dependency unavailable
+                request_id: req_01EXAMPLE
+security:
+  - bearerAuth: []
