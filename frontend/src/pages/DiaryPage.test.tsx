@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { entriesApi } from '../api/entries'
@@ -10,6 +10,23 @@ import { appRoutes } from '../router/router'
 describe('FE1-03 diary', () => {
   afterEach(() => {
     vi.restoreAllMocks()
+  })
+
+  it('names every filter and pagination action with native labels and text', async () => {
+    vi.spyOn(entriesApi, 'list').mockResolvedValue({ items: [entryFixture({})], next_cursor: 'next' })
+    renderRoute('/diary')
+    await screen.findByText('Test meal')
+    const filters = within(screen.getByRole('form', { name: 'Фильтры дневника' }))
+
+    for (const name of ['Режим', 'С даты', 'По дату', 'Тип']) {
+      const control = filters.getByLabelText(name)
+      expect(control).toHaveAccessibleName(name)
+      expect(control.id).toBeTruthy()
+      expect(document.querySelector(`label[for="${control.id}"]`)).toHaveTextContent(name)
+    }
+    expect(screen.getByRole('button', { name: 'Назад' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Вперёд' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Обновить' })).toBeEnabled()
   })
 
   it('uses all Overview URL filters in the first request and shows the returned entry', async () => {
