@@ -70,7 +70,7 @@ public final class CoreBotFlow implements BotFlow {
         DialogState saved = save(owner, null, "checkin_category", Map.of("schema_version", DIALOG_SCHEMA_VERSION,
                 "selector_id", proposed.selectionId(update.senderId()).toString(),
                 "start_update", update.updateId()), update.updateId());
-        if (!saved.step().startsWith("checkin_")) {
+        if (!isActiveCheckin(saved.step())) {
             return List.of(new BotAction.SendInlineMessage(update.chatId(),
                     "Команда уже обработана. Продолжите текущий диалог или отправьте новую /state.", List.of()));
         }
@@ -104,7 +104,9 @@ public final class CoreBotFlow implements BotFlow {
                     "Нужно уточнить данные перед сохранением.", List.of()));
         }
         if (parsed.outcome() != TextParseResult.Outcome.PARSED || parsed.data() == null) {
-            String text = parsed.outcome() == TextParseResult.Outcome.NOTE_SUGGESTED
+            String text = parsed.outcome() == TextParseResult.Outcome.REJECTED && !parsed.issues().isEmpty()
+                    ? parsed.issues().getFirst().message()
+                    : parsed.outcome() == TextParseResult.Outcome.NOTE_SUGGESTED
                     ? "Не удалось выделить показатели. Отправьте более точную формулировку."
                     : "Нужно уточнить данные перед сохранением.";
             return List.of(new BotAction.SendInlineMessage(update.chatId(), text, List.of()));
@@ -130,6 +132,8 @@ public final class CoreBotFlow implements BotFlow {
         UserAccount user = users.findOrCreate(update.senderId());
         OwnerContext owner = new OwnerContext(user.id());
         if (update.callbackData().startsWith("cancel:")) return cancel(update, owner);
+        Optional<List<BotAction>> completed = completedCheckin(update, owner);
+        if (completed.isPresent()) return completed.get();
 
         synchronized (selector) {
             return handleCheckinCallback(update, owner);
@@ -146,16 +150,12 @@ public final class CoreBotFlow implements BotFlow {
             return List.of(new BotAction.AnswerCallback(update.callbackId(), "Кнопка устарела"));
         }
         if (outcome.status() == CheckinSelector.Status.SELECTED) {
-            var selection = outcome.view().selection();
-            var category = org.healthtg.core.entry.CheckinCategory.fromCode(selection.category().code());
-            entries.createCheckin(new CreateCheckinCommand(owner, category, selection.score(),
-                    clock.instant(), key(update.updateId())));
-            selector.acknowledgeSelection(update.senderId());
-            save(owner, null, "idle", Map.of(), update.updateId());
+            persistCompletedCheckin(update, owner, outcome.view().selection());
             return List.of(new BotAction.AnswerCallback(update.callbackId(), "Сохранено"),
                     new BotAction.SendInlineMessage(update.chatId(), "Отметка сохранена.", List.of()));
         }
         if (outcome.view().stage() == CheckinSelector.Stage.COMPLETE) {
+            persistCompletedCheckin(update, owner, outcome.view().selection());
             return List.of(new BotAction.AnswerCallback(update.callbackId(), "Уже сохранено"),
                     new BotAction.SendInlineMessage(update.chatId(), "Отметка уже сохранена.", List.of()));
         }
@@ -201,10 +201,37 @@ public final class CoreBotFlow implements BotFlow {
 
     private record CancelParameters(UUID entryId, long revision) {}
 
+    private Optional<List<BotAction>> completedCheckin(BotUpdate update, OwnerContext owner) {
+        return dialogs.find(owner)
+                .filter(state -> "checkin_complete".equals(state.step()))
+                .filter(state -> update.callbackData().equals(state.context().get("completed_callback")))
+                .map(state -> List.<BotAction>of(
+                        new BotAction.AnswerCallback(update.callbackId(), "Уже сохранено"),
+                        new BotAction.SendInlineMessage(update.chatId(), "Отметка уже сохранена.", List.of())));
+    }
+
+    private void persistCompletedCheckin(BotUpdate update, OwnerContext owner,
+                                         org.healthtg.bot.checkin.CheckinSelection selection) {
+        var category = org.healthtg.core.entry.CheckinCategory.fromCode(selection.category().code());
+        var entry = entries.createCheckin(new CreateCheckinCommand(owner, category, selection.score(),
+                clock.instant(), checkinKey(selector.startUpdate(update.senderId()))));
+        if (!selector.hasAcknowledgedSelection(update.senderId())) {
+            selector.acknowledgeSelection(update.senderId());
+        }
+        save(owner, null, "checkin_complete", Map.of(
+                "schema_version", DIALOG_SCHEMA_VERSION,
+                "selector_id", selector.selectionId(update.senderId()).toString(),
+                "start_update", selector.startUpdate(update.senderId()),
+                "category", selector.category(update.senderId()).name(),
+                "score", selection.score(),
+                "completed_callback", update.callbackData(),
+                "entry_id", entry.id().toString()), update.updateId());
+    }
+
     private boolean restoreSelector(long telegramId, OwnerContext owner, long currentUpdateId) {
         Optional<DialogState> stored = dialogs.find(owner);
         if (stored.isEmpty()) return false;
-        if (!stored.get().step().startsWith("checkin_")) {
+        if (!isActiveCheckin(stored.get().step())) {
             return "idle".equals(stored.get().step()) && selector.isComplete(telegramId);
         }
         if (selector.hasAcknowledgedSelection(telegramId)
@@ -333,6 +360,12 @@ public final class CoreBotFlow implements BotFlow {
     }
 
     private static TelegramUpdateKey key(long updateId) { return new TelegramUpdateKey(BOT_KEY, updateId); }
+    private static TelegramUpdateKey checkinKey(long startUpdateId) {
+        return new TelegramUpdateKey(BOT_KEY + "-checkin", startUpdateId);
+    }
+    private static boolean isActiveCheckin(String step) {
+        return "checkin_category".equals(step) || "checkin_score".equals(step);
+    }
     private static long updateId(String storageKey) {
         int separator = storageKey.indexOf(':');
         if (separator < 1 || separator == storageKey.length() - 1) {

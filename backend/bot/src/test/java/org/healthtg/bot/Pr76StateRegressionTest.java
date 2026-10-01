@@ -97,7 +97,7 @@ class Pr76StateRegressionTest {
     @Test void genuinelyNewStartAfterCompletionCreatesNewToken() {
         CoreBotFlow f = flow(); String category = button(f.beginCheckin(msg(1105, 10, "/state")));
         String score = button(f.handleCallback(cb(1105, 11, category)));
-        f.handleCallback(cb(1105, 12, score)); assertEquals("idle", state(1105).step());
+        f.handleCallback(cb(1105, 12, score)); assertEquals("checkin_complete", state(1105).step());
         String next = button(f.beginCheckin(msg(1105, 13, "/state")));
         assertNotEquals(token(category), token(next)); assertEquals(storedToken(state(1105)), token(next));
     }
@@ -214,12 +214,12 @@ class Pr76StateRegressionTest {
         assertEquals(original, state(1206)); assertEquals(other, state(1207));
         assertEquals(EntryStatus.DRAFT, entries.requireEntry(owner(1206), original.activeEntryId()).status());
     }
-    @Test void savedCheckinMustNotRepeatIfSavingIdleFailsOnce() {
+    @Test void savedCheckinMustNotRepeatAfterCompletionSaveFailsAndProcessRestarts() {
         DialogStateService failing = mock(DialogStateService.class, delegatesTo(dialogs));
         AtomicBoolean fail = new AtomicBoolean(true);
         doAnswer(inv -> {
             SaveDialogStateCommand command = inv.getArgument(0);
-            if (command.step().equals("idle") && fail.getAndSet(false)) {
+            if (command.step().equals("checkin_complete") && fail.getAndSet(false)) {
                 throw new IllegalStateException("simulated dialog write interruption after entry persisted");
             }
             return dialogs.save(command);
@@ -229,7 +229,9 @@ class Pr76StateRegressionTest {
         String score = button(subject.handleCallback(cb(1111, 11, category)));
         assertThrows(IllegalStateException.class, () -> subject.handleCallback(cb(1111, 12, score)));
         assertEquals("checkin_score", state(1111).step());
-        subject.handleCallback(cb(1111, 13, score));
+        context.close(); reopen();
+        flow().handleCallback(cb(1111, 13, score));
+        assertEquals("checkin_complete", state(1111).step());
         assertEquals(1, entries.listConfirmedEntries(new ListConfirmedEntriesQuery(owner(1111),
                 java.time.LocalDate.of(2026,1,1), java.time.LocalDate.of(2030,1,1), java.time.ZoneId.of("UTC"), Set.of())).size());
     }
@@ -247,7 +249,7 @@ class Pr76StateRegressionTest {
         assertThrows(IllegalStateException.class, () -> subject.handleCallback(cb(1112, 12, score)));
         subject.handleCallback(cb(1112, 12, score));
         verify(failing, times(2)).createCheckin(any());
-        assertEquals("idle", state(1112).step());
+        assertEquals("checkin_complete", state(1112).step());
         assertEquals(1, entries.listConfirmedEntries(new ListConfirmedEntriesQuery(owner(1112),
                 java.time.LocalDate.of(2026,1,1), java.time.LocalDate.of(2030,1,1), java.time.ZoneId.of("UTC"), Set.of())).size());
     }
@@ -257,7 +259,9 @@ class Pr76StateRegressionTest {
         AtomicBoolean fail = new AtomicBoolean(true);
         doAnswer(inv -> {
             SaveDialogStateCommand command = inv.getArgument(0);
-            if (command.step().equals("idle") && fail.getAndSet(false)) throw new IllegalStateException("simulated idle failure");
+            if (command.step().equals("checkin_complete") && fail.getAndSet(false)) {
+                throw new IllegalStateException("simulated completion failure");
+            }
             return dialogs.save(command);
         }).when(failing).save(any());
         CoreBotFlow subject = new CoreBotFlow(users, entries, failing, Clock.systemUTC());
@@ -268,9 +272,24 @@ class Pr76StateRegressionTest {
         assertNotEquals(token(firstCategory), token(nextCategory));
         String nextScore = button(subject.handleCallback(cb(1113, 21, nextCategory)));
         subject.handleCallback(cb(1113, 22, nextScore));
-        assertEquals("idle", state(1113).step());
+        assertEquals("checkin_complete", state(1113).step());
         assertEquals(2, entries.listConfirmedEntries(new ListConfirmedEntriesQuery(owner(1113),
                 java.time.LocalDate.of(2026,1,1), java.time.LocalDate.of(2030,1,1), java.time.ZoneId.of("UTC"), Set.of())).size());
     }
-}
 
+    @Test void completedCheckinReplayAfterRestartReturnsSavedConfirmation() {
+        CoreBotFlow subject = flow();
+        String category = button(subject.beginCheckin(msg(1114, 10, "/state")));
+        String score = button(subject.handleCallback(cb(1114, 11, category)));
+        subject.handleCallback(cb(1114, 12, score));
+        context.close(); reopen();
+
+        List<BotAction> replay = flow().handleCallback(cb(1114, 12, score));
+
+        assertEquals("Уже сохранено", ((BotAction.AnswerCallback) replay.getFirst()).text());
+        assertEquals("Отметка уже сохранена.", ((BotAction.SendInlineMessage) replay.get(1)).text());
+        assertEquals(1, entries.listConfirmedEntries(new ListConfirmedEntriesQuery(owner(1114),
+                java.time.LocalDate.of(2026,1,1), java.time.LocalDate.of(2030,1,1),
+                java.time.ZoneId.of("UTC"), Set.of())).size());
+    }
+}

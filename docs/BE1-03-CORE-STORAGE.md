@@ -22,6 +22,10 @@ current persisted state without accepting the proposed context, so check-in keyb
 selector ID. Draft cancellation observes the dialog before cancelling the entry and conditionally
 clears only that same observed state afterwards.
 
+Quick check-ins use the persisted selector `start_update` as their stable idempotency key. A completed
+selection is stored as `checkin_complete` with its selector and callback identity, allowing a restart
+to return the saved confirmation without creating another entry.
+
 All calls require `OwnerContext`, produced from the authenticated user. A Telegram consumer supplies a
 stable `TelegramUpdateKey(botKey, updateId)`. Re-delivery of that update returns the existing result.
 Draft creation uses the stable Telegram update key for delivery idempotency. `submissionId` remains

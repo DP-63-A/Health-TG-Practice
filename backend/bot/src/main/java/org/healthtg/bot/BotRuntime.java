@@ -104,6 +104,10 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
                         LOG.warn("Не удалось отправить ответ; повторим обработку. Уже отправленная часть ответа может повториться.");
                         if (!pause(2000)) return;
                         break;
+                    } catch (RuntimeException e) {
+                        LOG.error("Отдельное сообщение не обработано из-за внутренней ошибки; продолжаем без вывода персональных данных.");
+                        offset = update.getUpdateId() + 1;
+                        deliveryFailures = 0;
                     }
                 }
                 // Empty immediate responses must not produce a busy loop (e.g. during a proxy fault).

@@ -125,7 +125,8 @@ final class EntryPayloadValidator {
 
     private static String requireText(Map<String, Object> payload, String field, int maxLength) {
         Object value = payload.get(field);
-        if (!(value instanceof String text) || text.isBlank() || text.length() > maxLength) {
+        if (!(value instanceof String text) || text.isBlank()
+                || text.codePointCount(0, text.length()) > maxLength) {
             throw invalid(field + " must be a non-blank string of at most " + maxLength + " characters");
         }
         return text;

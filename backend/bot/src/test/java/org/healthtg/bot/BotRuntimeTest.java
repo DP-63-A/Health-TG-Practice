@@ -29,9 +29,12 @@ class BotRuntimeTest {
     private final AtomicInteger closed = new AtomicInteger();
     private final CountDownLatch transportClosed = new CountDownLatch(1);
     private BotRuntime runtime() {
+        return runtime(BotFlow.unavailable());
+    }
+    private BotRuntime runtime(BotFlow flow) {
         return new BotRuntime(client, RuntimeSettings.from(RuntimeSettingsTest.environment()), () -> {
             closed.incrementAndGet(); transportClosed.countDown();
-        });
+        }, flow);
     }
     private void successfulHandshake(String webhookUrl) throws Exception {
         var info = new WebhookInfo(); info.setUrl(webhookUrl);
@@ -156,6 +159,36 @@ class BotRuntimeTest {
             verify(client).execute(any(SendMessage.class));
         }
         assertEquals(1, closed.get());
+    }
+
+    @Test void oneBrokenUpdateDoesNotStopProcessingFollowingMessages() throws Exception {
+        successfulHandshake("");
+        BotFlow flow = mock(BotFlow.class);
+        when(flow.handleMessage(any()))
+                .thenThrow(new IllegalArgumentException("synthetic invalid message"))
+                .thenReturn(List.of(new BotAction.SendMessage(1001L, "Следующее сообщение обработано", null)));
+        var nextPoll = new CountDownLatch(1);
+        AtomicInteger requested = new AtomicInteger();
+        when(client.execute(any(GetUpdates.class))).thenAnswer(invocation -> {
+            GetUpdates request = invocation.getArgument(0);
+            if (requested.getAndIncrement() == 0) {
+                var first = TelegramAdapterTest.message("первое");
+                var second = TelegramAdapterTest.message("второе");
+                second.setUpdateId(11);
+                return List.of(first, second);
+            }
+            assertEquals(12, request.getOffset());
+            nextPoll.countDown();
+            waitUntilInterrupted();
+            return List.of();
+        });
+
+        try (var runtime = runtime(flow)) {
+            runtime.start();
+            assertTrue(nextPoll.await(5, TimeUnit.SECONDS));
+            assertTrue(runtime.isRunning());
+            verify(flow, times(2)).handleMessage(any());
+        }
     }
 
     @Test void failedDeliveryIsRetriedWithoutAcknowledgementThenSuccessfulDeliveryAdvancesOffset() throws Exception {

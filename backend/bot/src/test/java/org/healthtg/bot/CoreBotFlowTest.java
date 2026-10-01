@@ -56,6 +56,15 @@ class CoreBotFlowTest {
         when(users.findOrCreate(TELEGRAM_ID)).thenReturn(
                 new UserAccount(OWNER_ID, TELEGRAM_ID, ZoneId.of("Europe/Warsaw"), true));
         when(entries.findActiveDraft(any())).thenReturn(Optional.empty());
+        when(entries.createCheckin(any())).thenAnswer(invocation -> {
+            CreateCheckinCommand command = invocation.getArgument(0);
+            return new Entry(UUID.randomUUID(), command.owner().userId(), EntryType.CHECKIN,
+                    EntryStatus.CONFIRMED, SourceKind.QUICK_CHECKIN,
+                    Map.of("telegram_update_id", command.updateKey().updateId()), command.occurredAt(), NOW, NOW, 1,
+                    Map.of("category", command.category().code(), "score", command.score()),
+                    Map.of("category", "reported", "score", "reported"), null,
+                    command.updateKey().storageKey());
+        });
         AtomicLong revision = new AtomicLong();
         AtomicReference<DialogState> state = new AtomicReference<>();
         when(dialogs.save(any())).thenAnswer(invocation -> {
@@ -86,7 +95,8 @@ class CoreBotFlowTest {
         assertEquals(OWNER_ID, command.getValue().owner().userId());
         assertEquals("sleep_quality", command.getValue().category().code());
         assertEquals(5, command.getValue().score());
-        assertEquals(12, command.getValue().updateKey().updateId());
+        assertEquals("main-checkin", command.getValue().updateKey().botKey());
+        assertEquals(10, command.getValue().updateKey().updateId());
     }
 
     @Test
@@ -184,6 +194,20 @@ class CoreBotFlowTest {
 
         assertEquals("Некорректные параметры", action.text());
         verify(entries, never()).cancel(any(), any(), anyLong());
+    }
+
+    @Test
+    void rejectedEmojiInputReturnsAUserFacingMessage() {
+        when(parser.parse("съел яблоко 🍎")).thenReturn(new TextParseResult(
+                TextParseResult.Outcome.REJECTED, "съел яблоко 🍎", null,
+                List.of(new TextParseResult.Issue("EMOJI_NOT_SUPPORTED", "text",
+                        "Эмодзи в текстовых записях не поддерживаются."))));
+
+        var action = assertInstanceOf(BotAction.SendInlineMessage.class,
+                flow.handleMessage(message(49, "съел яблоко 🍎")).getFirst());
+
+        assertEquals("Эмодзи в текстовых записях не поддерживаются.", action.text());
+        verify(entries, never()).createDraft(any());
     }
 
     @Test
