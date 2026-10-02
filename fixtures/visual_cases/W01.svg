@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#f5f4ee"/>
+  <rect x="120" y="150" width="560" height="240" rx="20" fill="#dfe0d6"/>
+  <rect x="180" y="210" width="200" height="120" rx="18" fill="#7db4c6"/>
+  <rect x="420" y="210" width="200" height="120" rx="18" fill="#a8d5df"/>
+  <circle cx="270" cy="250" r="48" fill="#7aa4be"/>
+  <circle cx="520" cy="250" r="48" fill="#9bc8d9"/>
+  <text x="400" y="95" text-anchor="middle" font-size="40" font-family="Arial, sans-serif" fill="#2f4554">W01 • Wearable</text>
+  <text x="400" y="520" text-anchor="middle" font-size="30" font-family="Arial, sans-serif" fill="#2f4554">10,130 steps • 54 min active</text>
+</svg>

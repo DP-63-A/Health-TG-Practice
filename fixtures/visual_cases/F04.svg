@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#faefe8"/>
+  <rect x="110" y="150" width="580" height="250" rx="30" fill="#f4d7bf"/>
+  <rect x="200" y="240" width="200" height="130" rx="18" fill="#8a5d3b"/>
+  <circle cx="500" cy="290" r="80" fill="#d7b38b"/>
+  <path d="M500 210 C535 240, 560 275, 555 330 C535 350, 515 355, 500 345 C480 350, 460 348, 445 330 C440 275, 467 240, 500 210 Z" fill="#d4c5aa"/>
+  <text x="400" y="95" text-anchor="middle" font-size="40" font-family="Arial, sans-serif" fill="#59413b">F04 • Coffee + cake</text>
+  <text x="400" y="520" text-anchor="middle" font-size="30" font-family="Arial, sans-serif" fill="#59413b">coffee + pastry / 160g</text>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#f6f2ea"/>
+  <rect x="130" y="150" width="540" height="260" rx="35" fill="#d7d2bd"/>
+  <ellipse cx="260" cy="290" rx="125" ry="88" fill="#f4c666"/>
+  <ellipse cx="405" cy="290" rx="130" ry="90" fill="#d7e07d"/>
+  <ellipse cx="545" cy="285" rx="110" ry="85" fill="#8cc7a8"/>
+  <rect x="180" y="410" width="440" height="48" rx="12" fill="#7f5a3a" opacity="0.75"/>
+  <text x="400" y="95" text-anchor="middle" font-size="40" font-family="Arial, sans-serif" fill="#44362d">F03 • Rice bowl</text>
+  <text x="400" y="520" text-anchor="middle" font-size="30" font-family="Arial, sans-serif" fill="#44362d">310g • 420 kcal</text>
+</svg>

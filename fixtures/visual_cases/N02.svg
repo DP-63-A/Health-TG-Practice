@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#f8f8f6"/>
+  <rect x="90" y="120" width="620" height="360" rx="20" fill="#e1e0db"/>
+  <circle cx="250" cy="260" r="120" fill="#b9b3aa"/>
+  <circle cx="480" cy="300" r="110" fill="#d7d1c8"/>
+  <rect x="180" y="420" width="440" height="28" rx="10" fill="#9d9a94"/>
+  <text x="400" y="90" text-anchor="middle" font-size="40" font-family="Arial, sans-serif" fill="#4b4a46">N02 • Irrelevant scene</text>
+  <text x="400" y="520" text-anchor="middle" font-size="30" font-family="Arial, sans-serif" fill="#4b4a46">No health or food signal</text>
+</svg>

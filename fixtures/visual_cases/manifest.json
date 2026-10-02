@@ -1,0 +1,272 @@
+{
+  "dataset_id": "be3-06a-visual-cases",
+  "generated_at": "2026-10-02T00:00:00Z",
+  "description": "Synthetic visual validation set for BE3-06a. The dataset intentionally contains no real people, no secret IDs, and no licensed media.",
+  "items": [
+    {
+      "id": "F01",
+      "path": "fixtures/visual_cases/F01.svg",
+      "category": "food",
+      "source": "synthetic",
+      "expected_fields": {
+        "food": "omelet",
+        "mass_g": 220,
+        "calories_kcal": 260,
+        "protein_g": 18,
+        "carbs_g": 8,
+        "fat_g": 17
+      },
+      "units": {
+        "mass": "g",
+        "energy": "kcal",
+        "macro": "g"
+      },
+      "datetime": "2026-09-15T12:30:00+02:00",
+      "uncertainties": [
+        "portion size estimated from plate area",
+        "meal composition inferred from scene"
+      ],
+      "expected_action": "draft"
+    },
+    {
+      "id": "F02",
+      "path": "fixtures/visual_cases/F02.svg",
+      "category": "food",
+      "source": "synthetic",
+      "expected_fields": {
+        "food": "fruit_salad",
+        "mass_g": 180,
+        "calories_kcal": 140,
+        "protein_g": 2,
+        "carbs_g": 31,
+        "fat_g": 1
+      },
+      "units": {
+        "mass": "g",
+        "energy": "kcal",
+        "macro": "g"
+      },
+      "datetime": "2026-09-16T08:15:00+02:00",
+      "uncertainties": [
+        "fruit mix not fully explicit",
+        "some ingredients are not visible"
+      ],
+      "expected_action": "draft"
+    },
+    {
+      "id": "F03",
+      "path": "fixtures/visual_cases/F03.svg",
+      "category": "food",
+      "source": "synthetic",
+      "expected_fields": {
+        "food": "rice_bowl",
+        "mass_g": 310,
+        "calories_kcal": 420,
+        "protein_g": 16,
+        "carbs_g": 58,
+        "fat_g": 12
+      },
+      "units": {
+        "mass": "g",
+        "energy": "kcal",
+        "macro": "g"
+      },
+      "datetime": "2026-09-17T19:10:00+02:00",
+      "uncertainties": [
+        "exact sauce quantity omitted",
+        "meal recognized from bowl layout"
+      ],
+      "expected_action": "draft"
+    },
+    {
+      "id": "F04",
+      "path": "fixtures/visual_cases/F04.svg",
+      "category": "food",
+      "source": "synthetic",
+      "expected_fields": {
+        "food": "coffee_and_cake",
+        "mass_g": 160,
+        "calories_kcal": 300,
+        "protein_g": 5,
+        "carbs_g": 36,
+        "fat_g": 10
+      },
+      "units": {
+        "mass": "g",
+        "energy": "kcal",
+        "macro": "g"
+      },
+      "datetime": "2026-09-18T10:45:00+02:00",
+      "uncertainties": [
+        "coffee size approximated",
+        "cake frosting not fully visible"
+      ],
+      "expected_action": "ask"
+    },
+    {
+      "id": "H01",
+      "path": "fixtures/visual_cases/H01.svg",
+      "category": "health",
+      "source": "synthetic",
+      "expected_fields": {
+        "screen_type": "sleep_summary",
+        "sleep_hours": 7.4,
+        "sleep_quality": "good",
+        "date": "2026-09-15"
+      },
+      "units": {
+        "duration": "h",
+        "score": "1-5"
+      },
+      "datetime": "2026-09-15T23:59:00+02:00",
+      "uncertainties": [
+        "sleep quality is inferred from UI labels",
+        "screen contains no raw sensor values"
+      ],
+      "expected_action": "draft"
+    },
+    {
+      "id": "H02",
+      "path": "fixtures/visual_cases/H02.svg",
+      "category": "health",
+      "source": "synthetic",
+      "expected_fields": {
+        "screen_type": "health_metrics",
+        "heart_rate_bpm": 72,
+        "steps": 8240,
+        "active_minutes": 38,
+        "date": "2026-09-16"
+      },
+      "units": {
+        "heart_rate": "bpm",
+        "steps": "count",
+        "active_minutes": "min"
+      },
+      "datetime": "2026-09-16T18:05:00+02:00",
+      "uncertainties": [
+        "UI text may not match source device",
+        "steps count is visually read from card"
+      ],
+      "expected_action": "draft"
+    },
+    {
+      "id": "H03",
+      "path": "fixtures/visual_cases/H03.svg",
+      "category": "health",
+      "source": "synthetic",
+      "expected_fields": {
+        "screen_type": "wellness_dashboard",
+        "mood_score": 4,
+        "digestive_score": 3,
+        "sleep_score": 5,
+        "date": "2026-09-17"
+      },
+      "units": {
+        "score": "1-5"
+      },
+      "datetime": "2026-09-17T20:25:00+02:00",
+      "uncertainties": [
+        "score labels are read from colored chips",
+        "display is not a raw medical report"
+      ],
+      "expected_action": "draft"
+    },
+    {
+      "id": "H04",
+      "path": "fixtures/visual_cases/H04.svg",
+      "category": "health",
+      "source": "synthetic",
+      "expected_fields": {
+        "screen_type": "blood_pressure_summary",
+        "systolic_mmHg": 118,
+        "diastolic_mmHg": 76,
+        "date": "2026-09-18"
+      },
+      "units": {
+        "pressure": "mmHg"
+      },
+      "datetime": "2026-09-18T09:20:00+02:00",
+      "uncertainties": [
+        "reading is from a UI card, not a direct source record",
+        "possible occlusion in top-right corner"
+      ],
+      "expected_action": "ask"
+    },
+    {
+      "id": "W01",
+      "path": "fixtures/visual_cases/W01.svg",
+      "category": "wearable",
+      "source": "synthetic",
+      "expected_fields": {
+        "device": "fitness_band",
+        "steps": 10130,
+        "active_minutes": 54,
+        "calories_burned": 540,
+        "date": "2026-09-15"
+      },
+      "units": {
+        "steps": "count",
+        "active_minutes": "min",
+        "energy": "kcal"
+      },
+      "datetime": "2026-09-15T07:45:00+02:00",
+      "uncertainties": [
+        "not a real wearable log",
+        "screen labels are synthetic and stylized"
+      ],
+      "expected_action": "draft"
+    },
+    {
+      "id": "W02",
+      "path": "fixtures/visual_cases/W02.svg",
+      "category": "wearable",
+      "source": "synthetic",
+      "expected_fields": {
+        "device": "fitness_band",
+        "steps": 7640,
+        "heart_rate_bpm": 81,
+        "distance_km": 5.8,
+        "date": "2026-09-16"
+      },
+      "units": {
+        "distance": "km",
+        "heart_rate": "bpm",
+        "steps": "count"
+      },
+      "datetime": "2026-09-16T17:10:00+02:00",
+      "uncertainties": [
+        "distance inferred from activity overview",
+        "strict OCR is not expected in this sample"
+      ],
+      "expected_action": "draft"
+    },
+    {
+      "id": "N01",
+      "path": "fixtures/visual_cases/N01.svg",
+      "category": "noise",
+      "source": "synthetic",
+      "expected_fields": {},
+      "units": {},
+      "datetime": "2026-09-19T12:00:00+02:00",
+      "uncertainties": [
+        "image contains no meaningful nutrition, health or activity content",
+        "text is intentionally unreadable"
+      ],
+      "expected_action": "refuse"
+    },
+    {
+      "id": "N02",
+      "path": "fixtures/visual_cases/N02.svg",
+      "category": "noise",
+      "source": "synthetic",
+      "expected_fields": {},
+      "units": {},
+      "datetime": "2026-09-19T18:00:00+02:00",
+      "uncertainties": [
+        "image is irrelevant to nutrition or health tracking",
+        "no safe extraction path for any field"
+      ],
+      "expected_action": "refuse"
+    }
+  ]
+}

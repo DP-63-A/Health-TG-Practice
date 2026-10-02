@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#edf6ff"/>
+  <rect x="110" y="120" width="580" height="360" rx="30" fill="#dfe8f7"/>
+  <rect x="170" y="180" width="460" height="70" rx="12" fill="#7db7dc"/>
+  <rect x="170" y="280" width="460" height="70" rx="12" fill="#b4d5f0"/>
+  <rect x="170" y="380" width="460" height="60" rx="12" fill="#96c6e7"/>
+  <path d="M220 300 L350 245 L450 320 L580 250" stroke="#245d7a" stroke-width="8" fill="none"/>
+  <text x="400" y="95" text-anchor="middle" font-size="40" font-family="Arial, sans-serif" fill="#244f66">H01 • Sleep summary</text>
+  <text x="400" y="520" text-anchor="middle" font-size="30" font-family="Arial, sans-serif" fill="#244f66">7.4h • good sleep</text>
+</svg>

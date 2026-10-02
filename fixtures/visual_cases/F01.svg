@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#f6f1e7"/>
+  <rect x="70" y="120" width="660" height="360" rx="30" fill="#d9efe0"/>
+  <ellipse cx="230" cy="300" rx="120" ry="115" fill="#e8b15a"/>
+  <ellipse cx="365" cy="270" rx="110" ry="95" fill="#ffdd8b"/>
+  <ellipse cx="500" cy="310" rx="120" ry="110" fill="#d77a5b"/>
+  <rect x="180" y="380" width="400" height="55" rx="15" fill="#8a6f52" opacity="0.78"/>
+  <text x="400" y="95" text-anchor="middle" font-size="40" font-family="Arial, sans-serif" fill="#264653">F01 • Food</text>
+  <text x="400" y="520" text-anchor="middle" font-size="30" font-family="Arial, sans-serif" fill="#264653">omelet / 220g / 260 kcal</text>
+</svg>
