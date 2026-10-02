@@ -1,0 +1,12 @@
+{
+  "profile_type": "incomplete",
+  "timezone": "Europe/Warsaw",
+  "start_date": "2026-09-15",
+  "entries": [
+    {"owner_id": "fake-user-uuid", "food": "soup", "mass_g": 374, "calories_kcal": 241, "protein_g": 10.9, "carbs_g": 26.8, "fat_g": 9.3, "occurred_at": "2026-09-15T12:18:00+02:00", "status": "confirmed", "source": "telegram_text"},
+    {"owner_id": "fake-user-uuid", "food": "rice_bowl", "mass_g": 339, "calories_kcal": 563, "protein_g": 25.4, "carbs_g": 87.9, "fat_g": 18.9, "occurred_at": "2026-09-17T07:22:00+02:00", "status": "confirmed", "source": "telegram_text"},
+    {"owner_id": "fake-user-uuid", "food": "fruit", "mass_g": 178, "calories_kcal": 113, "protein_g": 1.0, "carbs_g": 27.6, "fat_g": 0.0, "occurred_at": "2026-09-19T17:29:00+02:00", "status": "confirmed", "source": "telegram_text"},
+    {"owner_id": "fake-user-uuid", "food": "fruit", "mass_g": 143, "calories_kcal": 91, "protein_g": 0.8, "carbs_g": 22.1, "fat_g": 0.0, "occurred_at": "2026-09-22T13:59:00+02:00", "status": "confirmed", "source": "telegram_text"},
+    {"owner_id": "fake-user-uuid", "food": "soup", "mass_g": 355, "calories_kcal": 228, "protein_g": 10.2, "carbs_g": 25.4, "fat_g": 8.8, "occurred_at": "2026-09-24T19:14:00+02:00", "status": "confirmed", "source": "telegram_text"}
+  ]
+}
