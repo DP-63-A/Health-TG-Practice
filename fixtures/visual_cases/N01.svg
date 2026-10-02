@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#f7f7f5"/>
+  <rect x="100" y="100" width="600" height="400" rx="35" fill="#dfe3de"/>
+  <g font-family="Arial, sans-serif" fill="#4e4f5b">
+    <text x="400" y="220" text-anchor="middle" font-size="72">??</text>
+    <text x="400" y="400" text-anchor="middle" font-size="54">Unreadable</text>
+  </g>
+  <text x="400" y="95" text-anchor="middle" font-size="40" font-family="Arial, sans-serif" fill="#4e4f5b">N01 • Noise / unreadable text</text>
+</svg>

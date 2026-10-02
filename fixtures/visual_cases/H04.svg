@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#fef3ef"/>
+  <rect x="120" y="130" width="560" height="340" rx="30" fill="#f5d9d1"/>
+  <rect x="180" y="195" width="440" height="80" rx="16" fill="#dc8d7c"/>
+  <rect x="180" y="295" width="440" height="80" rx="16" fill="#e8a3a0"/>
+  <rect x="180" y="395" width="440" height="40" rx="10" fill="#cb7a74"/>
+  <text x="400" y="95" text-anchor="middle" font-size="40" font-family="Arial, sans-serif" fill="#5c3437">H04 • Pressure summary</text>
+  <text x="400" y="520" text-anchor="middle" font-size="30" font-family="Arial, sans-serif" fill="#5c3437">118/76 mmHg</text>
+</svg>

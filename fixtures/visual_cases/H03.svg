@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#f6f1fb"/>
+  <rect x="110" y="120" width="580" height="360" rx="30" fill="#e2d8f7"/>
+  <circle cx="230" cy="280" r="80" fill="#b592eb"/>
+  <circle cx="400" cy="280" r="80" fill="#cdb4ee"/>
+  <circle cx="570" cy="280" r="80" fill="#8f7ae1"/>
+  <text x="400" y="95" text-anchor="middle" font-size="40" font-family="Arial, sans-serif" fill="#43304f">H03 • Wellness dashboard</text>
+  <text x="400" y="520" text-anchor="middle" font-size="30" font-family="Arial, sans-serif" fill="#43304f">mood 4 • digestion 3 • sleep 5</text>
+</svg>

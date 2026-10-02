@@ -1,0 +1,15 @@
+{
+  "profile_type": "regular",
+  "timezone": "Europe/Warsaw",
+  "start_date": "2026-09-15",
+  "entries": [
+    {"owner_id": "fake-user-uuid", "food": "rice_bowl", "mass_g": 328, "calories_kcal": 532, "protein_g": 23.5, "carbs_g": 84.1, "fat_g": 17.4, "occurred_at": "2026-09-15T08:24:00+02:00", "status": "confirmed", "source": "telegram_text"},
+    {"owner_id": "fake-user-uuid", "food": "soup", "mass_g": 389, "calories_kcal": 251, "protein_g": 11.1, "carbs_g": 27.7, "fat_g": 9.7, "occurred_at": "2026-09-15T12:35:00+02:00", "status": "confirmed", "source": "telegram_text"},
+    {"owner_id": "fake-user-uuid", "food": "omelet", "mass_g": 209, "calories_kcal": 208, "protein_g": 14.3, "carbs_g": 6.4, "fat_g": 13.5, "occurred_at": "2026-09-15T18:92:00+02:00", "status": "confirmed", "source": "telegram_text"},
+    {"owner_id": "fake-user-uuid", "category": "sleep_quality", "rating": 4, "occurred_at": "2026-09-15T21:42:00+02:00", "status": "confirmed", "source": "telegram_button"},
+    {"owner_id": "fake-user-uuid", "food": "salad", "mass_g": 217, "calories_kcal": 147, "protein_g": 5.2, "carbs_g": 8.7, "fat_g": 9.2, "occurred_at": "2026-09-16T08:76:00+02:00", "status": "confirmed", "source": "telegram_text"},
+    {"owner_id": "fake-user-uuid", "food": "soup", "mass_g": 378, "calories_kcal": 243, "protein_g": 10.8, "carbs_g": 27.0, "fat_g": 9.4, "occurred_at": "2026-09-16T12:15:00+02:00", "status": "confirmed", "source": "telegram_text"},
+    {"owner_id": "fake-user-uuid", "food": "rice_bowl", "mass_g": 297, "calories_kcal": 483, "protein_g": 21.2, "carbs_g": 75.9, "fat_g": 15.7, "occurred_at": "2026-09-16T19:62:00+02:00", "status": "confirmed", "source": "telegram_text"},
+    {"owner_id": "fake-user-uuid", "category": "mood", "rating": 3, "occurred_at": "2026-09-16T22:31:00+02:00", "status": "confirmed", "source": "telegram_button"}
+  ]
+}

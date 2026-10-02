@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BE3-06a visual-case manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["dataset_id", "generated_at", "description", "items"],
+  "properties": {
+    "dataset_id": {
+      "type": "string",
+      "const": "be3-06a-visual-cases"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 20
+    },
+    "items": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "category", "source", "expected_fields", "units", "datetime", "uncertainties", "expected_action"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^(F|H|W|N)\\d{2}$"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^fixtures/visual_cases/.*\\.(svg|png|jpg|jpeg)$"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["food", "health", "wearable", "noise"]
+        },
+        "source": {
+          "type": "string",
+          "enum": ["synthetic", "generated"]
+        },
+        "expected_fields": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "units": {
+          "type": "object",
+          "additionalProperties": {"type": "string"}
+        },
+        "datetime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "uncertainties": {
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1
+        },
+        "expected_action": {
+          "type": "string",
+          "enum": ["draft", "ask", "refuse"]
+        }
+      }
+    }
+  }
+}

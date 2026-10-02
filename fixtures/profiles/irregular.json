@@ -1,0 +1,13 @@
+{
+  "profile_type": "irregular",
+  "timezone": "Europe/Warsaw",
+  "start_date": "2026-09-15",
+  "entries": [
+    {"owner_id": "fake-user-uuid", "food": "salad", "mass_g": 241, "calories_kcal": 154, "protein_g": 5.6, "carbs_g": 9.3, "fat_g": 10.2, "occurred_at": "2026-09-15T09:25:00+02:00", "status": "cancelled", "source": "telegram_text"},
+    {"owner_id": "fake-user-uuid", "food": "soup", "mass_g": 411, "calories_kcal": 280, "protein_g": 12.4, "carbs_g": 31.0, "fat_g": 10.7, "occurred_at": "2026-09-15T11:33:00+02:00", "status": "draft", "source": "telegram_text"},
+    {"owner_id": "fake-user-uuid", "category": "digestion", "rating": 2, "occurred_at": "2026-09-15T20:14:00+02:00", "status": "confirmed", "source": "telegram_button"},
+    {"owner_id": "fake-user-uuid", "food": "soup", "mass_g": 364, "calories_kcal": 235, "protein_g": 10.6, "carbs_g": 25.8, "fat_g": 9.1, "occurred_at": "2026-09-17T10:58:00+02:00", "status": "confirmed", "source": "telegram_text"},
+    {"owner_id": "fake-user-uuid", "food": "fruit", "mass_g": 132, "calories_kcal": 85, "protein_g": 0.8, "carbs_g": 21.6, "fat_g": 0.0, "occurred_at": "2026-09-17T15:27:00+02:00", "status": "confirmed", "source": "telegram_text"},
+    {"owner_id": "fake-user-uuid", "category": "mood", "rating": 4, "occurred_at": "2026-09-17T21:03:00+02:00", "status": "confirmed", "source": "telegram_button"}
+  ]
+}

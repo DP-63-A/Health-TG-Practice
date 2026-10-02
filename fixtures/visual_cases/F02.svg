@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#eef8ff"/>
+  <rect x="80" y="150" width="640" height="280" rx="25" fill="#d5f0d1"/>
+  <circle cx="240" cy="300" r="90" fill="#f5b56d"/>
+  <circle cx="390" cy="290" r="84" fill="#8ad0c5"/>
+  <circle cx="520" cy="315" r="82" fill="#f1d77e"/>
+  <circle cx="320" cy="255" r="48" fill="#f7c8c5"/>
+  <circle cx="470" cy="245" r="42" fill="#df9c75"/>
+  <rect x="180" y="420" width="440" height="40" rx="10" fill="#4a7c59" opacity="0.8"/>
+  <text x="400" y="95" text-anchor="middle" font-size="40" font-family="Arial, sans-serif" fill="#244a4d">F02 • Fruit salad</text>
+  <text x="400" y="520" text-anchor="middle" font-size="30" font-family="Arial, sans-serif" fill="#244a4d">180g • 140 kcal</text>
+</svg>

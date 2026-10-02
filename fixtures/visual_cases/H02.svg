@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#edf6f3"/>
+  <rect x="120" y="120" width="560" height="360" rx="30" fill="#d8e9e2"/>
+  <rect x="180" y="190" width="120" height="210" rx="18" fill="#66b59f"/>
+  <rect x="330" y="250" width="120" height="150" rx="18" fill="#86c7b8"/>
+  <rect x="480" y="220" width="120" height="180" rx="18" fill="#a0d7c2"/>
+  <text x="400" y="95" text-anchor="middle" font-size="40" font-family="Arial, sans-serif" fill="#234a50">H02 • Health metrics</text>
+  <text x="400" y="520" text-anchor="middle" font-size="30" font-family="Arial, sans-serif" fill="#234a50">72 bpm • 8240 steps</text>
+</svg>

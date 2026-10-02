@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#eef7f5"/>
+  <rect x="120" y="150" width="560" height="250" rx="20" fill="#dfece8"/>
+  <path d="M180 340 L280 245 L360 315 L450 220 L590 330" stroke="#126d62" stroke-width="12" fill="none"/>
+  <circle cx="280" cy="245" r="18" fill="#1a7567"/>
+  <circle cx="450" cy="220" r="18" fill="#1a7567"/>
+  <rect x="220" y="420" width="360" height="32" rx="10" fill="#3a8f86" opacity="0.8"/>
+  <text x="400" y="95" text-anchor="middle" font-size="40" font-family="Arial, sans-serif" fill="#1b433d">W02 • Activity graph</text>
+  <text x="400" y="520" text-anchor="middle" font-size="30" font-family="Arial, sans-serif" fill="#1b433d">7,640 steps • 81 bpm</text>
+</svg>
