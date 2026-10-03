@@ -28,8 +28,7 @@ class TextPayloadContractTest {
             "25.09.2026 в 10:00 пульс в покое 68 уд/мин",
             "25.09.2026 еда: паста",
             "25.09.2026 съела 0,125 кг пасты",
-            "После завтрака чувствую себя хорошо",
-            "😀"
+            "После завтрака чувствую себя хорошо"
     })
     void supportedPayloadsMatchRealProjectSchemasAndEnums(String input) throws Exception {
         var result = parser.parse(input);

@@ -1,10 +1,8 @@
 package org.healthtg.user;
 
-import org.healthtg.auth.AuthProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DuplicateKeyException;
 
-import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Optional;
 import java.util.UUID;
@@ -43,8 +41,6 @@ class UserServiceTest {
     }
 
     private static UserService service(UserStore store) {
-        AuthProperties properties = new AuthProperties("token", Long.toString(TELEGRAM_ID),
-                Duration.ofMinutes(15), Duration.ofMinutes(60), ZoneId.of("Europe/Warsaw"));
-        return new UserService(store, properties);
+        return new UserService(store, ZoneId.of("Europe/Warsaw"));
     }
 }

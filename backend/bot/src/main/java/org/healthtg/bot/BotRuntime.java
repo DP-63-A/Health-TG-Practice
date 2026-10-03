@@ -7,6 +7,8 @@ import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.SmartLifecycle;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.TransientDataAccessException;
 import org.telegram.telegrambots.meta.api.methods.GetMe;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.updates.GetUpdates;
@@ -23,15 +25,21 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
     private final TelegramClient client;
     private final RuntimeSettings settings;
     private final Runnable closeTransport;
+    private final BotFlow flow;
     private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> new Thread(r, "telegram-polling"));
     private volatile boolean running;
     private boolean closed;
     private Future<?> worker;
 
     public BotRuntime(TelegramClient client, RuntimeSettings settings, Runnable closeTransport) {
+        this(client, settings, closeTransport, BotFlow.unavailable());
+    }
+
+    public BotRuntime(TelegramClient client, RuntimeSettings settings, Runnable closeTransport, BotFlow flow) {
         this.client = client;
         this.settings = settings;
         this.closeTransport = closeTransport;
+        this.flow = flow;
     }
 
     @Override public synchronized void start() {
@@ -45,7 +53,7 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
             }
             var me = client.execute(new GetMe());
             if (me == null || !Boolean.TRUE.equals(me.getIsBot())) throw new TelegramApiException("Missing bot identity");
-            BotHandler handler = new BotHandler(settings.forUsername(me.getUserName()), QuickCheckin.unavailable());
+            BotHandler handler = new BotHandler(settings.forUsername(me.getUserName()), QuickCheckin.unavailable(), flow);
             client.execute(SetMyCommands.builder().scope(new BotCommandScopeAllPrivateChats())
                     .commands(List.of(new BotCommand("start", "Открыть учебный дневник"),
                             new BotCommand("state", "Отметить состояние"))).build());
@@ -67,12 +75,13 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
         int offset = 0;
         int networkFailures = 0;
         int deliveryFailures = 0;
+        int storageFailures = 0;
         try {
             while (running && !Thread.currentThread().isInterrupted()) {
                 List<org.telegram.telegrambots.meta.api.objects.Update> updates;
                 try {
                     updates = client.execute(GetUpdates.builder().offset(offset).timeout(30).limit(100)
-                            .allowedUpdates(List.of("message")).build());
+                            .allowedUpdates(List.of("message", "callback_query")).build());
                     networkFailures = 0;
                 } catch (TelegramApiException e) {
                     if (fatal(e)) { LOG.error("Telegram отклонил polling. Проверьте токен и что бот запущен только в одном месте."); break; }
@@ -89,6 +98,7 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
                         adapter.accept(update);
                         offset = update.getUpdateId() + 1;
                         deliveryFailures = 0;
+                        storageFailures = 0;
                     } catch (TelegramApiException e) {
                         failed = true;
                         if (fatal(e) || ++deliveryFailures >= 3) {
@@ -98,6 +108,17 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
                         LOG.warn("Не удалось отправить ответ; повторим обработку. Уже отправленная часть ответа может повториться.");
                         if (!pause(2000)) return;
                         break;
+                    } catch (DataAccessResourceFailureException | TransientDataAccessException e) {
+                        failed = true;
+                        storageFailures = Math.min(storageFailures + 1, 6);
+                        long delayMillis = storageRetryDelay(storageFailures);
+                        LOG.warn("Временная ошибка хранилища. Сообщение не подтверждено; повтор через {} мс.",
+                                delayMillis);
+                        if (!pause(delayMillis)) return;
+                        break;
+                    } catch (RuntimeException e) {
+                        LOG.error("Обработка остановлена из-за внутренней ошибки. Текущее сообщение не подтверждено. Требуется проверка причины.");
+                        return;
                     }
                 }
                 // Empty immediate responses must not produce a busy loop (e.g. during a proxy fault).
@@ -113,6 +134,10 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
     private static boolean fatal(TelegramApiException e) {
         return e instanceof TelegramApiRequestException request
                 && (Integer.valueOf(401).equals(request.getErrorCode()) || Integer.valueOf(409).equals(request.getErrorCode()));
+    }
+    static long storageRetryDelay(int failureCount) {
+        if (failureCount < 1) throw new IllegalArgumentException("failureCount must be positive");
+        return Math.min(30_000L, 1_000L << Math.min(failureCount - 1, 5));
     }
     private static boolean pause(long millis) {
         try { Thread.sleep(millis); return true; }

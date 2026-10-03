@@ -40,6 +40,9 @@ public final class TextInputParser {
             return rejected(input, "TOO_LONG", "text", "Максимальная длина — 2000 Unicode-кодовых точек.");
         }
         if (!wellFormed(input)) return rejected(input, "INVALID_UNICODE", "text", "Строка содержит повреждённый символ Unicode.");
+        if (input.codePoints().anyMatch(TextInputParser::isEmoji)) {
+            return rejected(input, "EMOJI_NOT_SUPPORTED", "text", "Эмодзи в текстовых записях не поддерживаются.");
+        }
         String text = normalize(input);
         if (text.isBlank()) return rejected(input, "EMPTY_INPUT", "text", "Введите непустой текст.");
         if (text.codePoints().noneMatch(Character::isLetterOrDigit)) {
@@ -281,5 +284,11 @@ public final class TextInputParser {
             } else if (Character.isLowSurrogate(c)) return false;
         }
         return true;
+    }
+
+    private static boolean isEmoji(int codePoint) {
+        return codePoint == 0x200D || codePoint == 0x20E3 || codePoint == 0xFE0F
+                || codePoint >= 0x1F000 && codePoint <= 0x1FAFF
+                || codePoint >= 0x2600 && codePoint <= 0x27BF;
     }
 }
