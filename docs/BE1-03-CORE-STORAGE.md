@@ -26,6 +26,11 @@ Quick check-ins use the persisted selector `start_update` as their stable idempo
 selection is stored as `checkin_complete` with its selector and callback identity, allowing a restart
 to return the saved confirmation without creating another entry.
 
+If draft creation succeeds but saving `draft_review` is interrupted, redelivery of that exact Telegram
+update completes the dialog transition. A newer or unrelated update never adopts the existing draft.
+An expired Telegram callback acknowledgement is ignored only for the exact documented `400` response;
+the ordinary saved-result message is still delivered and all other Telegram errors remain retryable.
+
 All calls require `OwnerContext`, produced from the authenticated user. A Telegram consumer supplies a
 stable `TelegramUpdateKey(botKey, updateId)`. Re-delivery of that update returns the existing result.
 Draft creation uses the stable Telegram update key for delivery idempotency. `submissionId` remains

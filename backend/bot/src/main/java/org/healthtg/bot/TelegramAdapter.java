@@ -15,9 +15,12 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException;
 
 /** Maps SDK objects at the boundary; all permission decisions stay in BotHandler. */
 public final class TelegramAdapter {
+    private static final String EXPIRED_CALLBACK =
+            "Bad Request: query is too old and response timeout expired or query ID is invalid";
     private final TelegramClient client;
     private final BotHandler handler;
 
@@ -43,8 +46,15 @@ public final class TelegramAdapter {
                 client.execute(SendMessage.builder().chatId(message.chatId()).text(message.text())
                         .replyMarkup(InlineKeyboardMarkup.builder().keyboard(rows).build()).build());
             } else if (action instanceof BotAction.AnswerCallback answer) {
-                client.execute(AnswerCallbackQuery.builder().callbackQueryId(answer.callbackId())
-                        .text(answer.text()).build());
+                try {
+                    client.execute(AnswerCallbackQuery.builder().callbackQueryId(answer.callbackId())
+                            .text(answer.text()).build());
+                } catch (TelegramApiRequestException rejected) {
+                    if (!Integer.valueOf(400).equals(rejected.getErrorCode())
+                            || !EXPIRED_CALLBACK.equals(rejected.getApiResponse())) {
+                        throw rejected;
+                    }
+                }
             } else if (action instanceof BotAction.SetMenuButton menu) {
                 var button = menu.url() == null ? new MenuButtonCommands()
                         : MenuButtonWebApp.builder().text(menu.label())

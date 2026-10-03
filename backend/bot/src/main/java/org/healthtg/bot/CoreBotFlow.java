@@ -91,7 +91,14 @@ public final class CoreBotFlow implements BotFlow {
         UserAccount user = users.findOrCreate(update.senderId());
         OwnerContext owner = new OwnerContext(user.id());
         var active = entries.findActiveDraft(owner);
-        if (active.isPresent()) return activeDraft(update, active.get().id(), active.get().revision());
+        if (active.isPresent()) {
+            var draft = active.get();
+            if (key(update.updateId()).storageKey().equals(draft.telegramUpdateKey())) {
+                save(owner, draft.id(), "draft_review", Map.of("entry_revision", draft.revision()),
+                        update.updateId());
+            }
+            return activeDraft(update, draft.id(), draft.revision());
+        }
 
         Optional<ClarificationContext> clarification = readClarification(owner, update.updateId());
         String input = clarification.map(value -> value.originalText() + " " + update.text())
