@@ -1,0 +1,420 @@
+{
+  "version": "1.0.0",
+  "created_at": "2026-10-04T00:00:00Z",
+  "last_updated": "2026-10-04T00:00:00Z",
+  "commit_hash": "<to-be-filled-by-ci>",
+  "cases": [
+    {
+      "id": "F01",
+      "path": "food/F01.jpg",
+      "category": "food",
+      "source": {
+        "origin": "Educational food database - Common food items",
+        "license": "CC0",
+        "attribution": "Public domain educational material"
+      },
+      "expected_fields": {
+        "dish_name": {
+          "value": "Pasta Carbonara",
+          "unit": null,
+          "confidence": "estimated"
+        },
+        "portion_size": {
+          "value": "200",
+          "unit": "g",
+          "confidence": "uncertain"
+        },
+        "calories": {
+          "value": null,
+          "unit": "kcal",
+          "confidence": null
+        }
+      },
+      "datetime": {
+        "date": null,
+        "time": null,
+        "timezone": "Europe/Warsaw"
+      },
+      "uncertainties": [
+        "Exact portion size cannot be determined from photo",
+        "Ingredient sources and preparation method unknown",
+        "Caloric content is estimated based on typical recipe"
+      ],
+      "expected_action": "ask",
+      "ask_clarification": "Can you confirm the portion size in grams?",
+      "personal_data_check": true
+    },
+    {
+      "id": "F02",
+      "path": "food/F02.jpg",
+      "category": "food",
+      "source": {
+        "origin": "Educational food database - Common food items",
+        "license": "CC0",
+        "attribution": "Public domain educational material"
+      },
+      "expected_fields": {
+        "dish_name": {
+          "value": "Apple",
+          "unit": null,
+          "confidence": "certain"
+        },
+        "portion_size": {
+          "value": "150",
+          "unit": "g",
+          "confidence": "estimated"
+        },
+        "calories": {
+          "value": "80",
+          "unit": "kcal",
+          "confidence": "estimated"
+        }
+      },
+      "datetime": {
+        "date": null,
+        "time": null,
+        "timezone": "Europe/Warsaw"
+      },
+      "uncertainties": [
+        "Apple variety not clearly visible",
+        "Exact mass cannot be determined"
+      ],
+      "expected_action": "draft",
+      "personal_data_check": true
+    },
+    {
+      "id": "F03",
+      "path": "food/F03.jpg",
+      "category": "food",
+      "source": {
+        "origin": "Educational food database - Common food items",
+        "license": "CC0",
+        "attribution": "Public domain educational material"
+      },
+      "expected_fields": {
+        "dish_name": {
+          "value": "Salmon Fillet with Vegetables",
+          "unit": null,
+          "confidence": "estimated"
+        },
+        "portion_size": {
+          "value": "150",
+          "unit": "g",
+          "confidence": "uncertain"
+        },
+        "calories": {
+          "value": null,
+          "unit": "kcal",
+          "confidence": null
+        }
+      },
+      "datetime": {
+        "date": null,
+        "time": null,
+        "timezone": "Europe/Warsaw"
+      },
+      "uncertainties": [
+        "Cooking method and oil/butter used unknown",
+        "Vegetable portion ratio unclear",
+        "Caloric content depends on preparation"
+      ],
+      "expected_action": "ask",
+      "ask_clarification": "Was this baked, grilled, or fried?",
+      "personal_data_check": true
+    },
+    {
+      "id": "F04",
+      "path": "food/F04.jpg",
+      "category": "food",
+      "source": {
+        "origin": "Educational food database - Common food items",
+        "license": "CC0",
+        "attribution": "Public domain educational material"
+      },
+      "expected_fields": {
+        "dish_name": {
+          "value": "Mixed Salad",
+          "unit": null,
+          "confidence": "estimated"
+        },
+        "portion_size": {
+          "value": "250",
+          "unit": "g",
+          "confidence": "uncertain"
+        },
+        "calories": {
+          "value": null,
+          "unit": "kcal",
+          "confidence": null
+        }
+      },
+      "datetime": {
+        "date": null,
+        "time": null,
+        "timezone": "Europe/Warsaw"
+      },
+      "uncertainties": [
+        "Dressing type and amount not specified",
+        "Ingredient composition partially obscured",
+        "Caloric value highly dependent on dressing choice"
+      ],
+      "expected_action": "ask",
+      "ask_clarification": "What type of dressing was used?",
+      "personal_data_check": true
+    },
+    {
+      "id": "H01",
+      "path": "health/H01.png",
+      "category": "health",
+      "ui_variant": 1,
+      "source": {
+        "origin": "Educational health tracking application screenshot",
+        "license": "CC0",
+        "attribution": "Public domain educational material"
+      },
+      "expected_fields": {
+        "metric_type": {
+          "value": "Steps",
+          "unit": null,
+          "confidence": "certain"
+        },
+        "value": {
+          "value": "8432",
+          "unit": "steps",
+          "confidence": "certain"
+        },
+        "date": {
+          "value": "2026-10-03",
+          "unit": null,
+          "confidence": "certain"
+        }
+      },
+      "datetime": {
+        "date": "2026-10-03",
+        "time": null,
+        "timezone": "Europe/Warsaw"
+      },
+      "uncertainties": [],
+      "expected_action": "draft",
+      "personal_data_check": true
+    },
+    {
+      "id": "H02",
+      "path": "health/H02.png",
+      "category": "health",
+      "ui_variant": 1,
+      "source": {
+        "origin": "Educational health tracking application screenshot",
+        "license": "CC0",
+        "attribution": "Public domain educational material"
+      },
+      "expected_fields": {
+        "metric_type": {
+          "value": "Sleep",
+          "unit": null,
+          "confidence": "certain"
+        },
+        "value": {
+          "value": "450",
+          "unit": "min",
+          "confidence": "certain"
+        },
+        "date": {
+          "value": "2026-10-03",
+          "unit": null,
+          "confidence": "certain"
+        }
+      },
+      "datetime": {
+        "date": "2026-10-03",
+        "time": null,
+        "timezone": "Europe/Warsaw"
+      },
+      "uncertainties": [],
+      "expected_action": "draft",
+      "personal_data_check": true
+    },
+    {
+      "id": "H03",
+      "path": "health/H03.png",
+      "category": "health",
+      "ui_variant": 2,
+      "source": {
+        "origin": "Educational health tracking application screenshot (variant 2)",
+        "license": "CC0",
+        "attribution": "Public domain educational material"
+      },
+      "expected_fields": {
+        "metric_type": {
+          "value": "Heart Rate",
+          "unit": null,
+          "confidence": "certain"
+        },
+        "value": {
+          "value": "72",
+          "unit": "bpm",
+          "confidence": "certain"
+        },
+        "context": {
+          "value": "resting",
+          "unit": null,
+          "confidence": "certain"
+        }
+      },
+      "datetime": {
+        "date": "2026-10-03",
+        "time": "14:30",
+        "timezone": "Europe/Warsaw"
+      },
+      "uncertainties": [],
+      "expected_action": "draft",
+      "personal_data_check": true
+    },
+    {
+      "id": "H04",
+      "path": "health/H04.png",
+      "category": "health",
+      "ui_variant": 2,
+      "source": {
+        "origin": "Educational health tracking application screenshot (variant 2)",
+        "license": "CC0",
+        "attribution": "Public domain educational material"
+      },
+      "expected_fields": {
+        "metric_type": {
+          "value": "Steps",
+          "unit": null,
+          "confidence": "certain"
+        },
+        "value": {
+          "value": "9847",
+          "unit": "steps",
+          "confidence": "certain"
+        },
+        "date": {
+          "value": "2026-10-02",
+          "unit": null,
+          "confidence": "certain"
+        }
+      },
+      "datetime": {
+        "date": "2026-10-02",
+        "time": null,
+        "timezone": "Europe/Warsaw"
+      },
+      "uncertainties": [],
+      "expected_action": "draft",
+      "personal_data_check": true
+    },
+    {
+      "id": "W01",
+      "path": "watch/W01.jpg",
+      "category": "watch",
+      "source": {
+        "origin": "Educational smartwatch/fitness tracker photo",
+        "license": "CC0",
+        "attribution": "Public domain educational material"
+      },
+      "expected_fields": {
+        "metric_type": {
+          "value": "Steps",
+          "unit": null,
+          "confidence": "certain"
+        },
+        "value": {
+          "value": "5234",
+          "unit": "steps",
+          "confidence": "certain"
+        }
+      },
+      "datetime": {
+        "date": null,
+        "time": "10:45",
+        "timezone": "Europe/Warsaw"
+      },
+      "uncertainties": [],
+      "expected_action": "draft",
+      "personal_data_check": true
+    },
+    {
+      "id": "W02",
+      "path": "watch/W02.jpg",
+      "category": "watch",
+      "source": {
+        "origin": "Educational smartwatch/fitness tracker photo",
+        "license": "CC0",
+        "attribution": "Public domain educational material"
+      },
+      "expected_fields": {
+        "metric_type": {
+          "value": "Heart Rate",
+          "unit": null,
+          "confidence": "certain"
+        },
+        "value": {
+          "value": "68",
+          "unit": "bpm",
+          "confidence": "certain"
+        },
+        "context": {
+          "value": "instant",
+          "unit": null,
+          "confidence": "certain"
+        }
+      },
+      "datetime": {
+        "date": null,
+        "time": "15:22",
+        "timezone": "Europe/Warsaw"
+      },
+      "uncertainties": [],
+      "expected_action": "draft",
+      "personal_data_check": true
+    },
+    {
+      "id": "N01",
+      "path": "negative/N01.jpg",
+      "category": "negative",
+      "source": {
+        "origin": "Intentionally unreadable test case",
+        "license": "CC0",
+        "attribution": "Educational test material"
+      },
+      "expected_fields": {},
+      "datetime": {
+        "date": null,
+        "time": null,
+        "timezone": "Europe/Warsaw"
+      },
+      "uncertainties": [
+        "Image is heavily blurred and rotated",
+        "Text is not reliably readable"
+      ],
+      "expected_action": "refuse",
+      "refuse_reason": "Image is too blurred/distorted to reliably extract health metrics. Please provide a clearer photo.",
+      "personal_data_check": true
+    },
+    {
+      "id": "N02",
+      "path": "negative/N02.jpg",
+      "category": "negative",
+      "source": {
+        "origin": "Unsupported image type test case",
+        "license": "CC0",
+        "attribution": "Educational test material"
+      },
+      "expected_fields": {},
+      "datetime": {
+        "date": null,
+        "time": null,
+        "timezone": "Europe/Warsaw"
+      },
+      "uncertainties": [
+        "Image content is not related to health metrics or food"
+      ],
+      "expected_action": "refuse",
+      "refuse_reason": "This image type is not supported. Please provide a photo of food, health metrics, or fitness tracker.",
+      "personal_data_check": true
+    }
+  ]
+}

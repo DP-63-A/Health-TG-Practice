@@ -1,0 +1,138 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Visual Test Cases Manifest",
+  "description": "Schema for validating the manifest.json file containing 12 visual test cases",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Dataset version (e.g., 1.0.0)"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Creation timestamp"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last update timestamp"
+    },
+    "commit_hash": {
+      "type": "string",
+      "description": "Git commit hash where this version was created"
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "description": "Array containing exactly 12 visual test cases",
+      "items": {
+        "type": "object",
+        "required": ["id", "path", "category", "expected_action", "source"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^(F|H|W|N)0[1-4]$|^W0[1-2]$|^N0[1-2]$",
+            "description": "Unique case identifier"
+          },
+          "path": {
+            "type": "string",
+            "description": "Relative path to image file"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["food", "health", "watch", "negative"],
+            "description": "Visual case category"
+          },
+          "source": {
+            "type": "object",
+            "required": ["origin", "license", "attribution"],
+            "properties": {
+              "origin": {
+                "type": "string",
+                "description": "Source of the image (educational material, public dataset, etc.)"
+              },
+              "license": {
+                "type": "string",
+                "description": "License type (CC0, CC-BY, etc.)"
+              },
+              "attribution": {
+                "type": "string",
+                "description": "Attribution or copyright holder"
+              }
+            }
+          },
+          "ui_variant": {
+            "type": "integer",
+            "description": "UI variant number (for health screenshots: 1 or 2)"
+          },
+          "expected_fields": {
+            "type": "object",
+            "description": "Fields visible in the image with their expected values and units",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "description": "Expected numeric or text value"
+                },
+                "unit": {
+                  "type": "string",
+                  "description": "Measurement unit if applicable"
+                },
+                "confidence": {
+                  "type": "string",
+                  "enum": ["certain", "estimated", "uncertain"],
+                  "description": "Confidence in the expected value"
+                }
+              }
+            }
+          },
+          "datetime": {
+            "type": "object",
+            "description": "Expected date and time if visible",
+            "properties": {
+              "date": {
+                "type": "string",
+                "description": "Date in YYYY-MM-DD format"
+              },
+              "time": {
+                "type": "string",
+                "description": "Time in HH:MM format"
+              },
+              "timezone": {
+                "type": "string",
+                "description": "Timezone (Europe/Warsaw by default)"
+              }
+            }
+          },
+          "uncertainties": {
+            "type": "array",
+            "description": "Known limitations or ambiguities in the image",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expected_action": {
+            "type": "string",
+            "enum": ["draft", "ask", "refuse"],
+            "description": "Expected bot action: draft (show results), ask (request clarification), refuse (not supported)"
+          },
+          "refuse_reason": {
+            "type": "string",
+            "description": "Reason for refusing (if expected_action is 'refuse')"
+          },
+          "ask_clarification": {
+            "type": "string",
+            "description": "Clarification question to ask user (if expected_action is 'ask')"
+          },
+          "personal_data_check": {
+            "type": "boolean",
+            "description": "Confirmed no personal health data in image"
+          }
+        }
+      }
+    }
+  },
+  "required": ["version", "created_at", "commit_hash", "cases"]
+}
