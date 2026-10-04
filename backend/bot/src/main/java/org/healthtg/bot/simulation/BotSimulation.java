@@ -46,6 +46,13 @@ public final class BotSimulation {
                                 + String.join("] [", message.keyboard().buttons()) + "]");
                     }
                 }
+                case BotAction.SendInlineMessage message -> {
+                    System.out.println("Бот: " + message.text());
+                    message.rows().forEach(row -> System.out.println("Inline-кнопки: "
+                            + row.stream().map(BotAction.InlineButton::text).toList()));
+                }
+                case BotAction.AnswerCallback answer ->
+                        System.out.println("Ответ callback: " + (answer.text() == null ? "принято" : answer.text()));
                 case BotAction.SetMenuButton menu -> {
                     if (menu.url() == null) {
                         System.out.println("Меню кабинета: кнопка недоступна, адрес ещё не настроен.");

@@ -8,6 +8,7 @@ import org.healthtg.core.entry.EntryNotFoundException;
 import org.healthtg.core.entry.EntryStatusConflictException;
 import org.healthtg.core.entry.EntryValidationException;
 import org.healthtg.core.entry.EntryVersionConflictException;
+import org.healthtg.user.UserNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.dao.DataAccessException;
@@ -22,7 +23,7 @@ import jakarta.validation.ConstraintViolationException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
-    @ExceptionHandler(AuthFailureException.class)
+    @ExceptionHandler({AuthFailureException.class, UserNotFoundException.class})
     ResponseEntity<ApiError> unauthorized(HttpServletRequest request) {
         return error(request, HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Telegram authentication failed");
     }

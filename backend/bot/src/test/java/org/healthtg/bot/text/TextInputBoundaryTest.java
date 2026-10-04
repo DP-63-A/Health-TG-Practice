@@ -20,7 +20,7 @@ class TextInputBoundaryTest {
         assertNull(result.data());
     }
 
-    @ParameterizedTest @ValueSource(strings = {"я", "😀"})
+    @ParameterizedTest @ValueSource(strings = {"я", "ё"})
     void exactly2000CodePointsAreAcceptedAnd2001Rejected(String codePoint) {
         String atLimit = codePoint.repeat(2000);
         var accepted = parser.parse(atLimit);
@@ -32,14 +32,21 @@ class TextInputBoundaryTest {
         assertTrue(rejected.issues().stream().anyMatch(i -> i.code().equals("TOO_LONG")));
     }
 
-    @Test void paddingCountsBeforeTrimmingAndEmojiSequencesCountTheirCodePoints() {
+    @Test void paddingCountsBeforeTrimming() {
         assertEquals(REJECTED, parser.parse(" ".repeat(2000) + "я").outcome());
-        String family = "👩‍👩‍👧‍👦";
-        assertEquals(7, family.codePointCount(0, family.length()));
-        String atLimit = family.repeat(285) + "я".repeat(5);
-        assertEquals(2000, atLimit.codePointCount(0, atLimit.length()));
-        assertNotEquals(REJECTED, parser.parse(atLimit).outcome());
-        assertEquals(REJECTED, parser.parse(atLimit + "я").outcome());
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"😀", "🍎", "❤️", "👩‍👩‍👧‍👦"})
+    void emojiAreRejectedExplicitly(String emoji) {
+        var result = parser.parse("24.09.2026 съел яблоко " + emoji);
+        assertEquals(REJECTED, result.outcome());
+        assertTrue(result.issues().stream().anyMatch(i -> i.code().equals("EMOJI_NOT_SUPPORTED")));
+    }
+
+    @Test void longEmojiInputIsRejectedWithoutThrowing() {
+        var result = assertDoesNotThrow(() -> parser.parse("24.09.2026 съел яблоко " + "🍎".repeat(1100)));
+        assertEquals(REJECTED, result.outcome());
+        assertTrue(result.issues().stream().anyMatch(i -> i.code().equals("EMOJI_NOT_SUPPORTED")));
     }
 
     @ParameterizedTest @ValueSource(strings = {"\ud83d", "\ude00", "а\ud83dб", "\ude00\ud83d"})
@@ -50,7 +57,7 @@ class TextInputBoundaryTest {
     }
 
     @Test void sourceTextIsUnmodifiedAndResultCollectionsCannotBeMutated() {
-        String input = "  Сегодня я чувствую себя хорошо 😀\n";
+        String input = "  Сегодня я чувствую себя хорошо\n";
         var result = parser.parse(input);
         assertEquals(NOTE_SUGGESTED, result.outcome());
         assertEquals(input, result.originalText());

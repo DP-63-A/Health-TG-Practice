@@ -10,19 +10,26 @@ public final class BotHandler {
             new BotAction.ReplyKeyboard(List.of(CHECKIN_BUTTON), true, true);
     private final BotSettings settings;
     private final QuickCheckin checkin;
+    private final BotFlow flow;
 
     public BotHandler(BotSettings settings, QuickCheckin checkin) {
+        this(settings, checkin, BotFlow.unavailable());
+    }
+
+    public BotHandler(BotSettings settings, QuickCheckin checkin, BotFlow flow) {
         this.settings = Objects.requireNonNull(settings);
         this.checkin = Objects.requireNonNull(checkin);
+        this.flow = Objects.requireNonNull(flow);
     }
 
     public List<BotAction> handle(BotUpdate update) {
-        if (update == null || update.kind() != BotUpdate.Kind.MESSAGE
+        if (update == null || (update.kind() != BotUpdate.Kind.MESSAGE && update.kind() != BotUpdate.Kind.CALLBACK)
                 || update.chatType() != BotUpdate.ChatType.PRIVATE || update.senderIsBot()
                 || update.senderId() == null || update.chatId() != update.senderId()
                 || !settings.allowedUserIds().contains(update.senderId())) {
             return List.of(); // Deny before dispatch, including future checkin calls.
         }
+        if (update.kind() == BotUpdate.Kind.CALLBACK) return flow.handleCallback(update);
         String text = update.text();
         if (text == null) return List.of();
         String command = command(update);
@@ -36,9 +43,11 @@ public final class BotHandler {
                     new BotAction.SendMessage(update.chatId(), welcome, KEYBOARD));
         }
         if ("/state".equals(command) || CHECKIN_BUTTON.equals(text)) {
+            List<BotAction> actions = flow.beginCheckin(update);
+            if (!actions.isEmpty()) return actions;
             return List.of(new BotAction.SendMessage(update.chatId(), checkin.begin(update.senderId()), KEYBOARD));
         }
-        return List.of(); // Other commands/media belong to later issues.
+        return flow.handleMessage(update);
     }
 
     private String command(BotUpdate update) {
