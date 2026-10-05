@@ -403,7 +403,7 @@
       "source": {
         "origin": "AI-generated unsupported image type test case",
         "license": "CC0-1.0",
-        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
+        "attribution": "Generated with Google Gemini AI for educational software testing; contains no personal or real medical data"
       },
       "expected_fields": {},
       "datetime": {
