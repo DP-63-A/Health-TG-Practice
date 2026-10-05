@@ -2,7 +2,7 @@ import io
 import pytest
 from pathlib import Path
 from PIL import Image
-from validator import validate_image_format, validate_image_integrity, validate_image_resolution
+from validate_manifest import validate_image_format, validate_image_integrity, validate_image_resolution
 
 def test_gif_disguised_as_png_fails(tmp_path: Path):
     """Тест 1: GIF под видом .png должен отклоняться"""
@@ -14,7 +14,7 @@ def test_gif_disguised_as_png_fails(tmp_path: Path):
     
     is_valid, err = validate_image_format(fake_png, "TEST_GIF")
     assert not is_valid
-    assert "Unsupported actual format: GIF" in err
+    assert "Invalid image format: GIF" in err
 
 def test_truncated_jpeg_fails(tmp_path: Path):
     """Тест 2: Обрезанный JPEG должен ломаться на load()"""
