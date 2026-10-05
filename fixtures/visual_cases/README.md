@@ -33,12 +33,12 @@ fixtures/visual_cases/
 │   ├── F03.png
 │   └── F04.png
 ├── health/
-│   ├── H01.png
-│   ├── H02.png
-│   ├── H03.png
-│   └── H04.png
+│   ├── H01.jpeg
+│   ├── H02.jpeg
+│   ├── H03.jpeg
+│   └── H04.jpeg
 ├── watch/
-│   ├── W01.png
+│   ├── W01.jpeg
 │   └── W02.jpeg
 └── negative/
     ├── N01.jpeg
