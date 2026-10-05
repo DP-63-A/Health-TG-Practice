@@ -77,12 +77,12 @@
                   "description": "Expected numeric or text value"
                 },
                 "unit": {
-                  "type": "string",
+                  "type": ["string", "null"],
                   "description": "Measurement unit if applicable"
                 },
                 "confidence": {
-                  "type": "string",
-                  "enum": ["certain", "estimated", "uncertain"],
+                  "type": ["string", "null"],
+                  "enum": ["certain", "estimated", "uncertain", null],
                   "description": "Confidence in the expected value"
                 }
               }
@@ -93,12 +93,12 @@
             "description": "Expected date and time if visible",
             "properties": {
               "date": {
-                "type": "string",
-                "description": "Date in YYYY-MM-DD format"
+                "type": ["string", "null"],
+                "description": "Date in YYYY-MM-DD format or null if not visible"
               },
               "time": {
-                "type": "string",
-                "description": "Time in HH:MM format"
+                "type": ["string", "null"],
+                "description": "Time in HH:MM format or null if not visible"
               },
               "timezone": {
                 "type": "string",
