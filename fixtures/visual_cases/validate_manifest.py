@@ -86,28 +86,41 @@ def validate_file_existence(base_dir: Path, manifest: Dict) -> None:
 
 def validate_image_format(file_path: Path, case_id: str) -> Tuple[bool, Optional[str]]:
     """
-    Validate image format (JPEG or PNG only).
+    Validate image format (JPEG or PNG only) by reading image container metadata.
     Returns: (is_valid, error_message)
     """
     suffix = file_path.suffix.lower()
     if suffix not in ['.jpg', '.jpeg', '.png']:
-        return False, f"Unsupported format: {suffix} (expected .jpg, .jpeg, or .png)"
+        return False, f"Unsupported extension: {suffix} (expected .jpg, .jpeg, or .png)"
+
+    try:
+        with Image.open(file_path) as img:
+            fmt = (img.format or "").upper()
+            if fmt not in ['JPEG', 'PNG']:
+                return False, f"Invalid image format: {fmt} (file content is not JPEG/PNG, extension is {suffix})"
+    except Exception as e:
+        return False, f"Cannot detect image format: {str(e)}"
+
     return True, None
 
 
 def validate_image_integrity(file_path: Path, case_id: str) -> Tuple[bool, Optional[str]]:
     """
-    Validate image file integrity by attempting to decode.
+    Validate image file integrity by enforcing full pixel load and stream verification.
     Returns: (is_valid, error_message)
     """
     try:
+        # Step 1: Verify structural integrity
         with Image.open(file_path) as img:
-            # Access image properties to ensure it's decodable
-            _ = img.format
-            _ = img.size
+            img.verify()
+        
+        # Step 2: Force full pixel decoding (detect truncated/corrupted stream)
+        with Image.open(file_path) as img:
+            img.load()
+            
         return True, None
     except Exception as e:
-        return False, f"Corrupted or undecodable image: {str(e)}"
+        return False, f"Corrupted or truncated image data: {str(e)}"
 
 
 def validate_image_size(file_path: Path, case_id: str, max_size_mb: int = 5) -> Tuple[bool, Optional[str]]:
@@ -124,18 +137,20 @@ def validate_image_size(file_path: Path, case_id: str, max_size_mb: int = 5) -> 
     return True, None
 
 
-def validate_image_resolution(file_path: Path, case_id: str, max_megapixels: int = 12) -> Tuple[bool, Optional[str]]:
+def validate_image_resolution(file_path: Path, case_id: str, max_megapixels: float = 12.0) -> Tuple[bool, Optional[str]]:
     """
-    Validate image resolution (max 12 megapixels by default).
+    Validate image resolution (max 12 megapixels = 12,000,000 pixels).
     Returns: (is_valid, error_message)
     """
+    max_pixels = int(max_megapixels * 1_000_000)
     try:
         with Image.open(file_path) as img:
             width, height = img.size
-            megapixels = (width * height) / (1024 * 1024)
+            total_pixels = width * height
             
-            if megapixels > max_megapixels:
-                return False, f"Resolution {width}×{height} ({megapixels:.2f} MP) exceeds limit of {max_megapixels} MP"
+            if total_pixels > max_pixels:
+                mp_actual = total_pixels / 1_000_000
+                return False, f"Resolution {width}×{height} ({mp_actual:.2f} MP / {total_pixels:,} px) exceeds limit of {max_megapixels} MP ({max_pixels:,} px)"
         return True, None
     except Exception as e:
         return False, f"Cannot determine resolution: {str(e)}"
