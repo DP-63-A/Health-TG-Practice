@@ -339,7 +339,7 @@
     },
     {
       "id": "W02",
-      "path": "watch/W02.png",
+      "path": "watch/W02.jpeg",
       "category": "watch",
       "source": {
         "origin": "AI-generated educational smartwatch/fitness tracker photo",
@@ -375,7 +375,7 @@
     },
     {
       "id": "N01",
-      "path": "negative/N01.png",
+      "path": "negative/N01.jpeg",
       "category": "negative",
       "source": {
         "origin": "AI-generated intentionally unreadable test case",
@@ -398,7 +398,7 @@
     },
     {
       "id": "N02",
-      "path": "negative/N02.png",
+      "path": "negative/N02.jpeg",
       "category": "negative",
       "source": {
         "origin": "AI-generated unsupported image type test case",
