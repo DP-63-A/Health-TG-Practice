@@ -207,12 +207,6 @@ function OverviewPage() {
   const [reloadKey, setReloadKey] =
     useState(0)
 
-  // const [period, setPeriod] =
-  //   useState<AnalyticsPeriod>('days_7')
-
-  // const [checkinCategory, setCheckinCategory] =
-  //   useState<CheckinCategory>('mood')
-
   const [searchParams, setSearchParams] = useSearchParams()
 
 const period = parsePeriod(
@@ -328,6 +322,13 @@ function updateCategory(value: CheckinCategory) {
     setReloadKey((key) => key + 1)
   }
 
+  const cardData =
+  analyticsState.status === 'success' ||
+  analyticsState.status === 'empty'
+    ? analyticsState.data
+    : null
+
+
   return (
     <Card
       title="Обзор"
@@ -375,69 +376,33 @@ function updateCategory(value: CheckinCategory) {
       )}
 
       <div className="overview-cards">
-        <NutritionCard
-          nutrition={
-            analyticsState.status === 'success'
-              ? analyticsState.data.cards.nutrition
-              : null
-          }
-        />
+  <NutritionCard
+    nutrition={cardData?.cards.nutrition ?? null}
+  />
 
-        <MealCountCard
-          mealCount={
-            analyticsState.status === 'success'
-              ? analyticsState.data.cards.meal_count
-              : null
-          }
-        />
+  <MealCountCard
+    mealCount={cardData?.cards.meal_count ?? null}
+  />
 
-        <SleepCard
-          sleep={
-            analyticsState.status === 'success'
-              ? analyticsState.data.cards.sleep
-              : null
-          }
-          period={
-            analyticsState.status === 'success'
-              ? analyticsState.data.period
-              : null
-          }
-        />
+  <SleepCard
+    sleep={cardData?.cards.sleep ?? null}
+    period={cardData?.period ?? null}
+  />
 
-        <StepsCard
-          steps={
-            analyticsState.status === 'success'
-              ? analyticsState.data.cards.steps
-              : null
-          }
-          period={
-            analyticsState.status === 'success'
-              ? analyticsState.data.period
-              : null
-          }
-        />
+  <StepsCard
+    steps={cardData?.cards.steps ?? null}
+    period={cardData?.period ?? null}
+  />
 
-        <HeartRateCard
-          heartRate={
-            analyticsState.status === 'success'
-              ? analyticsState.data.cards.heart_rate
-              : null
-          }
-          period={
-            analyticsState.status === 'success'
-              ? analyticsState.data.period
-              : null
-          }
-        />
+  <HeartRateCard
+    heartRate={cardData?.cards.heart_rate ?? null}
+    period={cardData?.period ?? null}
+  />
 
-        <CheckinCard
-          checkins={
-            analyticsState.status === 'success'
-              ? analyticsState.data.cards.checkins
-              : null
-          }
-        />
-      </div>
+  <CheckinCard
+    checkins={cardData?.cards.checkins ?? null}
+  />
+</div>
 
       {/* Питание */}
 

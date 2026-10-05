@@ -34,7 +34,20 @@ function AppLayout() {
             Обновить
           </Button>
           <nav className="app-nav" aria-label="Основная навигация">
-            <NavLink to="/diary">Дневник</NavLink>
+            {/* <NavLink to="/diary">Дневник</NavLink> */}
+
+            <NavLink
+  to="/diary"
+  state={{
+    overviewReturnTo:
+      location.pathname === '/overview'
+        ? `${location.pathname}${location.search}`
+        : overviewReturnTo,
+  }}
+>
+  Дневник
+</NavLink>
+
             <NavLink to={overviewReturnTo}>Обзор</NavLink>
           </nav>
         </div>

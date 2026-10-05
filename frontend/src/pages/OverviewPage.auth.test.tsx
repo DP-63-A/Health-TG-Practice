@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { expect, it, vi } from 'vitest'
 import { ApiError } from '../api/errors'
@@ -29,17 +29,20 @@ it(
         ),
       )
 
-    render(
-      <MemoryRouter initialEntries={['/overview']}>
-        <AuthProvider client={fixtureApiClient} mode="fixture">
-          <AuthGate>
-            <RefreshProvider>
-              <OverviewPage />
-            </RefreshProvider>
-          </AuthGate>
-        </AuthProvider>
-      </MemoryRouter>,
-    )
+    // Дожидаемся авторизации fixture и обработки отклонённого ответа.
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/overview']}>
+          <AuthProvider client={fixtureApiClient} mode="fixture">
+            <AuthGate>
+              <RefreshProvider>
+                <OverviewPage />
+              </RefreshProvider>
+            </AuthGate>
+          </AuthProvider>
+        </MemoryRouter>,
+      )
+    })
 
     expect(
       await screen.findByRole('heading', {
@@ -58,6 +61,23 @@ it(
         name: 'Проверить снова',
       }),
     ).toBeEnabled()
+
+    // 401 показывает общий экран сессии, а не состояние аналитики.
+    for (const name of [
+      'Обзор', 'Загрузка аналитики', 'Ошибка загрузки', 'Нет данных',
+    ]) {
+      expect(screen.queryByRole('heading', { name })).not.toBeInTheDocument()
+    }
+    for (const name of [
+      'Калории и БЖУ', 'Количество приёмов пищи', 'Аналитика сна',
+      'Аналитика шагов', 'Аналитика пульса', 'Субъективные оценки состояния',
+      'Питание', 'Сон', 'Шаги', 'Состояние',
+    ]) {
+      expect(screen.queryByRole('region', { name })).not.toBeInTheDocument()
+    }
+    expect(screen.queryByRole('button', {
+      name: 'Повторить',
+    })).not.toBeInTheDocument()
 
     expect(getAnalyticsMock).toHaveBeenCalledExactlyOnceWith({
       period: 'days_7',

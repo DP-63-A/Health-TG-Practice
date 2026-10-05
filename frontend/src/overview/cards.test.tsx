@@ -91,7 +91,7 @@ describe('MealCountCard', () => {
       />,
     )
 
-    expect(text).toContain('Количество за выбранный период 2')
+    expect(text).toContain('За выбранный период 2 приёма пищи')
   })
 
   it('показывает прочерк при отсутствии данных', () => {
@@ -99,7 +99,7 @@ describe('MealCountCard', () => {
       <MealCountCard mealCount={null} />,
     )
 
-    expect(text).toContain('Количество за выбранный период —')
+    expect(text).toContain('За выбранный период —')
   })
 
   it('показывает ноль при нулевом количестве', () => {
@@ -107,7 +107,7 @@ describe('MealCountCard', () => {
       <MealCountCard mealCount={{ count: 0 }} />,
     )
 
-    expect(text).toContain('Количество за выбранный период 0')
+    expect(text).toContain('За выбранный период 0 приёмов пищи')
   })
 })
 
@@ -135,9 +135,9 @@ describe('SleepCard', () => {
     )
 
     expect(text).toContain('Всего за период —')
-    expect(text).toContain('Среднее за день с данными —')
+    expect(text).toContain('Среднее — за день с данными')
     expect(text).toContain('Дней с данными —')
-    expect(text).toContain('Период: —')
+    expect(text).toMatch(/—$/)
   })
 
   it('корректно отображает нулевую продолжительность', () => {
@@ -178,9 +178,10 @@ describe('StepsCard', () => {
       />,
     )
 
-    expect(text).toContain('Всего за период —')
+    expect(text).toContain('Всего за период — шагов')
+    expect(text).toContain('Среднее — шагов в день')
     expect(text).toContain('Дней с данными —')
-    expect(text).toContain('Период: —')
+    expect(text).toMatch(/—$/)
   })
 
   it('не заменяет ноль прочерком', () => {
