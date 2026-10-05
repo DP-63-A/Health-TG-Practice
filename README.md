@@ -11,11 +11,29 @@
 | Бот | Spring Boot 3.5.6, TelegramBots 9.2.0 | Отдельный запуск, long polling, закрытый доступ, команды и кнопки; сохранение отметок пока не реализовано |
 | Миграции | Liquibase | Входит в согласованный стек, пока не подключён |
 | Frontend | React, TypeScript, Vite | Реализованы страницы дневника, записи и обзора; API-клиент поддерживает fixture и live, сборка через npm |
-| Окружение | Docker Compose, GitHub Actions | Compose для локальной MongoDB и API readiness реализованы; полный Compose-стек и CI ещё не добавлены |
+| Окружение | Docker Compose, GitHub Actions | Compose собирает MongoDB, API, bot и frontend; CI проверяет Java, frontend, контракты и контейнерные сборки |
 
 В репозитории также находятся OpenAPI, JSON-схемы, примеры и Java-инструмент проверки контрактов.
 Наличие контрактов и тестовых данных само по себе не подтверждает работу полного HTTP API.
 Frontend в режиме `fixture` использует локальные ответы без backend; режим `live` обращается к настроенному API. Наличие этих режимов не подтверждает полную интеграцию всех сценариев. Запуск и настройки — в [README frontend](frontend/README.md).
+
+## Запуск согласованного окружения
+
+Требуются Docker Desktop с Compose v2 и тестовый Telegram-бот. Скопируйте безопасный
+шаблон, затем замените заглушки реальными значениями только в игнорируемом `.env`:
+
+```powershell
+Copy-Item .env.example .env
+docker compose config --quiet
+docker compose up --build -d
+docker compose ps
+Invoke-RestMethod http://localhost:8088/api/v1/healthz
+```
+
+Mini App доступен на `http://localhost:8088`. MongoDB, API и файловый volume не
+публикуются на хост: API доступен через frontend reverse proxy. Полные инструкции,
+обычный перезапуск, остановка и ограничения описаны в
+[локальном окружении](docs/local-environment.md).
 
 ## Структура
 

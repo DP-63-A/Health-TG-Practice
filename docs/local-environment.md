@@ -1,58 +1,39 @@
 # Local environment
 
-This is the early BE1-07 MongoDB foundation used by BE1-02 and BE1-03. The final
-Compose stack will also include the API, bot, frontend, and private file storage.
+BE1-07 provides one Compose project for MongoDB, API, Telegram bot, frontend and
+private persistent file storage. API and bot share the same MongoDB database.
 
 ## Prerequisites
 
 - Docker Desktop with the engine running.
-- Java 21 for running the API from Gradle.
+- Docker Compose v2.
+- A dedicated training Telegram bot token and an allowed Telegram user ID.
+- Java 21 and Node.js 22 only for running checks outside containers.
 
 ## Configuration
 
-Copy `.env.example` to `.env` and keep real secrets only in `.env`. Git ignores
-`.env` and local variants. MongoDB requires no secret for this loopback-only local
-development setup.
+Copy `.env.example` to `.env` and replace every placeholder. Keep real secrets only
+in `.env`; Git ignores it. `MINI_APP_URL` must be the agreed public HTTPS URL for a
+real Telegram launch. Compose fails during configuration when required values are
+missing and does not print their contents.
 
-## Start MongoDB
-
-```powershell
-docker-compose up -d mongo
-docker-compose ps
-```
-
-The database is bound to `127.0.0.1` and is not exposed on other host interfaces.
-
-## Run the API
-
-The API does not read `.env` by itself. Use the repository script to load
-the file into the API process without printing its values:
+## Build and start
 
 ```powershell
-# Create once; keep an existing local .env.
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
-.\scripts\run-backend.ps1
+docker compose config --quiet
+docker compose up --build -d
+docker compose ps
 ```
 
-Edit `.env` before starting live Telegram authentication. The script fails with
-a clear error when the file is missing or contains a malformed `NAME=VALUE` line.
-Run it from the repository root; it starts Gradle from that root regardless of
-the caller's current directory.
-
-The script runs only `:backend:api:bootRun`. It loads the root `.env` by default;
-use `-EnvFile <path>` to select another file. These values become environment
-variables in the PowerShell process and are inherited by the API. Plain Gradle,
-`java -jar`, and IDEA launches do not load `.env` automatically.
-
-The Telegram bot runs separately with `:backend:bot:bootRun` or its IDEA
-configuration. This API launcher does not start bot polling. See the
-[bot instructions](../backend/bot/README.md) for its settings and manual checks.
-Compose currently starts only MongoDB; it does not start either Java application.
+Only frontend is published, on loopback port `FRONTEND_PORT` (8088 by default).
+MongoDB, API and the file volume have no host port or bind mount. Nginx forwards
+`/api/` to the private API service. The file volume is reserved for BE1-05 and is
+not a public file server.
 
 Readiness check (API and MongoDB only):
 
 ```powershell
-Invoke-RestMethod http://localhost:8080/api/v1/healthz
+Invoke-RestMethod http://localhost:8088/api/v1/healthz
 ```
 
 Expected ready response:
@@ -71,23 +52,57 @@ connection details:
 ## Restart without losing data
 
 ```powershell
-docker-compose restart mongo
+docker compose restart
 ```
 
-The named `health-tg-mongo-data` volume survives ordinary stop, start, restart,
-and container recreation. Do not remove the volume during a normal restart.
+The `mongo-data` and `file-data` named volumes survive stop, start, restart and
+container recreation. Do not pass `--volumes` during an ordinary restart.
 
 ## Stop
 
 ```powershell
-docker-compose stop mongo
+docker compose stop
 ```
 
 Removing containers without removing persistent data:
 
 ```powershell
-docker-compose down
+docker compose down
 ```
 
-Destructive reset is intentionally not part of the ordinary workflow. The final
-reset command belongs to the BE3-05 integration and must be documented separately.
+`docker compose down --volumes` is destructive and is not the product seed/reset
+operation. Do not use it on the training stand. BE3-05 has not yet supplied its
+protected seed/reset commands; once available they must be wired here without
+bypassing their demo-environment guard.
+
+## Checks
+
+```powershell
+.\gradlew.bat check :backend:api:bootJar :backend:bot:bootJar validateContracts :contract-validator:validate --no-daemon --console=plain
+Set-Location frontend
+npm ci
+npm run lint
+npm run typecheck
+npm test -- --run
+npm run build
+Set-Location ..
+docker compose --env-file .env.example config --quiet
+docker compose --env-file .env.example build
+```
+
+CI uses synthetic fixtures, Testcontainers and placeholder configuration. It does
+not use the training database, real Telegram credentials or paid model calls.
+
+## Diagnostics
+
+Use `docker compose ps` and `docker compose logs <service>`. Do not enable debug
+logging for Telegram or HTTP clients: request URLs may contain the bot token.
+Application logs must not include message text, images or health values. The API
+returns `X-Request-ID`; readiness reports MongoDB failure as HTTP 503.
+
+## External acceptance still required
+
+- publish frontend through the agreed HTTPS host and set `MINI_APP_URL`;
+- connect the protected BE3-05 seed/reset commands when delivered;
+- verify BE1-05 upload/download persistence when that API is available;
+- have another participant reproduce these instructions in a clean environment.
