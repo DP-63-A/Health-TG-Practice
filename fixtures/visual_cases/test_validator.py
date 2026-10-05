@@ -2,7 +2,7 @@ import io
 import pytest
 from pathlib import Path
 from PIL import Image
-from validate_manifest import validate_image_format, validate_image_integrity, validate_image_resolution
+from validate_manifest import validate_image_format, validate_image_integrity, validate_image_resolution, validate_manifest
 
 def test_gif_disguised_as_png_fails(tmp_path: Path):
     """Тест 1: GIF под видом .png должен отклоняться"""
@@ -44,3 +44,14 @@ def test_image_exceeding_12mp_fails(tmp_path: Path):
     is_valid, err = validate_image_resolution(large_jpg, "TEST_OVERSIZED", max_megapixels=12.0)
     assert not is_valid
     assert "exceeds limit of 12" in err
+
+def test_manifest_validation_fails_on_missing_required_field(tmp_path: Path):
+    broken = tmp_path / "broken.json"
+    broken.write_text('{"cases":[{"id":"X1","image_path":"watch/W02.jpeg","expected_fields":[{"name":"steps"}]}]}', encoding="utf-8")
+
+    with pytest.raises(Exception) as exc:
+        validate_manifest(str(broken))
+
+    msg = str(exc.value)
+    assert "required" in msg.lower()
+    assert "value" in msg.lower() or "unit" in msg.lower() or "confidence" in msg.lower()
