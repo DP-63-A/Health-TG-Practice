@@ -6,6 +6,8 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(name = "health-tg.core.storage.enabled", matchIfMissing = true)
-@EnableMongoRepositories(basePackages = {"org.healthtg.core.entry", "org.healthtg.core.dialog", "org.healthtg.user"})
+@EnableMongoRepositories(basePackages = {
+        "org.healthtg.core.entry", "org.healthtg.core.dialog", "org.healthtg.core.file", "org.healthtg.user"
+})
 class BotMongoRepositoriesConfiguration {
 }
