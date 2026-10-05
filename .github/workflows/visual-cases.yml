@@ -1,0 +1,46 @@
+name: visual-cases-check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  validate-visual-cases:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r fixtures/visual_cases/requirements.txt
+
+      - name: Ensure dataset_hash is not placeholder
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = Path("fixtures/visual_cases/manifest.json")
+          data = json.loads(p.read_text(encoding="utf-8"))
+          h = data.get("dataset_hash", "")
+          assert h and h != "<to-be-filled-by-ci>", "dataset_hash is still placeholder"
+          assert h.startswith("sha256:"), "dataset_hash must start with sha256:"
+          PY
+
+      - name: Validate manifest
+        run: |
+          python fixtures/visual_cases/validate_manifest.py fixtures/visual_cases/manifest.json
+
+      - name: Run tests
+        run: |
+          pytest fixtures/visual_cases -q
