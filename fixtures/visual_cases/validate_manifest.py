@@ -185,6 +185,7 @@ def validate_images(base_dir: Path, manifest: Dict) -> None:
         is_valid, error_msg = validate_image_size(file_path, case_id)
         if not is_valid:
             errors.append(f"  - {case_id} ({file_path}): {error_msg}")
+            continue
         
         # Check resolution
         is_valid, error_msg = validate_image_resolution(file_path, case_id)
