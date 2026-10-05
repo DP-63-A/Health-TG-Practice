@@ -6,7 +6,7 @@
   "cases": [
   {
     "id": "F01",
-    "path": "food/F01.jpg",
+    "path": "food/F01.png",
     "category": "food",
     "source": {
       "origin": "AI-generated educational food database - common food items",
@@ -45,7 +45,7 @@
   },
   {
     "id": "F02",
-    "path": "food/F02.jpg",
+    "path": "food/F02.png",
     "category": "food",
     "source": {
       "origin": "AI-generated educational food database - common food items",
@@ -83,7 +83,7 @@
   },
   {
     "id": "F03",
-    "path": "food/F03.jpg",
+    "path": "food/F03.png",
     "category": "food",
     "source": {
       "origin": "AI-generated educational food database - common food items",
@@ -122,7 +122,7 @@
   },
   {
     "id": "F04",
-    "path": "food/F04.jpg",
+    "path": "food/F04.png",
     "category": "food",
     "source": {
       "origin": "AI-generated educational food database - common food items",
@@ -305,7 +305,7 @@
     },
     {
       "id": "W01",
-      "path": "watch/W01.jpg",
+      "path": "watch/W01.png",
       "category": "watch",
       "source": {
         "origin": "AI-generated educational smartwatch/fitness tracker photo",
@@ -335,7 +335,7 @@
     },
     {
       "id": "W02",
-      "path": "watch/W02.jpg",
+      "path": "watch/W02.jpeg",
       "category": "watch",
       "source": {
         "origin": "AI-generated educational smartwatch/fitness tracker photo",
@@ -370,7 +370,7 @@
     },
     {
       "id": "N01",
-      "path": "negative/N01.jpg",
+      "path": "negative/N01.png",
       "category": "negative",
       "source": {
         "origin": "AI-generated intentionally unreadable test case",
@@ -393,7 +393,7 @@
     },
     {
       "id": "N02",
-      "path": "negative/N02.jpg",
+      "path": "negative/N02.png",
       "category": "negative",
       "source": {
         "origin": "AI-generated unsupported image type test case",
