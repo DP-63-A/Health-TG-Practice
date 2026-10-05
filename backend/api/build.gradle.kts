@@ -41,3 +41,19 @@ tasks.withType<JavaCompile>().configureEach {
     options.release.set(21)
 }
 springBoot { mainClass.set("org.healthtg.HealthTgApplication") }
+
+// BE3-05: local demo seed/reset commands. Parameters: -PseedRandom=<long> -PseedStartDate=<yyyy-MM-dd>.
+fun registerSeedTask(taskName: String, command: String, taskDescription: String) =
+    tasks.register<JavaExec>(taskName) {
+        group = "demo"
+        description = taskDescription
+        mainClass.set("org.healthtg.seed.SeedCli")
+        classpath = sourceSets["main"].runtimeClasspath
+        javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
+        args(command)
+        providers.gradleProperty("seedRandom").orNull?.let { args("--health-tg.seed.random-seed=$it") }
+        providers.gradleProperty("seedStartDate").orNull?.let { args("--health-tg.seed.start-date=$it") }
+    }
+
+registerSeedTask("seedDemo", "seed", "Create or re-apply the three synthetic 21-day demo profiles (idempotent)")
+registerSeedTask("resetDemo", "reset", "Remove only seed entries of the configured demo accounts (demo environment only)")

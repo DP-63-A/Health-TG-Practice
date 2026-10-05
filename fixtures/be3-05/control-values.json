@@ -1,0 +1,485 @@
+{
+  "description" : "Frozen control values for the BE3-05 synthetic educational profiles (fictional, not real health data). Daily values use the final payload after corrections; cancelled drafts are excluded.",
+  "random_seed" : 20260916,
+  "start_date" : "2026-09-14",
+  "timezone" : "Europe/Warsaw",
+  "profiles" : {
+    "regular" : {
+      "confirmed_entries" : {
+        "meal" : 63,
+        "metrics" : 84,
+        "checkin" : 84
+      },
+      "changed_records" : 1,
+      "redelivered_records" : 3,
+      "cancelled_drafts" : 0,
+      "empty_days" : [ ],
+      "days" : [ {
+        "date" : "2026-09-14",
+        "meals" : 3,
+        "energy_kcal" : 1611,
+        "steps" : 11168,
+        "sleep_duration_min" : 478,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-15",
+        "meals" : 3,
+        "energy_kcal" : 1695,
+        "steps" : 10998,
+        "sleep_duration_min" : 483,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-16",
+        "meals" : 3,
+        "energy_kcal" : 1739,
+        "steps" : 10345,
+        "sleep_duration_min" : 425,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-17",
+        "meals" : 3,
+        "energy_kcal" : 1433,
+        "steps" : 7950,
+        "sleep_duration_min" : 483,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-18",
+        "meals" : 3,
+        "energy_kcal" : 1635,
+        "steps" : 6657,
+        "sleep_duration_min" : 482,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-19",
+        "meals" : 3,
+        "energy_kcal" : 1757,
+        "steps" : 10813,
+        "sleep_duration_min" : 400,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-20",
+        "meals" : 3,
+        "energy_kcal" : 1679,
+        "steps" : 7241,
+        "sleep_duration_min" : 440,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-21",
+        "meals" : 3,
+        "energy_kcal" : 1601,
+        "steps" : 6987,
+        "sleep_duration_min" : 422,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-22",
+        "meals" : 3,
+        "energy_kcal" : 1806,
+        "steps" : 7147,
+        "sleep_duration_min" : 457,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-23",
+        "meals" : 3,
+        "energy_kcal" : 1617,
+        "steps" : 11490,
+        "sleep_duration_min" : 448,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-24",
+        "meals" : 3,
+        "energy_kcal" : 1553,
+        "steps" : 10773,
+        "sleep_duration_min" : 448,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-25",
+        "meals" : 3,
+        "energy_kcal" : 1892,
+        "steps" : 10629,
+        "sleep_duration_min" : 423,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-26",
+        "meals" : 3,
+        "energy_kcal" : 1917,
+        "steps" : 11155,
+        "sleep_duration_min" : 458,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-27",
+        "meals" : 3,
+        "energy_kcal" : 1586,
+        "steps" : 8063,
+        "sleep_duration_min" : 436,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-28",
+        "meals" : 3,
+        "energy_kcal" : 1771,
+        "steps" : 6875,
+        "sleep_duration_min" : 478,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-29",
+        "meals" : 3,
+        "energy_kcal" : 1537,
+        "steps" : 10694,
+        "sleep_duration_min" : 475,
+        "checkins" : 4
+      }, {
+        "date" : "2026-09-30",
+        "meals" : 3,
+        "energy_kcal" : 1647,
+        "steps" : 7095,
+        "sleep_duration_min" : 477,
+        "checkins" : 4
+      }, {
+        "date" : "2026-10-01",
+        "meals" : 3,
+        "energy_kcal" : 1720,
+        "steps" : 7132,
+        "sleep_duration_min" : 404,
+        "checkins" : 4
+      }, {
+        "date" : "2026-10-02",
+        "meals" : 3,
+        "energy_kcal" : 2013,
+        "steps" : 10940,
+        "sleep_duration_min" : 465,
+        "checkins" : 4
+      }, {
+        "date" : "2026-10-03",
+        "meals" : 3,
+        "energy_kcal" : 1483,
+        "steps" : 8516,
+        "sleep_duration_min" : 469,
+        "checkins" : 4
+      }, {
+        "date" : "2026-10-04",
+        "meals" : 3,
+        "energy_kcal" : 1931,
+        "steps" : 7095,
+        "sleep_duration_min" : 482,
+        "checkins" : 4
+      } ]
+    },
+    "irregular" : {
+      "confirmed_entries" : {
+        "meal" : 49,
+        "metrics" : 34,
+        "checkin" : 33
+      },
+      "changed_records" : 2,
+      "redelivered_records" : 1,
+      "cancelled_drafts" : 1,
+      "empty_days" : [ ],
+      "days" : [ {
+        "date" : "2026-09-14",
+        "meals" : 4,
+        "energy_kcal" : 1675,
+        "steps" : 4875,
+        "sleep_duration_min" : null,
+        "checkins" : 2
+      }, {
+        "date" : "2026-09-15",
+        "meals" : 2,
+        "energy_kcal" : 1760,
+        "steps" : null,
+        "sleep_duration_min" : null,
+        "checkins" : 1
+      }, {
+        "date" : "2026-09-16",
+        "meals" : 1,
+        "energy_kcal" : 635,
+        "steps" : 4700,
+        "sleep_duration_min" : null,
+        "checkins" : 2
+      }, {
+        "date" : "2026-09-17",
+        "meals" : 0,
+        "energy_kcal" : null,
+        "steps" : null,
+        "sleep_duration_min" : 242,
+        "checkins" : 2
+      }, {
+        "date" : "2026-09-18",
+        "meals" : 3,
+        "energy_kcal" : 1410,
+        "steps" : 10691,
+        "sleep_duration_min" : null,
+        "checkins" : 2
+      }, {
+        "date" : "2026-09-19",
+        "meals" : 1,
+        "energy_kcal" : 393,
+        "steps" : 15094,
+        "sleep_duration_min" : 592,
+        "checkins" : 0
+      }, {
+        "date" : "2026-09-20",
+        "meals" : 4,
+        "energy_kcal" : 1789,
+        "steps" : 8688,
+        "sleep_duration_min" : null,
+        "checkins" : 1
+      }, {
+        "date" : "2026-09-21",
+        "meals" : 3,
+        "energy_kcal" : 1701,
+        "steps" : 0,
+        "sleep_duration_min" : null,
+        "checkins" : 2
+      }, {
+        "date" : "2026-09-22",
+        "meals" : 2,
+        "energy_kcal" : 811,
+        "steps" : 14581,
+        "sleep_duration_min" : null,
+        "checkins" : 2
+      }, {
+        "date" : "2026-09-23",
+        "meals" : 3,
+        "energy_kcal" : 1591,
+        "steps" : 7125,
+        "sleep_duration_min" : 318,
+        "checkins" : 2
+      }, {
+        "date" : "2026-09-24",
+        "meals" : 0,
+        "energy_kcal" : null,
+        "steps" : 14683,
+        "sleep_duration_min" : 597,
+        "checkins" : 2
+      }, {
+        "date" : "2026-09-25",
+        "meals" : 2,
+        "energy_kcal" : 1029,
+        "steps" : 7113,
+        "sleep_duration_min" : null,
+        "checkins" : 2
+      }, {
+        "date" : "2026-09-26",
+        "meals" : 3,
+        "energy_kcal" : 1420,
+        "steps" : 12680,
+        "sleep_duration_min" : 577,
+        "checkins" : 2
+      }, {
+        "date" : "2026-09-27",
+        "meals" : 3,
+        "energy_kcal" : 2074,
+        "steps" : 4942,
+        "sleep_duration_min" : 456,
+        "checkins" : 0
+      }, {
+        "date" : "2026-09-28",
+        "meals" : 3,
+        "energy_kcal" : 1634,
+        "steps" : 8206,
+        "sleep_duration_min" : null,
+        "checkins" : 2
+      }, {
+        "date" : "2026-09-29",
+        "meals" : 2,
+        "energy_kcal" : 1365,
+        "steps" : null,
+        "sleep_duration_min" : 413,
+        "checkins" : 2
+      }, {
+        "date" : "2026-09-30",
+        "meals" : 3,
+        "energy_kcal" : 2130,
+        "steps" : 12141,
+        "sleep_duration_min" : null,
+        "checkins" : 4
+      }, {
+        "date" : "2026-10-01",
+        "meals" : 1,
+        "energy_kcal" : 654,
+        "steps" : null,
+        "sleep_duration_min" : null,
+        "checkins" : 1
+      }, {
+        "date" : "2026-10-02",
+        "meals" : 4,
+        "energy_kcal" : 2228,
+        "steps" : 9505,
+        "sleep_duration_min" : 421,
+        "checkins" : 1
+      }, {
+        "date" : "2026-10-03",
+        "meals" : 3,
+        "energy_kcal" : 1648,
+        "steps" : 7622,
+        "sleep_duration_min" : 586,
+        "checkins" : 0
+      }, {
+        "date" : "2026-10-04",
+        "meals" : 2,
+        "energy_kcal" : 834,
+        "steps" : null,
+        "sleep_duration_min" : null,
+        "checkins" : 1
+      } ]
+    },
+    "incomplete" : {
+      "confirmed_entries" : {
+        "meal" : 13,
+        "metrics" : 13,
+        "checkin" : 4
+      },
+      "changed_records" : 1,
+      "redelivered_records" : 1,
+      "cancelled_drafts" : 1,
+      "empty_days" : [ "2026-09-18", "2026-09-19", "2026-09-27" ],
+      "days" : [ {
+        "date" : "2026-09-14",
+        "meals" : 1,
+        "energy_kcal" : 656,
+        "steps" : null,
+        "sleep_duration_min" : null,
+        "checkins" : 0
+      }, {
+        "date" : "2026-09-15",
+        "meals" : 1,
+        "energy_kcal" : 225,
+        "steps" : null,
+        "sleep_duration_min" : null,
+        "checkins" : 0
+      }, {
+        "date" : "2026-09-16",
+        "meals" : 1,
+        "energy_kcal" : 587,
+        "steps" : 6319,
+        "sleep_duration_min" : null,
+        "checkins" : 1
+      }, {
+        "date" : "2026-09-17",
+        "meals" : 1,
+        "energy_kcal" : 693,
+        "steps" : 8066,
+        "sleep_duration_min" : null,
+        "checkins" : 1
+      }, {
+        "date" : "2026-09-18",
+        "meals" : 0,
+        "energy_kcal" : null,
+        "steps" : null,
+        "sleep_duration_min" : null,
+        "checkins" : 0
+      }, {
+        "date" : "2026-09-19",
+        "meals" : 0,
+        "energy_kcal" : null,
+        "steps" : null,
+        "sleep_duration_min" : null,
+        "checkins" : 0
+      }, {
+        "date" : "2026-09-20",
+        "meals" : 1,
+        "energy_kcal" : 682,
+        "steps" : null,
+        "sleep_duration_min" : null,
+        "checkins" : 0
+      }, {
+        "date" : "2026-09-21",
+        "meals" : 0,
+        "energy_kcal" : null,
+        "steps" : 2632,
+        "sleep_duration_min" : null,
+        "checkins" : 0
+      }, {
+        "date" : "2026-09-22",
+        "meals" : 1,
+        "energy_kcal" : 560,
+        "steps" : null,
+        "sleep_duration_min" : 350,
+        "checkins" : 0
+      }, {
+        "date" : "2026-09-23",
+        "meals" : 1,
+        "energy_kcal" : 625,
+        "steps" : null,
+        "sleep_duration_min" : null,
+        "checkins" : 1
+      }, {
+        "date" : "2026-09-24",
+        "meals" : 1,
+        "energy_kcal" : 365,
+        "steps" : null,
+        "sleep_duration_min" : null,
+        "checkins" : 0
+      }, {
+        "date" : "2026-09-25",
+        "meals" : 1,
+        "energy_kcal" : 416,
+        "steps" : null,
+        "sleep_duration_min" : null,
+        "checkins" : 0
+      }, {
+        "date" : "2026-09-26",
+        "meals" : 1,
+        "energy_kcal" : 415,
+        "steps" : null,
+        "sleep_duration_min" : null,
+        "checkins" : 0
+      }, {
+        "date" : "2026-09-27",
+        "meals" : 0,
+        "energy_kcal" : null,
+        "steps" : null,
+        "sleep_duration_min" : null,
+        "checkins" : 0
+      }, {
+        "date" : "2026-09-28",
+        "meals" : 1,
+        "energy_kcal" : 239,
+        "steps" : 8793,
+        "sleep_duration_min" : null,
+        "checkins" : 0
+      }, {
+        "date" : "2026-09-29",
+        "meals" : 0,
+        "energy_kcal" : null,
+        "steps" : 4016,
+        "sleep_duration_min" : null,
+        "checkins" : 0
+      }, {
+        "date" : "2026-09-30",
+        "meals" : 0,
+        "energy_kcal" : null,
+        "steps" : 2596,
+        "sleep_duration_min" : null,
+        "checkins" : 0
+      }, {
+        "date" : "2026-10-01",
+        "meals" : 0,
+        "energy_kcal" : null,
+        "steps" : 9066,
+        "sleep_duration_min" : null,
+        "checkins" : 0
+      }, {
+        "date" : "2026-10-02",
+        "meals" : 1,
+        "energy_kcal" : 296,
+        "steps" : 2325,
+        "sleep_duration_min" : 310,
+        "checkins" : 0
+      }, {
+        "date" : "2026-10-03",
+        "meals" : 0,
+        "energy_kcal" : null,
+        "steps" : 5406,
+        "sleep_duration_min" : 392,
+        "checkins" : 0
+      }, {
+        "date" : "2026-10-04",
+        "meals" : 1,
+        "energy_kcal" : 260,
+        "steps" : null,
+        "sleep_duration_min" : 407,
+        "checkins" : 1
+      } ]
+    }
+  }
+}

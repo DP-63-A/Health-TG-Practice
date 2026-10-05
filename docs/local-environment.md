@@ -89,5 +89,6 @@ Removing containers without removing persistent data:
 docker-compose down
 ```
 
-Destructive reset is intentionally not part of the ordinary workflow. The final
-reset command belongs to the BE3-05 integration and must be documented separately.
+Destructive reset is intentionally not part of the ordinary workflow. The BE3-05 demo
+seed/reset (`:backend:api:seedDemo`, `:backend:api:resetDemo`) only works against an explicitly
+allowed demo database; see [backend/api/README.md](../backend/api/README.md).
