@@ -180,7 +180,8 @@ class BotCoreStorageIntegrationTest {
 
     private static BotUpdate message(long user, long updateId, String text) {
         return new BotUpdate(updateId, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE,
-                user, user, false, text, List.of(), null, null);
+                user, user, false, text, List.of(), null, null,
+                java.time.Instant.parse("2026-09-25T08:00:00Z"));
     }
 
     private static BotUpdate callback(long user, long updateId, String data) {

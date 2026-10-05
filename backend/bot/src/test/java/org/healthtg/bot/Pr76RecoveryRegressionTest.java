@@ -58,7 +58,8 @@ class Pr76RecoveryRegressionTest {
     private DialogState state() { return dialogs.find(owner()).orElseThrow(); }
     private static BotUpdate message(long id, String text) {
         return new BotUpdate(id, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE,
-                1001L, 1001L, false, text, List.of(), null, null);
+                1001L, 1001L, false, text, List.of(), null, null,
+                java.time.Instant.parse("2026-09-25T08:00:00Z"));
     }
     private static BotUpdate cancel(long id, Entry draft) {
         return new BotUpdate(id, BotUpdate.Kind.CALLBACK, BotUpdate.ChatType.PRIVATE,
@@ -119,6 +120,37 @@ class Pr76RecoveryRegressionTest {
         assertEquals(newer, state(), "Stale cancel must leave the new draft intact");
     }
 
+    @Test void stepsClarificationRestartAndPartialWriteReplayPreserveOriginalMessageTime() {
+        var originalTime = java.time.Instant.parse("2026-10-05T06:00:00Z");
+        BotUpdate original = new BotUpdate(100, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE,
+                1001L, 1001L, false, "за день прошёл 9000 шагов", List.of(), null, null, originalTime);
+        flow().handleMessage(original);
+        assertEquals("text_clarification", state().step());
+        assertEquals(originalTime.toString(), state().context().get("message_sent_at"));
+        context.close(); reopen();
+        BotUpdate answer = new BotUpdate(101, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE,
+                1001L, 1001L, false, "04.10.2026", List.of(), null, null, originalTime.plusSeconds(86400));
+        EntryCoreService interrupted = mock(EntryCoreService.class, delegatesTo(entries));
+        doAnswer(inv -> {
+            entries.createDraft(inv.getArgument(0));
+            throw new DataAccessResourceFailureException("after steps persisted");
+        }).when(interrupted).createDraft(any());
+        assertThrows(DataAccessResourceFailureException.class, () ->
+                new CoreBotFlow(users, interrupted, dialogs, Clock.systemUTC()).handleMessage(answer));
+        Entry saved = entries.findActiveDraft(owner()).orElseThrow();
+        assertEquals(originalTime, saved.occurredAt());
+        assertEquals("2026-10-04", saved.payload().get("local_date"));
+        context.close(); reopen();
+        flow().handleMessage(answer);
+        flow().handleMessage(answer);
+        flow().handleMessage(original);
+        Entry recovered = entries.findActiveDraft(owner()).orElseThrow();
+        assertEquals(saved.id(), recovered.id());
+        assertEquals(originalTime, recovered.occurredAt());
+        assertEquals("draft_review", state().step());
+        assertEquals(1, context.getBean(MongoTemplate.class).getCollection("entries").countDocuments());
+    }
+
     @Test void originalReplayCannotOverwriteNewerDialogAndUnrelatedInputCannotRepairIt() {
         BotUpdate original = message(20, "24.09.2026 за день прошёл 8000 шагов");
         flow().handleMessage(original);
@@ -133,5 +165,3 @@ class Pr76RecoveryRegressionTest {
         assertEquals(draft.id(), entries.findActiveDraft(owner()).orElseThrow().id());
     }
 }
-
-
