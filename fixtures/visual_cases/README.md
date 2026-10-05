@@ -28,21 +28,21 @@ fixtures/visual_cases/
 ├── manifest.json
 ├── manifest-schema.json
 ├── food/
-│   ├── F01.jpg
-│   ├── F02.jpg
-│   ├── F03.jpg
-│   └── F04.jpg
+│   ├── F01.png
+│   ├── F02.png
+│   ├── F03.png
+│   └── F04.png
 ├── health/
 │   ├── H01.png
 │   ├── H02.png
 │   ├── H03.png
 │   └── H04.png
 ├── watch/
-│   ├── W01.jpg
-│   └── W02.jpg
+│   ├── W01.png
+│   └── W02.jpeg
 └── negative/
-    ├── N01.jpg
-    └── N02.jpg
+    ├── N01.jpeg
+    └── N02.jpeg
 ```
 
 ## Manifest Structure
