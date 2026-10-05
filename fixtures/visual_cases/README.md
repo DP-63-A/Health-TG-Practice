@@ -76,3 +76,17 @@ BE2 uses this dataset to:
 4. Ensure graceful failure on unsupported inputs (N01–N02)
 
 The manifest must not be sent to the model as validation data.
+
+## Visual cases validation
+Setup
+    python -m venv .venv
+# Windows (PowerShell)
+    . .venv/Scripts/Activate.ps1
+# Linux/macOS
+    # source .venv/bin/activate
+
+    pip install -r fixtures/visual_cases/requirements.txt
+Run manifest validation
+    python fixtures/visual_cases/validate_manifest.py fixtures/visual_cases/manifest.json
+Run tests
+    pytest fixtures/visual_cases -q
