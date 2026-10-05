@@ -7,18 +7,28 @@ Checks:
 - File existence and consistency
 - Case uniqueness and completeness
 - Date format and range
+- Image format (JPEG/PNG only)
+- Image file integrity and decodability
+- Image size (max 5 MiB)
+- Image resolution (max 12 megapixels)
 """
 
 import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Set, Tuple, Optional
 
 try:
     from jsonschema import validate, ValidationError, FormatChecker
 except ImportError:
     print("ERROR: jsonschema not installed. Run: pip install jsonschema")
+    sys.exit(1)
+
+try:
+    from PIL import Image
+except ImportError:
+    print("ERROR: Pillow not installed. Run: pip install Pillow")
     sys.exit(1)
 
 
@@ -69,6 +79,105 @@ def validate_file_existence(base_dir: Path, manifest: Dict) -> None:
     
     if errors:
         print("ERROR: Missing files:")
+        for err in errors:
+            print(err)
+        sys.exit(1)
+
+
+def validate_image_format(file_path: Path, case_id: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validate image format (JPEG or PNG only).
+    Returns: (is_valid, error_message)
+    """
+    suffix = file_path.suffix.lower()
+    if suffix not in ['.jpg', '.jpeg', '.png']:
+        return False, f"Unsupported format: {suffix} (expected .jpg, .jpeg, or .png)"
+    return True, None
+
+
+def validate_image_integrity(file_path: Path, case_id: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validate image file integrity by attempting to decode.
+    Returns: (is_valid, error_message)
+    """
+    try:
+        with Image.open(file_path) as img:
+            # Access image properties to ensure it's decodable
+            _ = img.format
+            _ = img.size
+        return True, None
+    except Exception as e:
+        return False, f"Corrupted or undecodable image: {str(e)}"
+
+
+def validate_image_size(file_path: Path, case_id: str, max_size_mb: int = 5) -> Tuple[bool, Optional[str]]:
+    """
+    Validate image file size (max 5 MiB by default).
+    Returns: (is_valid, error_message)
+    """
+    max_size_bytes = max_size_mb * 1024 * 1024
+    file_size_bytes = file_path.stat().st_size
+    
+    if file_size_bytes > max_size_bytes:
+        file_size_mb = file_size_bytes / (1024 * 1024)
+        return False, f"File size {file_size_mb:.2f} MiB exceeds limit of {max_size_mb} MiB"
+    return True, None
+
+
+def validate_image_resolution(file_path: Path, case_id: str, max_megapixels: int = 12) -> Tuple[bool, Optional[str]]:
+    """
+    Validate image resolution (max 12 megapixels by default).
+    Returns: (is_valid, error_message)
+    """
+    try:
+        with Image.open(file_path) as img:
+            width, height = img.size
+            megapixels = (width * height) / (1024 * 1024)
+            
+            if megapixels > max_megapixels:
+                return False, f"Resolution {width}×{height} ({megapixels:.2f} MP) exceeds limit of {max_megapixels} MP"
+        return True, None
+    except Exception as e:
+        return False, f"Cannot determine resolution: {str(e)}"
+
+
+def validate_images(base_dir: Path, manifest: Dict) -> None:
+    """
+    Validate all images against format, integrity, size, and resolution constraints.
+    """
+    errors = []
+    
+    for case in manifest.get('cases', []):
+        case_id = case.get('id')
+        file_path = base_dir / case.get('path', '')
+        
+        if not file_path.exists():
+            continue  # Already caught by validate_file_existence
+        
+        # Check format
+        is_valid, error_msg = validate_image_format(file_path, case_id)
+        if not is_valid:
+            errors.append(f"  - {case_id} ({file_path}): {error_msg}")
+            continue
+        
+        # Check integrity (decodability)
+        is_valid, error_msg = validate_image_integrity(file_path, case_id)
+        if not is_valid:
+            errors.append(f"  - {case_id} ({file_path}): {error_msg}")
+            continue
+        
+        # Check file size
+        is_valid, error_msg = validate_image_size(file_path, case_id)
+        if not is_valid:
+            errors.append(f"  - {case_id} ({file_path}): {error_msg}")
+        
+        # Check resolution
+        is_valid, error_msg = validate_image_resolution(file_path, case_id)
+        if not is_valid:
+            errors.append(f"  - {case_id} ({file_path}): {error_msg}")
+    
+    if errors:
+        print("ERROR: Image validation failed:")
         for err in errors:
             print(err)
         sys.exit(1)
@@ -252,6 +361,9 @@ def main():
     print("✓ Checking file existence...")
     validate_file_existence(base_dir, manifest)
     
+    print("✓ Validating image format and integrity...")
+    validate_images(base_dir, manifest)
+    
     print("✓ Validating dates and times...")
     min_date, max_date = validate_dates(manifest)
     
@@ -268,6 +380,7 @@ def main():
     print(f"   - 12 cases present")
     print(f"   - All categories covered (F, H, W, N)")
     print(f"   - All referenced files exist")
+    print(f"   - All images are valid (format, integrity, size, resolution)")
     print(f"   - Date/time format valid")
     print(f"   - No duplicates found")
 
