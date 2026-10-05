@@ -11,7 +11,7 @@
     "source": {
       "origin": "AI-generated educational food database - common food items",
       "license": "CC0-1.0",
-      "attribution": "Generated with AI for educational software testing; contains no personal or real medical data"
+      "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
     },
     "expected_fields": {
       "dish_name": {
@@ -50,7 +50,7 @@
     "source": {
       "origin": "AI-generated educational food database - common food items",
       "license": "CC0-1.0",
-      "attribution": "Generated with AI for educational software testing; contains no personal or real medical data"
+      "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
     },
     "expected_fields": {
       "dish_name": {
@@ -88,7 +88,7 @@
     "source": {
       "origin": "AI-generated educational food database - common food items",
       "license": "CC0-1.0",
-      "attribution": "Generated with AI for educational software testing; contains no personal or real medical data"
+      "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
     },
     "expected_fields": {
       "dish_name": {
@@ -127,7 +127,7 @@
     "source": {
       "origin": "AI-generated educational food database - common food items",
       "license": "CC0-1.0",
-      "attribution": "Generated with AI for educational software testing; contains no personal or real medical data"
+      "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
     },
     "expected_fields": {
       "dish_name": {
@@ -167,7 +167,7 @@
       "source": {
         "origin": "AI-generated educational health tracking application screenshot",
         "license": "CC0-1.0",
-        "attribution": "Generated with AI for educational software testing; contains no personal or real medical data"
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
       },
       "expected_fields": {
         "metric_type": {
@@ -203,7 +203,7 @@
       "source": {
         "origin": "AI-generated educational health tracking application screenshot",
         "license": "CC0-1.0",
-        "attribution": "Generated with AI for educational software testing; contains no personal or real medical data"
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
       },
       "expected_fields": {
         "metric_type": {
@@ -240,7 +240,7 @@
       "source": {
         "origin": "AI-generated educational health tracking application screenshot (variant 2)",
         "license": "CC0-1.0",
-        "attribution": "Generated with AI for educational software testing; contains no personal or real medical data"
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
       },
       "expected_fields": {
         "metric_type": {
@@ -277,7 +277,7 @@
       "source": {
         "origin": "AI-generated educational health tracking application screenshot (variant 2)",
         "license": "CC0-1.0",
-        "attribution": "Generated with AI for educational software testing; contains no personal or real medical data"
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
       },
       "expected_fields": {
         "metric_type": {
@@ -313,7 +313,7 @@
       "source": {
         "origin": "AI-generated educational smartwatch/fitness tracker photo",
         "license": "CC0-1.0",
-        "attribution": "Generated with AI for educational software testing; contains no personal or real medical data"
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
       },
       "expected_fields": {
         "metric_type": {
@@ -344,7 +344,7 @@
       "source": {
         "origin": "AI-generated educational smartwatch/fitness tracker photo",
         "license": "CC0-1.0",
-        "attribution": "Generated with AI for educational software testing; contains no personal or real medical data"
+        "attribution": "Generated with Google Gemini AI for educational software testing; contains no personal or real medical data"
       },
       "expected_fields": {
         "metric_type": {
@@ -380,7 +380,7 @@
       "source": {
         "origin": "AI-generated intentionally unreadable test case",
         "license": "CC0-1.0",
-        "attribution": "Generated with AI for educational software testing; contains no personal or real medical data"
+        "attribution": "Generated with Microsoft Copilot AI and blurred in Paint.net app for educational software testing; contains no personal or real medical data"
       },
       "expected_fields": {},
       "datetime": {
@@ -403,7 +403,7 @@
       "source": {
         "origin": "AI-generated unsupported image type test case",
         "license": "CC0-1.0",
-        "attribution": "Generated with AI for educational software testing; contains no personal or real medical data"
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
       },
       "expected_fields": {},
       "datetime": {
