@@ -1,12 +1,14 @@
 package org.healthtg.user;
 
 import org.springframework.stereotype.Repository;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.time.ZoneId;
 import java.util.Optional;
 import java.util.UUID;
 
 @Repository
+@ConditionalOnProperty(name = "health-tg.core.storage.enabled", matchIfMissing = true)
 class MongoUserStore implements UserStore {
     private final MongoUserRepository repository;
 
