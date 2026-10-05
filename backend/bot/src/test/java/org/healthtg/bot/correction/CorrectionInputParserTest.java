@@ -97,6 +97,64 @@ class CorrectionInputParserTest {
         assertEquals(expected, success(parser.parseDate(iso)));
     }
 
+    @Test
+    void rejectsAnOtherwiseValidNumberAboveTheInputLimit() {
+        failure(parser.parseNumber("9".repeat(2001)), TOO_LONG);
+    }
+
+    @ParameterizedTest
+    @MethodSource("spaces")
+    void inputLimitIncludesOuterSpacesBeforeTrimming(String space) {
+        String number = space.repeat(998) + "12.5" + space.repeat(998);
+        assertEquals(new BigDecimal("12.5"), success(parser.parseNumber(number)));
+        failure(parser.parseNumber(number + space), TOO_LONG);
+        failure(parser.parseNumber(space + number), TOO_LONG);
+
+        for (String date : new String[]{"29.02.2024", "2024-02-29"}) {
+            String paddedDate = space.repeat(995) + date + space.repeat(995);
+            assertEquals(LocalDate.of(2024, 2, 29), success(parser.parseDate(paddedDate)));
+            failure(parser.parseDate(paddedDate + space), TOO_LONG);
+            failure(parser.parseDate(space + paddedDate), TOO_LONG);
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("spaces")
+    void excessiveBlankInputIsTooLongRatherThanEmpty(String space) {
+        failure(parser.parseNumber(space.repeat(2000)), EMPTY_INPUT);
+        failure(parser.parseDate(space.repeat(2000)), EMPTY_INPUT);
+        failure(parser.parseNumber(space.repeat(2001)), TOO_LONG);
+        failure(parser.parseDate(space.repeat(2001)), TOO_LONG);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"🙂", "ё", "9🙂"})
+    void countsUnicodeCodePointsAndChecksLengthBeforeSyntax(String unit) {
+        String boundary = unit.repeat(2000 / unit.codePointCount(0, unit.length()));
+        failure(parser.parseNumber(boundary), INVALID_NUMBER_FORMAT);
+        failure(parser.parseDate(boundary), INVALID_DATE_FORMAT);
+        failure(parser.parseNumber(boundary + "ё"), TOO_LONG);
+        failure(parser.parseDate(boundary + "ё"), TOO_LONG);
+        failure(parser.parseNumber(boundary + "🙂"), TOO_LONG);
+        failure(parser.parseDate(boundary + "🙂"), TOO_LONG);
+    }
+
+    @Test
+    void excessiveInputDoesNotLeakItsContentsOrPreventTheNextCorrection() {
+        String privateText = "личная заметка ё🙂";
+        String input = privateText + "x".repeat(2001);
+        var number = failure(parser.parseNumber(input), TOO_LONG);
+        var date = failure(parser.parseDate(input), TOO_LONG);
+        assertFalse(number.message().contains(privateText));
+        assertFalse(date.message().contains(privateText));
+        assertFalse(number.toString().contains(privateText));
+        assertFalse(date.toString().contains(privateText));
+        assertTrue(number.message().contains("2000"));
+        assertTrue(date.message().contains("2000"));
+        assertEquals(new BigDecimal("-12.50"), success(parser.parseNumber("-12,50")));
+        assertEquals(LocalDate.of(2024, 2, 29), success(parser.parseDate("29.02.2024")));
+    }
+
     static Stream<Arguments> dates() {
         return Stream.of(
                 Arguments.of("01.01.0001", "0001-01-01", LocalDate.of(1, 1, 1)),

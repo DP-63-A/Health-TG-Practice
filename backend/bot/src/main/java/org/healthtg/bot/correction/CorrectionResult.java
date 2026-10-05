@@ -19,6 +19,7 @@ public sealed interface CorrectionResult<T> {
 
     enum ErrorCode {
         EMPTY_INPUT,
+        TOO_LONG,
         INVALID_NUMBER_FORMAT,
         INVALID_DATE_FORMAT,
         INVALID_DATE
