@@ -1,0 +1,89 @@
+.steps-chart {
+    --steps-chart-color: var(--tg-theme-button-color,
+    #2563eb);
+
+    min-width: 0;
+    margin-top: 20px;
+    padding: 16px;
+    box-sizing: border-box;
+    border: 1px solid var(--tg-theme-hint-color,
+    #718096);
+    border-radius: 16px;
+    color: var(--tg-theme-text-color, #172033);
+    background: var(--tg-theme-bg-color, #fff);
+  }
+
+  .steps-chart h2 {
+    margin: 0;
+    font-size: 20px;
+  }
+
+  .steps-chart__description {
+    margin: 8px 0 16px;
+  }
+
+  .steps-chart__plot {
+    width: 100%;
+    min-width: 0;
+    height: 240px;
+  }
+
+  .steps-chart__tooltip {
+    display: grid;
+    gap: 4px;
+    padding: 10px;
+    border: 1px solid var(--tg-theme-hint-color,
+    #718096);
+    border-radius: 8px;
+    color: var(--tg-theme-text-color, #172033);
+    background: var(--tg-theme-bg-color, #fff);
+    pointer-events: none;
+  }
+
+  .steps-chart__details {
+    margin-top: 12px;
+  }
+
+  .steps-chart__details summary {
+    padding: 12px 0;
+    cursor: pointer;
+  }
+
+  .steps-chart table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+  }
+
+  .steps-chart caption {
+    padding: 8px 0;
+    text-align: left;
+  }
+
+  .steps-chart th,
+  .steps-chart td {
+    padding: 8px 4px;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .steps-chart tbody th {
+    font-weight: normal;
+  }
+
+  .steps-chart button {
+    min-height: 44px;
+    padding: 8px 4px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .steps-chart button:focus-visible,
+  .steps-chart summary:focus-visible {
+    outline: 2px solid var(--steps-chart-color);
+    outline-offset: 3px;
+  }

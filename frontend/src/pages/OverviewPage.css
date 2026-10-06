@@ -9,13 +9,80 @@
   margin-top: 20px;
 }
 
-/* Все карточки занимают ширину и высоту своей ячейки */
 
 .overview-cards > * {
   min-width: 0;
   height: 100%;
   box-sizing: border-box;
 }
+
+
+.overview-filters {
+    display: grid;
+    grid-template-columns: auto minmax(150px, 220px);
+    align-items: center;
+    gap: 12px;
+    width: fit-content;
+    max-width: 100%;
+    margin: 20px 0 8px;
+    padding: 12px 16px;
+    border: 1px solid var(--tg-theme-hint-color,
+    #d1d5db);
+    border-radius: 14px;
+    color: var(--tg-theme-text-color, #172033);
+    background: var(--tg-theme-secondary-bg-color,
+    #f5f7fa);
+  }
+
+  .overview-filters label {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .overview-filters select {
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 36px 8px 12px;
+    border: 1px solid var(--tg-theme-hint-color,
+    #c4cad4);
+    border-radius: 10px;
+    color: var(--tg-theme-text-color, #172033);
+    background-color: var(--tg-theme-bg-color, #fff);
+    font: inherit;
+    cursor: pointer;
+    transition: border-color 150ms ease, box-shadow
+    150ms ease;
+  }
+
+  .overview-filters select:hover {
+    border-color: var(--tg-theme-button-color,
+    #2563eb);
+  }
+
+  .overview-filters select:focus-visible {
+    outline: 3px solid
+      color-mix(
+        in srgb,
+        var(--tg-theme-button-color, #2563eb) 30%,
+        transparent
+      );
+    border-color: var(--tg-theme-button-color,
+    #2563eb);
+  }
+
+  .overview-filters select:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 480px) {
+    .overview-filters {
+      grid-template-columns: 1fr;
+      gap: 6px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+  }
 
 /* Планшет */
 
@@ -32,3 +99,238 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+.overview-cards > section {
+    min-width: 0;
+    padding: 20px;
+    overflow: hidden;
+    border: 1px solid rgba(127, 127, 127, 0.2);
+    border-radius: 20px;
+    background: var(--tg-theme-secondary-bg-color,
+    #f5f7fb);
+    box-shadow: 0 4px 14px rgba(20, 35, 60, 0.05);
+    transition:
+      box-shadow 180ms ease,
+      border-color 180ms ease,
+      transform 180ms ease;
+  }
+
+  .overview-cards > section h2 {
+    margin-top: 0;
+    color: var(--tg-theme-text-color, #172033);
+    letter-spacing: -0.02em;
+  }
+
+  .overview-cards > section p,
+  .overview-cards > section span {
+    line-height: 1.45;
+  }
+
+  .nutrition-card__energy,
+  .meal-count-card__total,
+  .sleep-card__total,
+  .steps-card__total,
+  .heart-rate-card__value {
+    color: var(--tg-theme-button-color, #2563eb);
+    font-size: clamp(26px, 5vw, 34px);
+    letter-spacing: -0.035em;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .nutrition-card__nutrients strong,
+  .sleep-card__details strong,
+  .steps-card__details strong,
+  .checkin-card__value {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sleep-card__details,
+  .steps-card__details,
+  .heart-rate-card__details {
+    border-color: rgba(127, 127, 127, 0.2);
+  }
+
+  .checkin-card__row {
+    border-color: rgba(127, 127, 127, 0.2);
+  }
+
+  .checkin-card__row:first-child {
+    border-top: 0;
+  }
+
+  .checkin-card__value {
+    min-width: 2.5em;
+    padding: 5px 9px;
+    border-radius: 10px;
+    background: var(--tg-theme-bg-color, #fff);
+    text-align: center;
+  }
+
+  /* Панели графиков */
+  .nutrition-chart,
+  .sleep-chart,
+  .steps-chart,
+  .checkin-chart {
+    margin-top: 20px;
+    padding: clamp(16px, 3vw, 24px);
+    border: 1px solid rgba(127, 127, 127, 0.2);
+    border-radius: 20px;
+    background: var(--tg-theme-secondary-bg-color,
+    #f5f7fb);
+    box-shadow: 0 4px 14px rgba(20, 35, 60, 0.05);
+  }
+
+  .nutrition-chart h2,
+  .sleep-chart h2,
+  .steps-chart h2,
+  .checkin-chart h2 {
+    color: var(--tg-theme-text-color, #172033);
+    letter-spacing: -0.02em;
+  }
+
+  .nutrition-chart__plot,
+  .sleep-chart__plot,
+  .steps-chart__plot,
+  .checkin-chart__plot {
+    margin-top: 12px;
+  }
+
+  /* Раскрываемые таблицы данных */
+  .nutrition-chart__details,
+  .sleep-chart__details,
+  .steps-chart__details,
+  .checkin-chart__details {
+    margin-top: 16px;
+    border-top: 1px solid rgba(127, 127, 127, 0.2);
+  }
+
+  .nutrition-chart__details summary,
+  .sleep-chart__details summary,
+  .steps-chart__details summary,
+  .checkin-chart summary {
+    padding: 14px 4px;
+    border-radius: 8px;
+    color: var(--tg-theme-link-color, var(--tg-theme-button-color, #2563eb));
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .nutrition-chart table,
+  .sleep-chart table,
+  .steps-chart table,
+  .checkin-chart table {
+    margin-top: 4px;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .nutrition-chart th,
+  .nutrition-chart td,
+  .sleep-chart th,
+  .sleep-chart td,
+  .steps-chart th,
+  .steps-chart td,
+  .checkin-chart th,
+  .checkin-chart td {
+    padding: 11px 8px;
+    border-bottom: 1px solid rgba(127, 127, 127,
+    0.14);
+  }
+
+  .nutrition-chart tbody tr:last-child th,
+  .nutrition-chart tbody tr:last-child td,
+  .sleep-chart tbody tr:last-child th,
+  .sleep-chart tbody tr:last-child td,
+  .steps-chart tbody tr:last-child th,
+  .steps-chart tbody tr:last-child td,
+  .checkin-chart tbody tr:last-child th,
+  .checkin-chart tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .nutrition-chart tbody tr:hover,
+  .sleep-chart tbody tr:hover,
+  .steps-chart tbody tr:hover,
+  .checkin-chart tbody tr:hover {
+    background: rgba(127, 127, 127, 0.06);
+  }
+
+  /* Удобные поля выбора и клавиатурный фокус */
+  .overview-filters select,
+  .checkin-chart select {
+    min-height: 46px;
+    padding: 9px 12px;
+    border: 1px solid rgba(127, 127, 127, 0.3);
+    border-radius: 12px;
+    color: var(--tg-theme-text-color, #172033);
+    background: var(--tg-theme-bg-color, #fff);
+    font: inherit;
+  }
+
+  .overview-filters select:focus-visible,
+  .checkin-chart select:focus-visible,
+  .nutrition-chart button:focus-visible,
+  .nutrition-chart summary:focus-visible,
+  .sleep-chart button:focus-visible,
+  .sleep-chart summary:focus-visible,
+  .steps-chart button:focus-visible,
+  .steps-chart summary:focus-visible,
+  .checkin-chart button:focus-visible,
+  .checkin-chart summary:focus-visible {
+    outline: 3px solid var(--tg-theme-button-color,
+    #2563eb);
+    outline-offset: 3px;
+  }
+
+  @media (hover: hover) {
+    .overview-cards > section:hover,
+    .nutrition-chart:hover,
+    .sleep-chart:hover,
+    .steps-chart:hover,
+    .checkin-chart:hover {
+      border-color: var(--tg-theme-button-color,
+      #2563eb);
+      box-shadow: 0 9px 24px rgba(20, 35, 60, 0.09);
+    }
+
+    .overview-cards > section:hover {
+      transform: translateY(-2px);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .overview-cards > section {
+      padding: 16px;
+      border-radius: 16px;
+    }
+
+    .nutrition-chart,
+    .sleep-chart,
+    .steps-chart,
+    .checkin-chart {
+      border-radius: 16px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .overview-cards > section {
+      transition: none;
+    }
+  }
+
+  .nutrition-chart {
+    --nutrition-chart-color: #26284B;
+  }
+
+  .sleep-chart {
+    --sleep-chart-color: #FE7649;
+  }
+
+  .steps-chart {
+    --steps-chart-color: #FAD2D0;
+  }
+
+  .checkin-chart {
+    --checkin-chart-color: #AFDAE2;
+  }

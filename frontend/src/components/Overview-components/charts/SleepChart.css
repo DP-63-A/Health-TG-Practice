@@ -1,0 +1,89 @@
+.sleep-chart {
+    --sleep-chart-color: var(--tg-theme-button-color,
+    #2563eb);
+
+    min-width: 0;
+    margin-top: 20px;
+    padding: 16px;
+    box-sizing: border-box;
+    border: 1px solid var(--tg-theme-hint-color,
+    #718096);
+    border-radius: 16px;
+    color: var(--tg-theme-text-color, #172033);
+    background: var(--tg-theme-bg-color, #fff);
+  }
+
+  .sleep-chart h2 {
+    margin: 0;
+    font-size: 20px;
+  }
+
+  .sleep-chart__description {
+    margin: 8px 0 16px;
+  }
+
+  .sleep-chart__plot {
+    width: 100%;
+    min-width: 0;
+    height: 240px;
+  }
+
+  .sleep-chart__tooltip {
+    display: grid;
+    gap: 4px;
+    padding: 10px;
+    border: 1px solid var(--tg-theme-hint-color,
+    #718096);
+    border-radius: 8px;
+    color: var(--tg-theme-text-color, #172033);
+    background: var(--tg-theme-bg-color, #fff);
+    pointer-events: none;
+  }
+
+  .sleep-chart__details {
+    margin-top: 12px;
+  }
+
+  .sleep-chart__details summary {
+    padding: 12px 0;
+    cursor: pointer;
+  }
+
+  .sleep-chart table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+  }
+
+  .sleep-chart caption {
+    padding: 8px 0;
+    text-align: left;
+  }
+
+  .sleep-chart th,
+  .sleep-chart td {
+    padding: 8px 4px;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .sleep-chart tbody th {
+    font-weight: normal;
+  }
+
+  .sleep-chart button {
+    min-height: 44px;
+    padding: 8px 4px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .sleep-chart button:focus-visible,
+  .sleep-chart summary:focus-visible {
+    outline: 2px solid var(--sleep-chart-color);
+    outline-offset: 3px;
+  }

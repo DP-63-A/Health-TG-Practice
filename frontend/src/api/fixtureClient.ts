@@ -1,6 +1,7 @@
 import { analyticsFixture } from '../overview/fixtures/analytics.fixture'
 import { ApiError } from './errors'
 import type { ApiBodyRequestOptions, ApiClient, ApiRequestOptions, Entry, EntryFilters, EntryPatchRequest, ConfirmRequest, MetricsPayload, TelegramAuthResponse, User } from './types'
+import type { AnalyticsResponse } from '../overview/analytics.types'
 
 const user: User = { id: '11111111-1111-4111-8111-111111111101', telegram_id: 10001, timezone: 'Europe/Warsaw', stand_access: true }
 const entries: Entry[] = [
@@ -76,9 +77,57 @@ async get<TResponse>(path: string, options?: ApiRequestOptions) {
     ) as TResponse
   }
 
+  // if (pathname === '/api/v1/analytics') {
+  //   return clone(analyticsFixture) as TResponse
+  // }
+
   if (pathname === '/api/v1/analytics') {
-    return clone(analyticsFixture) as TResponse
+    // const response = clone(analyticsFixture)
+    const response: AnalyticsResponse = clone(analyticsFixture)
+    const requestedCategory =
+    options?.query?.checkin_category
+
+    const categories = [
+      'sleep_quality',
+      'digestion_comfort',
+      'wellbeing',
+      'mood',
+    ] as const
+
+    const category = categories.includes(
+      requestedCategory as (typeof categories) [number],
+    )
+      ? (requestedCategory as (typeof categories) [number])
+      : 'mood'
+
+    const rating = response.cards.checkins[category]
+
+    response.series.checkin = {
+      category,
+      points:
+        rating.score !== null &&
+        rating.date !== null &&
+        rating.entry_id !== null
+          ? [
+              {
+                date: rating.date,
+                value: rating.score,
+                unit: 'score_1_5',
+                source: {
+                  entry_id: rating.entry_id,
+                  type: 'checkin',
+                  local_date: rating.date,
+                },
+              },
+            ]
+          : [],
+    }
+
+    return response as TResponse
   }
+
+
+  
 
   const id = matchEntry(pathname)
 
