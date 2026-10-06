@@ -256,9 +256,7 @@ public final class AnalyticsFunctions {
                     continue;
                 }
 
-                date = Optional.of(
-                    localDate(entry.occurredAt(), period.zone())
-                );
+                date = Optional.ofNullable(entry.localDate());
             }
 
             if (date.isEmpty() || !period.contains(date.get())) {

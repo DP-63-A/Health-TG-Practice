@@ -45,7 +45,8 @@ class Pr76StateRegressionTest {
     OwnerContext owner(long user) { return new OwnerContext(users.findOrCreate(user).id()); }
     DialogState state(long user) { return dialogs.find(owner(user)).orElseThrow(); }
     static BotUpdate msg(long user, long update, String text) {
-        return new BotUpdate(update, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE, user, user, false, text, List.of(), null, null);
+        return new BotUpdate(update, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE, user, user, false, text, List.of(), null, null,
+                java.time.Instant.parse("2026-09-25T08:00:00Z"));
     }
     static BotUpdate cb(long user, long update, String data) {
         return new BotUpdate(update, BotUpdate.Kind.CALLBACK, BotUpdate.ChatType.PRIVATE, user, user, false, null, List.of(), "cb"+update, data);
