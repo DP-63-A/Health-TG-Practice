@@ -41,3 +41,11 @@ tasks.withType<JavaCompile>().configureEach {
     options.release.set(21)
 }
 springBoot { mainClass.set("org.healthtg.HealthTgApplication") }
+
+tasks.register<JavaExec>("demoData") {
+    group = "application"
+    description = "Seeds or safely resets the local BE3-05 demo dataset"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("org.healthtg.seed.DemoDataCommand")
+    args = (findProperty("demoArgs") as String?)?.split(" ") ?: emptyList()
+}

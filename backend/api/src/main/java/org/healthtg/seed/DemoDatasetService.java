@@ -1,0 +1,106 @@
+package org.healthtg.seed;
+
+import org.healthtg.core.entry.ConfirmEntryCommand;
+import org.healthtg.core.entry.CreateDraftCommand;
+import org.healthtg.core.entry.DraftCreationResult;
+import org.healthtg.core.entry.Entry;
+import org.healthtg.core.entry.EntryCoreService;
+import org.healthtg.core.entry.EntryStatus;
+import org.healthtg.core.entry.OwnerContext;
+import org.healthtg.core.entry.PatchEntryCommand;
+import org.healthtg.core.entry.SourceKind;
+import org.healthtg.core.entry.TelegramUpdateKey;
+import org.healthtg.user.UserAccount;
+import org.healthtg.user.UserService;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@Service
+public class DemoDatasetService {
+    public static final String DATASET_MARKER = "be3-05-v1";
+
+    private final EntryCoreService entries;
+    private final UserService users;
+    private final MongoTemplate mongoTemplate;
+    private final SyntheticDatasetGenerator generator;
+
+    public DemoDatasetService(EntryCoreService entries, UserService users, MongoTemplate mongoTemplate) {
+        this(entries, users, mongoTemplate, new SyntheticDatasetGenerator());
+    }
+
+    DemoDatasetService(EntryCoreService entries, UserService users, MongoTemplate mongoTemplate,
+                       SyntheticDatasetGenerator generator) {
+        this.entries = entries;
+        this.users = users;
+        this.mongoTemplate = mongoTemplate;
+        this.generator = generator;
+    }
+
+    public int seed(String demoFlag, String mongoUri, DemoProfileOwners owners, long seed, LocalDate startDate) {
+        DemoEnvironmentGuard.requireDemoEnvironment(demoFlag, mongoUri);
+        int count = 0;
+        for (SyntheticProfile profile : SyntheticProfile.values()) {
+            UserAccount account = users.requireById(owners.owner(profile));
+            var dataset = generator.generateProfile(profile, seed, startDate, account.timezone());
+            OwnerContext owner = new OwnerContext(account.id());
+            for (SyntheticEntry synthetic : dataset.entries()) {
+                persist(owner, profile, startDate, seed, account.timezone().getId(), synthetic);
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public long reset(String demoFlag, String mongoUri) {
+        DemoEnvironmentGuard.requireDemoEnvironment(demoFlag, mongoUri);
+        Query query = Query.query(new Criteria().andOperator(
+                Criteria.where("sourceKind").is(SourceKind.SEED.code()),
+                Criteria.where("sourceRef.demo_dataset").is(DATASET_MARKER),
+                Criteria.where("sourceRef.profile").in(List.of("regular", "irregular", "incomplete"))));
+        return mongoTemplate.remove(query, "entries").getDeletedCount();
+    }
+
+    private void persist(OwnerContext owner, SyntheticProfile profile, LocalDate startDate, long seed,
+                         String timezone, SyntheticEntry synthetic) {
+        String key = "be3-05:" + profile.code() + ":" + startDate + ":" + seed + ":" + synthetic.logicalKey();
+        TelegramUpdateKey updateKey = new TelegramUpdateKey(key, 0);
+        String submissionId = key;
+        Map<String, Object> sourceRef = Map.of(
+                "demo_dataset", DATASET_MARKER,
+                "profile", profile.code(),
+                "logical_key", synthetic.logicalKey(),
+                "seed", seed,
+                "start_date", startDate.toString(),
+                "timezone", timezone);
+        Map<String, Object> draftPayload = synthetic.initialPayload() == null
+                ? synthetic.payload() : synthetic.initialPayload();
+        CreateDraftCommand command = new CreateDraftCommand(owner, synthetic.type(), SourceKind.SEED, sourceRef,
+                synthetic.occurredAt().toInstant(), draftPayload, synthetic.fieldOrigins(), updateKey);
+
+        for (int delivery = 0; delivery < synthetic.deliveries(); delivery++) {
+            var result = entries.createDraft(command);
+            if (result.outcome() == DraftCreationResult.Outcome.ACTIVE_DRAFT_EXISTS) {
+                throw new IllegalStateException("A different draft is active for a configured demo account");
+            }
+            Entry entry = result.entry();
+            if (entry.status() != EntryStatus.DRAFT) continue;
+
+            if (!entry.payload().equals(synthetic.payload())) {
+                entry = entries.patch(new PatchEntryCommand(owner, entry.id(), entry.revision(), null,
+                        synthetic.payload(), synthetic.fieldOrigins()));
+            }
+            if (synthetic.cancelled()) {
+                entries.cancel(owner, entry.id(), entry.revision());
+            } else {
+                entries.confirm(new ConfirmEntryCommand(owner, entry.id(), submissionId, entry.revision()));
+            }
+        }
+    }
+}
