@@ -946,6 +946,10 @@ function parseNullableNumber(value: string, field: string, errors: FieldErrors) 
     errors[field] = 'Введите число или оставьте поле пустым.'
     return null
   }
+  if (underflowsToZero(value, parsed)) {
+    errors[field] = 'Число слишком мало: при отправке оно превратится в ноль.'
+    return null
+  }
   if (parsed < 0) {
     errors[field] = 'Значение не может быть отрицательным по контракту.'
   }
@@ -963,7 +967,16 @@ function parseRequiredNumber(value: string, field: string, errors: FieldErrors) 
     errors[field] = 'Введите число.'
     return null
   }
+  if (underflowsToZero(value, parsed)) {
+    errors[field] = 'Число слишком мало: при отправке оно превратится в ноль.'
+    return null
+  }
   return parsed
+}
+
+function underflowsToZero(value: string, parsed: number) {
+  // Inspect only the coefficient: 0e-400 is zero, but 1e-400 is not.
+  return parsed === 0 && /[1-9]/.test(value.split(/[eE]/)[0])
 }
 
 function parseRequiredInteger(value: string, field: string, errors: FieldErrors) {

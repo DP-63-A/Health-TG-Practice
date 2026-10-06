@@ -111,11 +111,11 @@ class MongoEntryStore implements EntryStore {
     // Only contract numeric fields are decoded; free text such as "12.5" remains text.
     private static Map<String, Object> encodeNumbers(Map<String, Object> payload) {
         Map<String, Object> result = new LinkedHashMap<>(payload);
-        result.replaceAll((key, value) -> value instanceof java.math.BigDecimal decimal ? decimal.toPlainString() : value);
+        result.replaceAll((key, value) -> value instanceof java.math.BigDecimal decimal ? decimal.toString() : value);
         if (payload.get("nutrients") instanceof Map<?, ?> map) {
             Map<String, Object> nutrients = new LinkedHashMap<>();
             map.forEach((key, value) -> nutrients.put(key.toString(),
-                    value instanceof java.math.BigDecimal decimal ? decimal.toPlainString() : value));
+                    value instanceof java.math.BigDecimal decimal ? decimal.toString() : value));
             result.put("nutrients", nutrients);
         }
         return result;

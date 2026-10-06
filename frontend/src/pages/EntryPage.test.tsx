@@ -27,6 +27,29 @@ describe('FE1-04 entry review and correction', () => {
     await waitFor(() => expect(patch).toHaveBeenCalledWith(entry.id, { expected_revision: 1, payload: { value: 0 } }))
   })
 
+  it.each([
+    ['metrics', { code: 'heart_rate', value: 72, unit: 'bpm', local_date: '2026-10-06' }, 'Значение'],
+    ['meal', { description: 'Печёное яблоко 🍎', mass_g: 100 }, 'Масса'],
+    ['meal', { description: 'Печёное яблоко 🍎', nutrients: { energy_kcal: 12 } }, 'Ккал'],
+  ] satisfies Array<[EntryType, EntryPayload, string]>)('blocks underflow in %s / %s / %s without sending zero', async (type, payload, label) => {
+    const entry = entryFixture({ type, payload })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch').mockResolvedValue({ ...entry, revision: 2 })
+    renderRoute(`/diary/${entry.id}`)
+    const field = await screen.findByLabelText(label)
+    for (const value of ['-1e-400', '1e-400']) {
+      fireEvent.change(field, { target: { value } })
+      fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+      expect(await screen.findByText(/при отправке оно превратится в ноль/)).toBeInTheDocument()
+      expect(field).toHaveValue(value)
+      expect(field).toHaveFocus()
+      expect(patch).not.toHaveBeenCalled()
+    }
+    fireEvent.change(field, { target: { value: '0e-400' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1))
+  })
+
   it.each(['heart_rate', 'sleep_duration_min'] as const)('combines %s date correction with accessible errors and preserves known time', async (code) => {
     const entry = entryFixture({ type: 'metrics', status: 'draft', submission_id: null,
       occurred_at: '2026-10-07T23:50:00Z', payload: { code, value: 70,

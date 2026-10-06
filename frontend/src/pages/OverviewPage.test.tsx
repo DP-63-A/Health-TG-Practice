@@ -15,7 +15,8 @@ import type { AnalyticsResponse } from '../overview/analytics.types'
 import { analyticsFixture } from '../overview/fixtures/analytics.fixture'
 import { formatCalories, formatTooltipDate } from '../overview/chartFormat'
 import { useRefreshSubscription } from '../refresh/RefreshProvider'
-import OverviewPage, { buildDiaryUrl } from './OverviewPage'
+import OverviewPage from './OverviewPage'
+import { buildDiaryUrl } from '../overview/diaryNavigation'
 
 
 const { markSessionExpired, navigateMock } = vi.hoisted(() => ({

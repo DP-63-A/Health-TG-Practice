@@ -69,7 +69,7 @@ class CoreStorageIntegrationTest {
                 Map.of(), Instant.parse("2026-10-06T12:00:00Z"),
                 Map.of("code", "heart_rate", "value", 72, "unit", "bpm", "local_date", "2026-10-06"),
                 Map.of(), new TelegramUpdateKey("main", 910))).entry();
-        for (String value : List.of("-1", "-0.0001")) {
+        for (String value : List.of("-1", "-0.0001", "-1E-400", "1E100000000", "1E-100000000")) {
             mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/entries/{id}", pulse.id())
                     .header("Authorization", "Bearer pulse-test").contentType("application/json")
                     .content("{\"expected_revision\":1,\"payload\":{\"value\":" + value + "}}"))
@@ -135,6 +135,63 @@ class CoreStorageIntegrationTest {
     void clearCollections() {
         mongoTemplate.getDb().getCollection("entries").deleteMany(new org.bson.Document());
         mongoTemplate.getDb().getCollection("dialog_states").deleteMany(new org.bson.Document());
+    }
+
+    @Test void numericBoundsAlsoProtectConfirmationOfPersistedDraft() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Entry meal = entries.createDraft(new CreateDraftCommand(owner, EntryType.MEAL, SourceKind.TEXT,
+                Map.of(), Instant.parse("2026-10-07T00:00:00Z"), Map.of("description", "meal", "mass_g", 100),
+                Map.of(), new TelegramUpdateKey("numeric-confirm", 1))).entry();
+        for (String value : List.of("1E+100000000", "1E-100000000", "-1E-400")) {
+            // Fault injection in the disposable test database only: simulate pre-existing invalid data.
+            mongoTemplate.updateFirst(org.springframework.data.mongodb.core.query.Query.query(
+                    org.springframework.data.mongodb.core.query.Criteria.where("_id").is(meal.id().toString())),
+                    org.springframework.data.mongodb.core.query.Update.update("payload.mass_g", value), "entries");
+            assertThrows(EntryValidationException.class, () -> entries.confirm(new ConfirmEntryCommand(
+                    owner, meal.id(), "numeric-confirm", meal.revision())));
+            Entry unchanged = entries.requireEntry(owner, meal.id());
+            assertEquals(EntryStatus.DRAFT, unchanged.status());
+            assertEquals(meal.revision(), unchanged.revision());
+        }
+    }
+
+    @Test void numericSafetyCoversCreateHttpPatchReadAndHistory() throws Exception {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        org.mockito.Mockito.when(sessions.authenticate("numeric-test")).thenReturn(owner.userId());
+        Instant now = Instant.parse("2026-10-07T00:00:00Z");
+        for (String value : List.of("1E100000000", "1E-100000000", "-1E-400")) {
+            assertThrows(EntryValidationException.class, () -> entries.createDraft(new CreateDraftCommand(owner,
+                    EntryType.MEAL, SourceKind.TEXT, Map.of(), now,
+                    Map.of("description", "meal", "mass_g", new java.math.BigDecimal(value)), Map.of(), new TelegramUpdateKey("numeric", 1))));
+            assertTrue(entries.findActiveDraft(owner).isEmpty());
+        }
+        Entry meal = entries.createDraft(new CreateDraftCommand(owner, EntryType.MEAL, SourceKind.TEXT,
+                Map.of(), now, Map.of("description", "Печёное яблоко 🍎", "mass_g", new java.math.BigDecimal("125.7500")),
+                Map.of(), new TelegramUpdateKey("numeric", 2))).entry();
+        for (String field : List.of("mass_g", "energy_kcal", "protein_g", "fat_g", "carbs_g")) {
+            for (String value : List.of("1E100000000", "1E-100000000", "1E309", "-1E-400")) {
+                String payload = field.equals("mass_g") ? "{\"mass_g\":" + value + "}"
+                        : "{\"nutrients\":{\"" + field + "\":" + value + "}}";
+                mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/entries/{id}", meal.id())
+                        .header("Authorization", "Bearer numeric-test").contentType("application/json")
+                        .content("{\"expected_revision\":1,\"payload\":" + payload + "}"))
+                        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isUnprocessableEntity())
+                        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code").value("VALIDATION_ERROR"));
+                assertEquals(meal, entries.requireEntry(owner, meal.id()));
+            }
+        }
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/entries/{id}", meal.id())
+                .header("Authorization", "Bearer numeric-test").contentType("application/json")
+                .content("{\"expected_revision\":1,\"payload\":{\"mass_g\":1E-400,\"nutrients\":{\"energy_kcal\":12.34567890123456789}}}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+        Entry changed = entries.requireEntry(owner, meal.id());
+        assertEquals(new java.math.BigDecimal("1E-400"), changed.payload().get("mass_g"));
+        assertEquals(new java.math.BigDecimal("12.34567890123456789"), ((Map<?, ?>) changed.payload().get("nutrients")).get("energy_kcal"));
+        org.bson.Document raw = mongoTemplate.getCollection("entries").find(new org.bson.Document("_id", meal.id().toString())).first();
+        assertEquals("1E-400", raw.get("payload", org.bson.Document.class).getString("mass_g"));
+        assertEquals("125.7500", raw.getList("history", org.bson.Document.class).getFirst()
+                .get("payload", org.bson.Document.class).getString("mass_g"));
+        assertEquals("Печёное яблоко 🍎", changed.payload().get("description"));
     }
 
     @Test

@@ -7,6 +7,9 @@ import java.util.Map;
 import java.util.Set;
 
 final class EntryPayloadValidator {
+    // Resource bounds, not medical limits. Match the 2000-character numeric input budget.
+    // Bound both coefficient and exponent before persistence or downstream arithmetic.
+    private static final int MAX_NUMERIC_DIGITS = 2000;
     private static final Set<String> MEAL_FIELDS = Set.of(
             "description", "mass_g", "nutrients", "nutrients_basis");
     private static final Set<String> NUTRIENT_FIELDS = Set.of(
@@ -146,7 +149,7 @@ final class EntryPayloadValidator {
         if (!payload.containsKey(field)) return;
         Object value = payload.get(field);
         if (value == null && nullable) return;
-        if (!(value instanceof Number number) || number.doubleValue() < 0) {
+        if (!(value instanceof Number number) || new java.math.BigDecimal(number.toString()).signum() < 0) {
             throw invalid(field + " must be a non-negative number or null");
         }
     }
@@ -173,6 +176,24 @@ final class EntryPayloadValidator {
         if (value instanceof Double doubleValue && !Double.isFinite(doubleValue)
                 || value instanceof Float floatValue && !Float.isFinite(floatValue)) {
             throw invalid("Numeric values must be finite");
+        }
+        if (value instanceof Number number) {
+            java.math.BigDecimal decimal;
+            try {
+                decimal = new java.math.BigDecimal(number.toString());
+            } catch (NumberFormatException exception) {
+                throw invalid("Invalid numeric value");
+            }
+            if (decimal.precision() > MAX_NUMERIC_DIGITS
+                    || decimal.scale() < -MAX_NUMERIC_DIGITS
+                    || decimal.scale() > MAX_NUMERIC_DIGITS) {
+                throw invalid("Numeric precision and absolute scale must not exceed " + MAX_NUMERIC_DIGITS);
+            }
+            // API consumers use IEEE-754 numbers. Keep their finite range without
+            // using double for sign checks (tiny negative decimals underflow to -0.0).
+            if (!Double.isFinite(decimal.doubleValue())) {
+                throw invalid("Numeric magnitude exceeds the finite API number range");
+            }
         }
         if (value instanceof Map<?, ?> map) map.values().forEach(EntryPayloadValidator::validateFinite);
         if (value instanceof Collection<?> collection) collection.forEach(EntryPayloadValidator::validateFinite);
