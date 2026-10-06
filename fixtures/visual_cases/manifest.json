@@ -169,28 +169,22 @@
         "license": "CC0-1.0",
         "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
       },
-      "expected_fields": {
-        "metric_type": {
-          "value": "Steps",
-          "unit": null,
-          "confidence": "certain"
-        },
-        "value": {
-          "value": "1230",
-          "unit": "steps",
-          "confidence": "certain"
-        },
-        "date": {
-          "value": "2026-10-05",
-          "unit": null,
-          "confidence": "certain"
-        }
-      },
       "datetime": {
-        "date": "2026-10-05",
-        "time": "10:17",
-        "timezone": "Europe/Warsaw"
+      "date": "2026-10-05",
+      "time": "10:17:00",
+      "timezone": "Europe/Warsaw"
       },
+      "expected_fields": [
+        { "name": "steps", "value": 1230, "unit": "steps", "confidence": 1.0 },
+        { "name": "heart_rate", "value": 48, "unit": "bpm", "confidence": 1.0, "qualifier": "instant" },
+        { "name": "sleep_duration_min", "value": 252, "unit": "min", "confidence": 1.0 }
+      ],
+      "ignored_fields": [
+        { "name": "blood_pressure", "reason": "unsupported_by_core_metric_enum" },
+        { "name": "wellbeing", "reason": "unsupported_by_core_metric_enum" },
+        { "name": "mood", "reason": "unsupported_by_core_metric_enum" },
+        { "name": "temperature", "reason": "unsupported_by_core_metric_enum" }
+      ],
       "uncertainties": [],
       "expected_action": "draft",
       "personal_data_check": true
@@ -205,31 +199,25 @@
         "license": "CC0-1.0",
         "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
       },
-      "expected_fields": {
-        "metric_type": {
-          "value": "Sleep",
-          "unit": null,
-          "confidence": "certain"
-        },
-        "value": {
-          "value": "445",
-          "unit": "min",
-          "confidence": "certain"
-        },
-        "date": {
-          "value": null,
-          "unit": null,
-          "confidence": "certain"
-        }
-      },
       "datetime": {
-        "date": null,
-        "time": "08:45",
-        "timezone": "Europe/Warsaw"
+      "date": "2026-10-04",
+      "time": "22:56:00",
+      "timezone": "Europe/Warsaw"
       },
-      "uncertainties": ["Date is unknown which can influence the result"],
-      "expected_action": "ask",
-      "ask_clarification": "When was this photo taken? Mark the date, please.",
+      "expected_fields": [
+        { "name": "steps", "value": 2300, "unit": "steps", "confidence": 1.0 },
+        { "name": "heart_rate", "value": 78, "unit": "bpm", "confidence": 1.0, "qualifier": "instant" },
+        { "name": "sleep_duration_min", "value": 445, "unit": "min", "confidence": 1.0 }
+      ],
+      "ignored_fields": [
+        { "name": "calories", "reason": "unsupported_by_core_metric_enum" },
+        { "name": "blood_pressure", "reason": "unsupported_by_core_metric_enum" },
+        { "name": "oxygen_level", "reason": "unsupported_by_core_metric_enum" },
+        { "name": "mood", "reason": "unsupported_by_core_metric_enum" },
+        { "name": "temperature", "reason": "unsupported_by_core_metric_enum" }
+      ],
+      "uncertainties": [],
+      "expected_action": "draft",
       "personal_data_check": true
     },
     {
@@ -242,31 +230,22 @@
         "license": "CC0-1.0",
         "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
       },
-      "expected_fields": {
-        "metric_type": {
-          "value": "Heart Rate",
-          "unit": null,
-          "confidence": "certain"
-        },
-        "value": {
-          "value": "72",
-          "unit": "bpm",
-          "confidence": "certain"
-        },
-        "context": {
-          "value": "resting",
-          "unit": null,
-          "confidence": "certain"
-        }
-      },
       "datetime": {
-        "date": null,
-        "time": null,
-        "timezone": "Europe/Warsaw"
+      "date": "2026-10-04",
+      "time": "17:22:00",
+      "timezone": "Europe/Warsaw"
       },
-      "uncertainties": ["Date and time are unknown which can influence the result"],
-      "expected_action": "ask",
-      "ask_clarification": "When was this photo taken?",
+      "expected_fields": [
+        { "name": "steps", "value": 5480, "unit": "steps", "confidence": 1.0 },
+        { "name": "heart_rate", "value": 72, "unit": "bpm", "confidence": 1.0, "qualifier": "instant" },
+        { "name": "sleep_duration_min", "value": 390, "unit": "min", "confidence": 1.0 }
+      ],
+      "ignored_fields": [
+        { "name": "calories", "reason": "unsupported_by_core_metric_enum" },
+        { "name": "temperature", "reason": "unsupported_by_core_metric_enum" }
+      ],
+      "uncertainties": [],
+      "expected_action": "draft",
       "personal_data_check": true
     },
     {
@@ -279,31 +258,22 @@
         "license": "CC0-1.0",
         "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
       },
-      "expected_fields": {
-        "metric_type": {
-          "value": "Steps",
-          "unit": null,
-          "confidence": "certain"
-        },
-        "value": {
-          "value": "820",
-          "unit": "steps",
-          "confidence": "certain"
-        },
-        "date": {
-          "value": null,
-          "unit": null,
-          "confidence": "certain"
-        }
-      },
       "datetime": {
-        "date": null,
-        "time": null,
-        "timezone": "Europe/Warsaw"
+      "date": "2026-10-03",
+      "time": "10:33:00",
+      "timezone": "Europe/Warsaw"
       },
-      "uncertainties": ["Date and time are unknown which can influence the result"],
-      "expected_action": "ask",
-      "ask_clarification": "When was this photo taken?",
+      "expected_fields": [
+        { "name": "steps", "value": 820, "unit": "steps", "confidence": 1.0 },
+        { "name": "heart_rate", "value": 42, "unit": "bpm", "confidence": 1.0, "qualifier": "instant" },
+        { "name": "sleep_duration_min", "value": 190, "unit": "min", "confidence": 1.0 }
+      ],
+      "ignored_fields": [
+        { "name": "calories", "reason": "unsupported_by_core_metric_enum" },
+        { "name": "temperature", "reason": "unsupported_by_core_metric_enum" }
+      ],
+      "uncertainties": [],
+      "expected_action": "draft",
       "personal_data_check": true
     },
     {
@@ -315,27 +285,19 @@
         "license": "CC0-1.0",
         "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
       },
-      "expected_fields": {
-        "metric_type": {
-          "value": "Steps",
-          "unit": null,
-          "confidence": "certain"
-        },
-        "value": {
-          "value": "5320",
-          "unit": "steps",
-          "confidence": "certain"
-        }
-      },
       "datetime": {
-        "date": null,
-        "time": null,
-        "timezone": "Europe/Warsaw"
-      },
-      "uncertainties": ["Date and time are unknown which can influence the result"],
-      "expected_action": "ask",
-      "ask_clarification": "When was this photo taken?",
-      "personal_data_check": true
+    "date": "2026-10-04",
+    "time": "14:07:00",
+    "timezone": "Europe/Warsaw"
+    },
+    "expected_fields": [
+      { "name": "steps", "value": 5320, "unit": "steps", "confidence": 1.0 },
+      { "name": "heart_rate", "value": 75, "unit": "bpm", "confidence": 1.0, "qualifier": "instant" }
+    ],
+    "ignored_fields": [],
+    "uncertainties": [],
+    "expected_action": "draft",
+    "personal_data_check": true
     },
     {
       "id": "W02",
@@ -346,32 +308,20 @@
         "license": "CC0-1.0",
         "attribution": "Generated with Google Gemini AI for educational software testing; contains no personal or real medical data"
       },
-      "expected_fields": {
-        "metric_type": {
-          "value": "Heart Rate",
-          "unit": null,
-          "confidence": "certain"
-        },
-        "value": {
-          "value": "114",
-          "unit": "bpm",
-          "confidence": "certain"
-        },
-        "context": {
-          "value": "instant",
-          "unit": null,
-          "confidence": "certain"
-        }
-      },
       "datetime": {
-        "date": null,
-        "time": null,
-        "timezone": "Europe/Warsaw"
-      },
-      "uncertainties": ["Date and time are unknown which can influence the result"],
-      "expected_action": "ask",
-      "ask_clarification": "When was this photo taken?",
-      "personal_data_check": true
+          "date": "2026-10-05",
+          "time": "12:05:00",
+          "timezone": "Europe/Warsaw"
+        },
+        "expected_fields": [
+          { "name": "steps", "value": 7412, "unit": "steps", "confidence": 1.0 },
+          { "name": "heart_rate", "value": 114, "unit": "bpm", "confidence": 1.0, "qualifier": "instant" },
+          { "name": "sleep_duration_min", "value": 378, "unit": "min", "confidence": 1.0 }
+        ],
+        "ignored_fields": [],
+        "uncertainties": [],
+        "expected_action": "draft",
+        "personal_data_check": true
     },
     {
       "id": "N01",
