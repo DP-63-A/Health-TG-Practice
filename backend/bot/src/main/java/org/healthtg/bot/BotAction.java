@@ -12,7 +12,17 @@ public sealed interface BotAction permits BotAction.SendMessage, BotAction.SendI
 
     record SendMessage(long chatId, String text, ReplyKeyboard keyboard) implements BotAction {}
 
-    record InlineButton(String text, String callbackData) {}
+    record InlineButton(String text, String callbackData, URI webAppUrl) {
+        public InlineButton(String text, String callbackData) { this(text, callbackData, null); }
+        public InlineButton {
+            if ((callbackData == null) == (webAppUrl == null)) throw new IllegalArgumentException("One button target required");
+            if (callbackData != null && callbackData.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 64)
+                throw new IllegalArgumentException("Callback exceeds Telegram limit");
+            if (webAppUrl != null && (!"https".equalsIgnoreCase(webAppUrl.getScheme())
+                    || webAppUrl.getHost() == null || webAppUrl.getUserInfo() != null))
+                throw new IllegalArgumentException("HTTPS WebApp URL required");
+        }
+    }
     record SendInlineMessage(long chatId, String text, List<List<InlineButton>> rows) implements BotAction {
         public SendInlineMessage { rows = rows.stream().map(List::copyOf).toList(); }
     }

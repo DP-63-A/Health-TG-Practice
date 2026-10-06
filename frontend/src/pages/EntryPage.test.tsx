@@ -10,6 +10,25 @@ import { RefreshProvider, useRefreshSubscription } from '../refresh/RefreshProvi
 import { appRoutes } from '../router/router'
 
 describe('FE1-04 entry review and correction', () => {
+  it.each(['heart_rate', 'sleep_duration_min'] as const)('changes %s date without inventing time or replacing original report', async (code) => {
+    const entry = entryFixture({ type: 'metrics', status: 'draft', submission_id: null,
+      occurred_at: '2026-10-07T23:50:00Z',
+      payload: { code, value: 70, unit: code === 'heart_rate' ? 'bpm' : 'min', local_date: '2026-10-06' } })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch').mockResolvedValue({ ...entry, revision: 2,
+      payload: { ...entry.payload, local_date: '2026-10-05' } })
+    renderRoute(`/diary/${entry.id}`)
+    const day = await screen.findByLabelText(code === 'heart_rate' ? /Дата измерения/ : /Дата пробуждения/)
+    expect(screen.getByLabelText(/Локальное время/)).toHaveValue('')
+    expect(screen.getByLabelText(/Время сообщения итога/)).toHaveAttribute('readonly')
+    fireEvent.change(day, { target: { value: '2026-10-05' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1))
+    expect(patch.mock.calls[0][1]).toEqual(expect.objectContaining({ expected_revision: 1,
+      payload: { local_date: '2026-10-05' } }))
+    expect(patch.mock.calls[0][1]).not.toHaveProperty('occurred_at')
+  })
+
   it('edits the steps day without changing report time and focuses the editable day', async () => {
     const entry = entryFixture({ type: 'metrics', status: 'draft', submission_id: null,
       occurred_at: '2026-10-05T06:00:00Z',
@@ -370,7 +389,7 @@ describe('FE1-04 entry review and correction', () => {
     expect(await screen.findByLabelText(/Показатель/)).toHaveValue('heart_rate')
     expect(screen.getByLabelText(/Значение/)).toHaveValue('80')
     expect(screen.getByLabelText(/Единица/)).toHaveValue('bpm')
-    expect(screen.getByLabelText(/Локальная дата/)).toHaveValue('2026-09-16')
+    expect(screen.getByLabelText(/Дата измерения/)).toHaveValue('2026-09-16')
     expect(screen.getByLabelText(/Локальное время/)).toHaveValue('08:35')
     expect(screen.getByLabelText(/Уточнение пульса/)).toHaveValue('resting')
   })

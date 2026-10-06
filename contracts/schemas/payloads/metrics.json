@@ -23,7 +23,7 @@
         { "$ref": "../common.json#/$defs/LocalDate" },
         { "type": "null" }
       ],
-      "description": "Calendar day of the metric; for steps, the day covered by the daily total, used for filtering and grouping independently of occurred_at. May be omitted or null in a draft; required for confirmed metrics."
+      "description": "Calendar day used for filtering and grouping independently of occurred_at: steps total day, sleep wake date, heart-rate measurement date. May be omitted or null in a draft; required for confirmed metrics."
     },
     "local_time": {
       "type": ["string", "null"],

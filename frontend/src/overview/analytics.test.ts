@@ -53,6 +53,8 @@ const analyticsFixture: AnalyticsResponse = {
     heart_rate: {
       value_bpm: 62,
       occurred_at: '2026-09-16T06:05:00Z',
+      local_date: '2026-09-16',
+      local_time: '08:00',
       qualifier: 'resting',
     },
 

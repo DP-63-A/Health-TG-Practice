@@ -71,7 +71,7 @@ class MongoEntryStore implements EntryStore {
                 .set("occurredAt", replacement.occurredAt())
                 .set("updatedAt", replacement.updatedAt())
                 .set("revision", replacement.revision())
-                .set("payload", replacement.payload())
+                .set("payload", encodeNumbers(replacement.payload()))
                 .set("fieldOrigins", encodeMapKeys(replacement.fieldOrigins()))
                 .set("submissionId", replacement.submissionId())
                 .push("history").slice(-10).each(snapshot(current));
@@ -86,7 +86,7 @@ class MongoEntryStore implements EntryStore {
         snapshot.put("status", entry.status().code());
         snapshot.put("occurredAt", entry.occurredAt());
         snapshot.put("updatedAt", entry.updatedAt());
-        snapshot.put("payload", entry.payload());
+        snapshot.put("payload", encodeNumbers(entry.payload()));
         snapshot.put("fieldOrigins", encodeMapKeys(entry.fieldOrigins()));
         snapshot.put("submissionId", entry.submissionId());
         return snapshot;
@@ -95,7 +95,7 @@ class MongoEntryStore implements EntryStore {
     private static MongoEntryDocument toDocument(Entry entry) {
         return new MongoEntryDocument(entry.id().toString(), entry.ownerId().toString(), entry.type().code(),
                 entry.status().code(), entry.sourceKind().code(), entry.sourceRef(), entry.occurredAt(),
-                entry.createdAt(), entry.updatedAt(), entry.revision(), entry.payload(), encodeMapKeys(entry.fieldOrigins()),
+                entry.createdAt(), entry.updatedAt(), entry.revision(), encodeNumbers(entry.payload()), encodeMapKeys(entry.fieldOrigins()),
                 entry.submissionId(), entry.telegramUpdateKey(), List.of());
     }
 
@@ -103,8 +103,41 @@ class MongoEntryStore implements EntryStore {
         return new Entry(UUID.fromString(document.id()), UUID.fromString(document.ownerId()),
                 EntryType.fromCode(document.type()), EntryStatus.fromCode(document.status()),
                 SourceKind.fromCode(document.sourceKind()), document.sourceRef(), document.occurredAt(),
-                document.createdAt(), document.updatedAt(), document.revision(), document.payload(),
+                document.createdAt(), document.updatedAt(), document.revision(), decodeNumbers(document.payload()),
                 decodeMapKeys(document.fieldOrigins()), document.submissionId(), document.telegramUpdateKey());
+    }
+
+    // Untyped Mongo maps otherwise return BigDecimal as String (or BSON Decimal128).
+    // Only contract numeric fields are decoded; free text such as "12.5" remains text.
+    private static Map<String, Object> encodeNumbers(Map<String, Object> payload) {
+        Map<String, Object> result = new LinkedHashMap<>(payload);
+        result.replaceAll((key, value) -> value instanceof java.math.BigDecimal decimal ? decimal.toPlainString() : value);
+        if (payload.get("nutrients") instanceof Map<?, ?> map) {
+            Map<String, Object> nutrients = new LinkedHashMap<>();
+            map.forEach((key, value) -> nutrients.put(key.toString(),
+                    value instanceof java.math.BigDecimal decimal ? decimal.toPlainString() : value));
+            result.put("nutrients", nutrients);
+        }
+        return result;
+    }
+
+    private static Map<String, Object> decodeNumbers(Map<String, Object> payload) {
+        Map<String, Object> result = new LinkedHashMap<>(payload);
+        for (String key : List.of("value", "mass_g")) {
+            if (result.containsKey(key)) result.put(key, decimal(result.get(key)));
+        }
+        if (payload.get("nutrients") instanceof Map<?, ?> map) {
+            Map<String, Object> nutrients = new LinkedHashMap<>();
+            map.forEach((key, value) -> nutrients.put(key.toString(), decimal(value)));
+            result.put("nutrients", nutrients);
+        }
+        return result;
+    }
+
+    private static Object decimal(Object value) {
+        if (value instanceof org.bson.types.Decimal128 decimal) return decimal.bigDecimalValue();
+        if (value instanceof String text) return new java.math.BigDecimal(text);
+        return value;
     }
 
     private static Map<String, String> encodeMapKeys(Map<String, String> values) {

@@ -655,9 +655,9 @@ class CoreStorageIntegrationTest {
                 Map.of("code", "heart_rate", "value", 72, "unit", "bpm", "local_date", "2026-10-04"))).entry();
         assertThrows(EntryValidationException.class, () -> entries.patch(new PatchEntryCommand(
                 another, pulse.id(), 1, null, Map.of("code", "steps", "unit", "count"), null)));
-        Entry editedPulse = entries.patch(new PatchEntryCommand(another, pulse.id(), 1,
-                pulse.occurredAt().plusSeconds(60), Map.of(), null));
-        assertEquals(pulse.occurredAt().plusSeconds(60), editedPulse.occurredAt());
+        assertThrows(EntryValidationException.class, () -> entries.patch(new PatchEntryCommand(another, pulse.id(), 1,
+                pulse.occurredAt().plusSeconds(60), Map.of(), null)));
+        assertEquals(pulse.occurredAt(), entries.requireEntry(another, pulse.id()).occurredAt());
     }
 
     private static CreateDraftCommand draft(OwnerContext owner, long updateId, Map<String, Object> payload) {

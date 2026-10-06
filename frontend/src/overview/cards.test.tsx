@@ -200,6 +200,15 @@ describe('StepsCard', () => {
 })
 
 describe('HeartRateCard', () => {
+  it('отделяет неизвестное время измерения от известного времени сообщения', () => {
+    const text = renderText(<HeartRateCard heartRate={{ value_bpm: 72,
+      occurred_at: '2026-10-07T23:50:00Z', local_date: '2026-10-05', local_time: null, qualifier: null }}
+      period={analyticsFixture.period} />)
+    expect(text).toContain('2026-10-05 · время неизвестно')
+    expect(text).toContain('Сообщено')
+    expect(text).toContain('Последний сообщённый пульс')
+  })
+
   it('отображает последнее измерение пульса', () => {
     const text = renderText(
       <HeartRateCard
@@ -224,7 +233,7 @@ describe('HeartRateCard', () => {
     )
 
     expect(text).toContain('— уд/мин')
-    expect(text).toContain('Время измерения —')
+    expect(text).toContain('Время измерения неизвестно')
     expect(text).not.toContain('В покое')
   })
 
@@ -235,6 +244,8 @@ it('не придумывает контекст отсутствующего и
       heartRate={{
         value_bpm: 62,
         occurred_at: '2026-09-16T06:05:00Z',
+        local_date: '2026-09-16',
+        local_time: null,
         qualifier: null,
       }}
       period={analyticsFixture.period}

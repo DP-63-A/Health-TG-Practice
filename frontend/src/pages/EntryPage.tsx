@@ -510,8 +510,8 @@ export default function EntryPage() {
       <section className="source-card" aria-label="Источник записи">
         <h3>Источник</h3>
         <p>{entry.source_ref.label ?? entry.source_kind}</p>
-        <p>{isStepsEntry(entry) ? 'Время сообщения итога' : 'Дата записи'}: {formatNullableDate(entry.occurred_at, timezone)}</p>
-        {isStepsEntry(entry) && <p>День итога шагов: {(entry.payload as MetricsPayload).local_date || 'неизвестно'}</p>}
+        <p>{isMetricEntry(entry) ? 'Время сообщения итога' : 'Дата записи'}: {formatNullableDate(entry.occurred_at, timezone)}</p>
+        {isMetricEntry(entry) && <p>{metricDateLabel(entry)}: {(entry.payload as MetricsPayload).local_date || 'неизвестно'}</p>}
         {entry.source_ref.telegram_message_id && <p>Telegram message: {entry.source_ref.telegram_message_id}</p>}
         {entry.source_ref.file_id && (sourceFile.fileId !== entry.source_ref.file_id || (!sourceFile.url && !sourceFile.error)) && (
           <p role="status">Загружаем исходный файл через защищённый API...</p>
@@ -566,9 +566,9 @@ export default function EntryPage() {
 
       <form className="entry-form" onSubmit={(event) => void save(event)} noValidate>
         <fieldset className="entry-edit-fields" disabled={isBusy || !canEdit}>
-        <FormField label={isStepsEntry(entry) ? 'Время сообщения итога' : 'Дата и время'} hint={isStepsEntry(entry) ? `Часовой пояс: ${timezone}. Сохраняется исходное время сообщения. Для старых записей оно может быть неточным.` : `Timezone: ${timezone}. Пустое поле не заменяется текущим временем.`}>
+        <FormField label={isMetricEntry(entry) ? 'Время сообщения итога' : 'Дата и время'} hint={isMetricEntry(entry) ? `Часовой пояс: ${timezone}. Сохраняется исходное время сообщения. ` : `Timezone: ${timezone}. Пустое поле не заменяется текущим временем.`}>
           <input
-            readOnly={isStepsEntry(entry)}
+            readOnly={isMetricEntry(entry)}
             ref={dateInputRef}
             aria-invalid={Boolean(errorFor(fieldErrors, 'occurred_at'))}
             type="datetime-local"
@@ -595,7 +595,7 @@ export default function EntryPage() {
           )}
           {entry.status === 'draft' && (
             <>
-              <Button disabled={isBusy} onClick={() => (isStepsEntry(entry) ? metricDateInputRef : dateInputRef).current?.focus()} variant="secondary">
+              <Button disabled={isBusy} onClick={() => (isMetricEntry(entry) ? metricDateInputRef : dateInputRef).current?.focus()} variant="secondary">
                 Изменить
               </Button>
               <Button disabled={actionsBlocked} isLoading={busyAction === 'confirm'} onClick={() => void confirmDraft()} variant="secondary">
@@ -666,9 +666,9 @@ function renderPayloadForm(
       <fieldset className="entry-fieldset">
         <legend>Метрика</legend>
         <FormField label="Показатель" hint={originHint(entry, 'code')}>
-          <select disabled={isStepsEntry(entry)} value={form.metric_code} onChange={(event) => updateForm({ metric_code: event.target.value as EntryFormState['metric_code'] })}>
+          <select disabled={isMetricEntry(entry)} value={form.metric_code} onChange={(event) => updateForm({ metric_code: event.target.value as EntryFormState['metric_code'] })}>
             <option value="">Выберите показатель</option>
-            {Object.entries(metricLabels).map(([value, label]) => <option disabled={value === 'steps' && !isStepsEntry(entry)} key={value} value={value}>{label}</option>)}
+            {Object.entries(metricLabels).map(([value, label]) => <option disabled={value === 'steps' && !isMetricEntry(entry)} key={value} value={value}>{label}</option>)}
           </select>
           <FieldError errors={errors} field="payload.code" />
         </FormField>
@@ -679,12 +679,12 @@ function renderPayloadForm(
           <FieldError errors={errors} field="payload.unit" />
         </FormField>
         <div className="entry-form-grid">
-          <FormField label={isStepsEntry(entry) ? 'День итога шагов' : 'Локальная дата'} hint={`${originHint(entry, 'local_date')} Пустое поле = unknown для draft.`}>
+          <FormField label={isMetricEntry(entry) ? metricDateLabel(entry) : 'Локальная дата'} hint={`${originHint(entry, 'local_date')} Пустое поле = unknown для draft.`}>
             <input ref={metricDateInputRef} type="date" value={form.metric_local_date} onChange={(event) => updateForm({ metric_local_date: event.target.value })} />
             <UnknownMark value={form.metric_local_date} />
             <FieldError errors={errors} field="payload.local_date" />
           </FormField>
-          {!isStepsEntry(entry) && <FormField label="Локальное время" hint={`${originHint(entry, 'local_time')} Пустое поле = unknown.`}>
+          {(entry.payload as MetricsPayload).code !== 'steps' && <FormField label="Локальное время" hint={`${originHint(entry, 'local_time')} Пустое поле = unknown.`}>
             <input type="time" value={form.metric_local_time} onChange={(event) => updateForm({ metric_local_time: event.target.value })} />
             <UnknownMark value={form.metric_local_time} />
             <FieldError errors={errors} field="payload.local_time" />
@@ -815,8 +815,8 @@ function createForm(entry: Entry, timezone: string): EntryFormState {
   return form
 }
 
-function isStepsEntry(entry: Entry) {
-  return entry.type === 'metrics' && (entry.payload as MetricsPayload).code === 'steps'
+function isMetricEntry(entry: Entry) {
+  return entry.type === 'metrics'
 }
 
 function buildPatchBody(entry: Entry, form: EntryFormState, timezone: string) {
@@ -831,7 +831,7 @@ function buildPatchBody(entry: Entry, form: EntryFormState, timezone: string) {
     if (!form.metric_unit.trim()) errors['payload.unit'] = 'Единица обязательна для подтверждённой метрики.'
     if (!form.metric_local_date) errors['payload.local_date'] = 'Дата обязательна для подтверждённой метрики.'
   }
-  const dateChanged = !isStepsEntry(entry) && form.occurredAt !== original.occurredAt
+  const dateChanged = !isMetricEntry(entry) && form.occurredAt !== original.occurredAt
   const occurredAt = dateChanged && form.occurredAt ? localInputToUtc(form.occurredAt, timezone) : undefined
 
   if (dateChanged && !occurredAt) {
@@ -1105,4 +1105,9 @@ function handleError(cause: unknown, expire: () => void, setMessage: (value: str
   }
 
   setMessage(cause instanceof Error ? cause.message : 'Произошла ошибка.')
+}
+
+function metricDateLabel(entry: Entry) {
+  const code = (entry.payload as MetricsPayload).code
+  return code === 'steps' ? 'День итога шагов' : code === 'sleep_duration_min' ? 'Дата пробуждения' : 'Дата измерения'
 }

@@ -5,7 +5,7 @@
     "meal_count": {"count": 2},
     "sleep": {"total_minutes": 900, "average_minutes": 450, "days_with_data": 2},
     "steps": {"total": 5000, "average": 5000, "days_with_data": 1},
-    "heart_rate": {"value_bpm": 72, "occurred_at": "2026-09-19T10:15:00Z", "qualifier": "resting", "entry_id": "22222222-2222-4222-8222-222222222221"},
+    "heart_rate": {"value_bpm": 72, "local_date": "2026-09-19", "local_time": "12:10", "occurred_at": "2026-09-19T10:15:00Z", "qualifier": "resting", "entry_id": "22222222-2222-4222-8222-222222222221"},
     "checkins": {
       "sleep_quality": {"score": 4, "date": "2026-09-19", "entry_id": "22222222-2222-4222-8222-222222222222"},
       "digestion_comfort": {"score": 5, "date": "2026-09-19", "entry_id": "22222222-2222-4222-8222-222222222223"},

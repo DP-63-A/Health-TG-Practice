@@ -43,6 +43,7 @@ public final class RuntimeSettings {
     }
 
     public String token() { return token; }
+    public URI miniAppUrl() { return miniAppUrl; }
     public BotSettings forUsername(String username) { return new BotSettings(allowedUserIds, username, miniAppUrl); }
     @Override public String toString() { return "RuntimeSettings[redacted]"; }
 }

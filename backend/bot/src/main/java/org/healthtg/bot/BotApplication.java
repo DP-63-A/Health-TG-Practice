@@ -33,8 +33,8 @@ public class BotApplication {
 
     @Bean
     @ConditionalOnProperty(name = "health-tg.core.storage.enabled", matchIfMissing = true)
-    BotFlow botFlow(UserService users, EntryCoreService entries, DialogStateService dialogs, Clock clock) {
-        return new CoreBotFlow(users, entries, dialogs, clock);
+    BotFlow botFlow(UserService users, EntryCoreService entries, DialogStateService dialogs, Clock clock, RuntimeSettings settings) {
+        return new CoreBotFlow(users, entries, dialogs, clock, settings.miniAppUrl());
     }
 
     @Bean

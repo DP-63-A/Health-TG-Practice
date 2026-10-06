@@ -47,6 +47,8 @@ export interface AnalyticsResponse {
     heart_rate: {
       value_bpm: number | null
       occurred_at: string | null
+      local_date: string | null
+      local_time: string | null
       qualifier: 'instant' | 'resting' | null
     } | null
 

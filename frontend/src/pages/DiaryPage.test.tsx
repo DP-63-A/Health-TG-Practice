@@ -8,6 +8,14 @@ import { RefreshProvider } from '../refresh/RefreshProvider'
 import { appRoutes } from '../router/router'
 
 describe('FE1-03 diary', () => {
+  it.each(['heart_rate', 'sleep_duration_min'] as const)('shows %s measurement day independently of report day', async (code) => {
+    vi.spyOn(entriesApi, 'list').mockResolvedValue({ items: [entryFixture({ type: 'metrics',
+      occurred_at: '2026-10-07T23:50:00Z',
+      payload: { code, value: 70, unit: code === 'heart_rate' ? 'bpm' : 'min', local_date: '2026-10-05' } })], next_cursor: null })
+    renderRoute('/diary?type=metrics')
+    expect(await screen.findByText(`${code === 'heart_rate' ? 'Дата измерения' : 'Дата пробуждения'}: 2026-10-05`)).toBeInTheDocument()
+  })
+
   afterEach(() => {
     vi.restoreAllMocks()
   })

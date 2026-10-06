@@ -74,7 +74,7 @@ export function HeartRateCard({
       </h2>
 
       <p className="heart-rate-card__label">
-        Последнее измерение
+        Последний сообщённый пульс
       </p>
 
       <p className="heart-rate-card__value">
@@ -88,6 +88,10 @@ export function HeartRateCard({
           Время измерения
         </p>
 
+        <p className="heart-rate-card__time">
+          {heartRate?.local_date ?? 'неизвестно'} · {heartRate?.local_time ?? 'время неизвестно'}
+        </p>
+        <p className="heart-rate-card__label">Сообщено</p>
         <p className="heart-rate-card__time">
           {formatMeasurementTime(
             heartRate?.occurred_at,
