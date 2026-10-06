@@ -118,6 +118,12 @@ async get<TResponse>(path: string, options?: ApiRequestOptions) {
     const entry = findEntry(id); const body = options?.body as EntryPatchRequest
     if (entry.status !== 'draft' && entry.status !== 'confirmed') throw invalidStatus(entry)
     checkRevision(entry, body.expected_revision)
+    const wasSteps = entry.type === 'metrics' && (entry.payload as MetricsPayload).code === 'steps'
+    const nextCode = body.payload && 'code' in body.payload ? body.payload.code : (entry.payload as MetricsPayload).code
+    if ((entry.type === 'metrics' && wasSteps !== (nextCode === 'steps'))
+      || (wasSteps && body.occurred_at && Date.parse(body.occurred_at) !== Date.parse(entry.occurred_at))) {
+      throw new ApiError({ code: 'VALIDATION_ERROR', message: 'Нельзя менять время исходного итога или преобразовывать шаги в другую метрику.', request_id: 'fixture-validation' }, 422)
+    }
     validatePatch(entry, body)
     if (body.occurred_at) entry.occurred_at = body.occurred_at
     if (body.payload) {
@@ -151,8 +157,12 @@ function listEntries(filters: EntryFilters = {}) {
   const status = filters.status ?? 'confirmed'
   const limit = filters.limit ?? 20
   const start = filters.cursor ? Number(filters.cursor) : 0
-  const items = entries.filter((entry) => entry.status === status && (!filters.type || entry.type === filters.type) &&
-    (!filters.from || entry.occurred_at.slice(0, 10) >= filters.from) && (!filters.to || entry.occurred_at.slice(0, 10) <= filters.to))
+  const items = entries.filter((entry) => {
+    const day = entry.type === 'metrics' && (entry.payload as MetricsPayload).code === 'steps'
+      ? (entry.payload as MetricsPayload).local_date : entry.occurred_at.slice(0, 10)
+    return entry.status === status && (!filters.type || entry.type === filters.type) &&
+      (!filters.from || Boolean(day && day >= filters.from)) && (!filters.to || Boolean(day && day <= filters.to))
+  })
   const page = items.slice(start, start + limit)
   const next = start + limit < items.length ? String(start + limit) : null
   return { items: page, next_cursor: next }

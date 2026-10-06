@@ -1,6 +1,7 @@
 package org.healthtg.bot;
 
 import java.util.List;
+import java.time.Instant;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.menubutton.SetChatMenuButton;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -87,6 +88,7 @@ public final class TelegramAdapter {
                 : message.getEntities().stream().filter(e -> e != null && e.getOffset() != null && e.getLength() != null)
                 .map(e -> new BotUpdate.Entity(e.getType(), e.getOffset(), e.getLength())).toList();
         return new BotUpdate(update.getUpdateId(), BotUpdate.Kind.MESSAGE, type, message.getChatId(),
-                message.getFrom().getId(), message.getFrom().getIsBot(), message.getText(), entities, null, null);
+                message.getFrom().getId(), message.getFrom().getIsBot(), message.getText(), entities, null, null,
+                message.getDate() == null ? null : Instant.ofEpochSecond(message.getDate()));
     }
 }
