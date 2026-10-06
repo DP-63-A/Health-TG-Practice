@@ -20,7 +20,8 @@
     },
     "commit_hash": {
       "type": "string",
-      "description": "Git commit hash where this version was created"
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "Full 40-char git commit SHA of the repository state the dataset is based on (the single source of dataset versioning; no separate dataset_hash)"
     },
     "cases": {
       "type": "array",
@@ -33,7 +34,7 @@
         "properties": {
           "id": {
             "type": "string",
-            "pattern": "^(F|H|W|N)0[1-4]$|^W0[1-2]$|^N0[1-2]$",
+            "pattern": "^(F0[1-4]|H0[1-4]|W0[1-2]|N0[1-2])$",
             "description": "Unique case identifier"
           },
           "path": {
@@ -49,18 +50,9 @@
             "type": "object",
             "required": ["origin", "license", "attribution"],
             "properties": {
-              "origin": {
-                "type": "string",
-                "description": "Source of the image (educational material, public dataset, etc.)"
-              },
-              "license": {
-                "type": "string",
-                "description": "License type (CC0, CC-BY, etc.)"
-              },
-              "attribution": {
-                "type": "string",
-                "description": "Attribution or copyright holder"
-              }
+              "origin": {"type": "string", "description": "Source of the image"},
+              "license": {"type": "string", "description": "License type (CC0, CC-BY, etc.)"},
+              "attribution": {"type": "string", "description": "Attribution or copyright holder"}
             }
           },
           "ui_variant": {
@@ -68,23 +60,45 @@
             "description": "UI variant number (for health screenshots: 1 or 2)"
           },
           "expected_fields": {
-            "type": "object",
-            "description": "Fields visible in the image with their expected values and units",
-            "additionalProperties": {
-              "type": "object",
-              "properties": {
-                "value": {
-                  "description": "Expected numeric or text value"
-                },
-                "unit": {
-                  "type": ["string", "null"],
-                  "description": "Measurement unit if applicable"
-                },
-                "confidence": {
-                  "type": ["string", "null"],
-                  "enum": ["certain", "estimated", "uncertain", null],
-                  "description": "Confidence in the expected value"
+            "description": "Food/negative: object keyed by field name. Health/watch: array of {name, value, unit, confidence} objects.",
+            "if": {"type": "array"},
+            "then": {
+              "items": {
+                "type": "object",
+                "required": ["name", "value", "unit", "confidence"],
+                "properties": {
+                  "name": {"type": "string"},
+                  "value": {"type": ["number", "string"]},
+                  "unit": {"type": ["string", "null"]},
+                  "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                  "qualifier": {"type": "string"}
                 }
+              }
+            },
+            "else": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "value": {"description": "Expected numeric or text value"},
+                  "unit": {"type": ["string", "null"]},
+                  "confidence": {
+                    "type": ["string", "null"],
+                    "enum": ["certain", "estimated", "uncertain", null]
+                  }
+                }
+              }
+            }
+          },
+          "ignored_fields": {
+            "type": "array",
+            "description": "Visible fields intentionally not extracted",
+            "items": {
+              "type": "object",
+              "required": ["name", "reason"],
+              "properties": {
+                "name": {"type": "string"},
+                "reason": {"type": "string"}
               }
             }
           },
@@ -94,11 +108,13 @@
             "properties": {
               "date": {
                 "type": ["string", "null"],
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                 "description": "Date in YYYY-MM-DD format or null if not visible"
               },
               "time": {
                 "type": ["string", "null"],
-                "description": "Time in HH:MM format or null if not visible"
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                "description": "Time in HH:MM format (24h, no seconds) or null if not visible"
               },
               "timezone": {
                 "type": "string",
@@ -109,23 +125,15 @@
           "uncertainties": {
             "type": "array",
             "description": "Known limitations or ambiguities in the image",
-            "items": {
-              "type": "string"
-            }
+            "items": {"type": "string"}
           },
           "expected_action": {
             "type": "string",
             "enum": ["draft", "ask", "refuse"],
-            "description": "Expected bot action: draft (show results), ask (request clarification), refuse (not supported)"
+            "description": "Expected bot action: draft, ask (request clarification), refuse (not supported)"
           },
-          "refuse_reason": {
-            "type": "string",
-            "description": "Reason for refusing (if expected_action is 'refuse')"
-          },
-          "ask_clarification": {
-            "type": "string",
-            "description": "Clarification question to ask user (if expected_action is 'ask')"
-          },
+          "refuse_reason": {"type": "string"},
+          "ask_clarification": {"type": "string"},
           "personal_data_check": {
             "type": "boolean",
             "description": "Confirmed no personal health data in image"
