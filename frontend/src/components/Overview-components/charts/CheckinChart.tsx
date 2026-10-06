@@ -44,7 +44,12 @@ const categories: {
   },
 ]
 
-const categoryLabels: Record<CheckinCategory, string> = {
+
+const categoryLabels: Record<
+  CheckinCategory,
+  string
+> = {
+
   sleep_quality: 'Качество сна',
   digestion_comfort: 'Комфорт пищеварения',
   wellbeing: 'Самочувствие',
@@ -54,7 +59,11 @@ const categoryLabels: Record<CheckinCategory, string> = {
 interface CheckinChartProps {
   series: AnalyticsResponse['series']['checkin']
   selectedCategory?: CheckinCategory
-  onCategoryChange?: (category: CheckinCategory) => void
+
+  onCategoryChange?: (
+    category: CheckinCategory,
+  ) => void
+
   isLoading?: boolean
   onSelectDay?: (
     date: string,
@@ -62,8 +71,14 @@ interface CheckinChartProps {
   ) => void
 }
 
-function formatScore(value: number | null): string {
-  return value === null ? 'Нет данных' : `${value} из 5`
+
+function formatScore(
+  value: number | null,
+): string {
+  return value === null
+    ? 'Нет данных'
+    : `${value} из 5`
+
 }
 
 export function CheckinChart({
@@ -77,7 +92,10 @@ export function CheckinChart({
   const selectId = useId()
   const scaleId = useId()
 
-  const categoryLabel = categoryLabels[series.category]
+
+  const categoryLabel =
+    categoryLabels[series.category]
+
 
   const matchesCategory =
     selectedCategory === series.category
@@ -87,10 +105,21 @@ export function CheckinChart({
   )
 
   function selectDay(date: string) {
-    if (isLoading || !matchesCategory) return
-    const point = series.points.find((item) => item.date === date)
+
+    if (isLoading || !matchesCategory) {
+      return
+    }
+
+    const point = series.points.find(
+      (item) => item.date === date,
+    )
+
     if (point) {
-      onSelectDay?.(point.date, series.category)
+      onSelectDay?.(
+        point.date,
+        series.category,
+      )
+
     }
   }
 
@@ -101,7 +130,52 @@ export function CheckinChart({
       aria-describedby={scaleId}
       aria-busy={isLoading}
     >
-      <h2 id={titleId}>Состояние</h2>
+
+      <div className="checkin-chart__header">
+        <div>
+          <h2 id={titleId}>
+            Состояние
+          </h2>
+
+          <p className="checkin-chart__description">
+            Субъективные оценки по дням
+          </p>
+        </div>
+
+        <div
+          className="checkin-chart__icon"
+          aria-hidden="true"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="23"
+            height="23"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="9"
+            />
+
+            <path d="M8.5 10h.01" />
+            <path d="M15.5 10h.01" />
+
+            <path
+              d="
+                M8.5 14.5
+                c1 1.2 2.1 1.8 3.5 1.8
+                s2.5-.6 3.5-1.8
+              "
+            />
+          </svg>
+        </div>
+      </div>
+
 
       {onCategoryChange ? (
         <div className="checkin-chart__control">
@@ -109,54 +183,128 @@ export function CheckinChart({
             Категория
           </label>
 
-          <select
-            id={selectId}
-            value={selectedCategory}
-            disabled={isLoading}
-            onChange={(event) => {
-              const category = categories.find(
-                (item) => item.value === event.target.value,
-              )
 
-              if (category) {
-                onCategoryChange(category.value)
-              }
-            }}
-          >
-            {categories.map((category) => (
-              <option
-                key={category.value}
-                value={category.value}
+          <div className="checkin-chart__select-wrapper">
+            <select
+              id={selectId}
+              value={selectedCategory}
+              disabled={isLoading}
+              onChange={(event) => {
+                const category =
+                  categories.find(
+                    (item) =>
+                      item.value ===
+                      event.target.value,
+                  )
+
+                if (category) {
+                  onCategoryChange(
+                    category.value,
+                  )
+                }
+              }}
+            >
+              {categories.map(
+                (category) => (
+                  <option
+                    key={category.value}
+                    value={category.value}
+                  >
+                    {category.label}
+                  </option>
+                ),
+              )}
+            </select>
+
+            <span
+              className="checkin-chart__select-icon"
+              aria-hidden="true"
+            >
+              <svg
+                viewBox="0 0 20 20"
+                width="18"
+                height="18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                {category.label}
-              </option>
-            ))}
-          </select>
+                <path d="m6 8 4 4 4-4" />
+              </svg>
+            </span>
+          </div>
         </div>
       ) : (
-        <p>{categoryLabel}</p>
+        <p className="checkin-chart__category">
+          {categoryLabel}
+        </p>
       )}
 
-      <p
+      <div
         id={scaleId}
         className="checkin-chart__scale"
       >
-        1 — очень плохо / очень низкий комфорт.
-        5 — очень хорошо / высокий комфорт.
-      </p>
+        <span>1</span>
+
+        <p
+  id={scaleId}
+  className="checkin-chart__scale"
+>
+  1 — очень плохо / очень низкий комфорт.
+  5 — очень хорошо / высокий комфорт.
+</p>
+</div>
 
       {isLoading ? (
-        <p role="status">
-          Загрузка оценок…
-        </p>
+        <div
+          className="checkin-chart__state"
+          role="status"
+        >
+          <span
+            className="checkin-chart__state-icon"
+            aria-hidden="true"
+          >
+            …
+          </span>
+
+          <p>Загрузка оценок…</p>
+        </div>
       ) : !matchesCategory ? (
-        <p role="status">
-          Данные выбранной категории ещё не получены.
-        </p>
+        <div
+          className="checkin-chart__state"
+          role="status"
+        >
+          <span
+            className="checkin-chart__state-icon"
+            aria-hidden="true"
+          >
+            —
+          </span>
+
+          <p>
+            Данные выбранной категории ещё
+            не получены.
+          </p>
+        </div>
       ) : !hasValues ? (
-        <p role="status">
-          Нет оценок «{categoryLabel}» за выбранный период.
-        </p>
+        <div
+          className="checkin-chart__state"
+          role="status"
+        >
+          <span
+            className="checkin-chart__state-icon"
+            aria-hidden="true"
+          >
+            —
+          </span>
+
+          <p>
+            Нет оценок «{categoryLabel}» за
+            выбранный период.
+          </p>
+        </div>
+
       ) : (
         <>
           <div className="checkin-chart__plot">
@@ -169,29 +317,38 @@ export function CheckinChart({
                 data={series.points}
                 accessibilityLayer
                 margin={{
-                  top: 12,
-                  right: 16,
-                  bottom: 8,
+
+                  top: 8,
+                  right: 4,
+                  bottom: 4,
+
                   left: 0,
                 }}
               >
                 <CartesianGrid
                   stroke="currentColor"
-                  strokeOpacity={0.15}
-                  strokeDasharray="3 3"
+
+                  strokeOpacity={0.08}
+
                   vertical={false}
                 />
 
                 <XAxis
                   dataKey="date"
-                  tickFormatter={formatChartDate}
+
+                  tickFormatter={
+                    formatChartDate
+                  }
                   interval="preserveStartEnd"
                   minTickGap={16}
+                  axisLine={false}
+                  tickLine={false}
                   tick={{
                     fill: 'currentColor',
-                    fontSize: 12,
+                    fontSize: 11,
                   }}
-                  tickLine={false}
+                  tickMargin={10}
+
                 />
 
                 <YAxis
@@ -199,26 +356,42 @@ export function CheckinChart({
                   ticks={[1, 2, 3, 4, 5]}
                   allowDecimals={false}
                   allowDataOverflow
-                  width={32}
+
+                  width={28}
+                  axisLine={false}
+                  tickLine={false}
                   tick={{
                     fill: 'currentColor',
-                    fontSize: 12,
+                    fontSize: 11,
                   }}
-                  tickLine={false}
                 />
 
                 <Tooltip
-                  content={({ active, label }) => {
+                  cursor={{
+                    fill: 'currentColor',
+                    fillOpacity: 0.035,
+                  }}
+                  content={({
+                    active,
+                    label,
+                  }) => {
                     if (
                       !active ||
-                      typeof label !== 'string'
+                      typeof label !==
+                        'string'
+
                     ) {
                       return null
                     }
 
-                    const point = series.points.find(
-                      (item) => item.date === label,
-                    )
+
+                    const point =
+                      series.points.find(
+                        (item) =>
+                          item.date ===
+                          label,
+                      )
+
 
                     if (
                       !point ||
@@ -229,17 +402,30 @@ export function CheckinChart({
 
                     return (
                       <div className="checkin-chart__tooltip">
-                        <strong>
-                          {formatTooltipDate(point.date)}
-                        </strong>
 
-                        <span>
+                        <span className="checkin-chart__tooltip-date">
+                          {formatTooltipDate(
+                            point.date,
+                          )}
+                        </span>
+
+                        <span className="checkin-chart__tooltip-category">
                           {categoryLabel}
                         </span>
 
-                        <span>
-                          {formatScore(point.value)}
-                        </span>
+                        <div className="checkin-chart__tooltip-value">
+                          <span
+                            className="checkin-chart__tooltip-dot"
+                            aria-hidden="true"
+                          />
+
+                          <strong>
+                            {formatScore(
+                              point.value,
+                            )}
+                          </strong>
+                        </div>
+
                       </div>
                     )
                   }}
@@ -248,14 +434,20 @@ export function CheckinChart({
                 <Bar
                   dataKey="value"
                   name={categoryLabel}
-                  fill="var(--checkin-chart-color, #2563eb)"
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={42}
+
+                  fill="var(--checkin-chart-color)"
+                  radius={[8, 8, 3, 3]}
+                  maxBarSize={34}
                   isAnimationActive={false}
                   onClick={(barData) => {
-                    const date = barData.payload?.date
+                    const date =
+                      barData.payload?.date
 
-                    if (typeof date === 'string') {
+                    if (
+                      typeof date ===
+                      'string'
+                    ) {
+
                       selectDay(date)
                     }
                   }}
@@ -265,65 +457,96 @@ export function CheckinChart({
           </div>
 
 
+          {onSelectDay && (
+            <p className="checkin-chart__hint">
+              Нажмите на столбец, чтобы
+              открыть запись за выбранный день
+            </p>
+          )}
         </>
       )}
 
-      {!isLoading && matchesCategory && series.points.length > 0 && (
-        <details className="checkin-chart__details">
+      {!isLoading &&
+        matchesCategory &&
+        series.points.length > 0 && (
+          <details className="checkin-chart__details">
+
             <summary>
               Значения по дням
             </summary>
 
-            <table>
-              <caption>
-                {categoryLabel}: оценки по дням
-              </caption>
 
-              <thead>
-                <tr>
-                  <th scope="col">
-                    Дата
-                  </th>
+            <div className="checkin-chart__table-wrapper">
+              <table>
+                <caption>
+                  {categoryLabel}: оценки по
+                  дням
+                </caption>
 
-                  <th scope="col">
-                    Оценка
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {series.points.map((point) => (
-                  <tr key={point.date}>
-                    <th scope="row">
-                      {onSelectDay ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            selectDay(point.date)
-                          }
-                          aria-label={[
-                            'Выбрать день',
-                            formatTooltipDate(point.date),
-                            categoryLabel,
-                            formatScore(point.value),
-                          ].join(' ')}
-                        >
-                          {formatTooltipDate(point.date)}
-                        </button>
-                      ) : (
-                        formatTooltipDate(point.date)
-                      )}
+                <thead>
+                  <tr>
+                    <th scope="col">
+                      Дата
                     </th>
 
-                    <td>
-                      {formatScore(point.value)}
-                    </td>
+                    <th scope="col">
+                      Оценка
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+
+                <tbody>
+                  {series.points.map(
+                    (point) => (
+                      <tr
+                        key={point.date}
+                      >
+                        <th scope="row">
+                          {onSelectDay ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                selectDay(
+                                  point.date,
+                                )
+                              }
+                              aria-label={[
+                                'Выбрать день',
+                                formatTooltipDate(
+                                  point.date,
+                                ),
+                                categoryLabel,
+                                formatScore(
+                                  point.value,
+                                ),
+                              ].join(' ')}
+                            >
+                              {formatTooltipDate(
+                                point.date,
+                              )}
+                            </button>
+                          ) : (
+                            formatTooltipDate(
+                              point.date,
+                            )
+                          )}
+                        </th>
+
+                        <td>
+                          {formatScore(
+                            point.value,
+                          )}
+                        </td>
+                      </tr>
+                    ),
+                  )}
+                </tbody>
+              </table>
+            </div>
           </details>
-      )}
+        )}
     </section>
   )
 }
+
+ 

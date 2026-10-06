@@ -74,8 +74,7 @@ final class EntryPayloadValidator {
         rejectUnknown(payload, METRICS_FIELDS);
         String code = requireEnum(payload, "code", METRIC_CODES);
         Number value = requireNumber(payload, "value");
-        if ((code.equals("steps") || code.equals("sleep_duration_min"))
-                && value.doubleValue() < 0) {
+        if (new java.math.BigDecimal(value.toString()).signum() < 0) {
             throw invalid("value must be non-negative for " + code);
         }
 

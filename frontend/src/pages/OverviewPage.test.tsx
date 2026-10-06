@@ -1178,13 +1178,28 @@ describe('OverviewPage', () => {
   )
 
   it.each([
-    'sleep_quality', 'digestion_comfort', 'wellbeing', 'mood',
+
+    ['sleep_quality', 'Качество сна'],
+    ['digestion_comfort', 'Комфорт пищеварения'],
+    ['wellbeing', 'Самочувствие'],
+    ['mood', 'Настроение'],
   ] as const)(
-    'switches category to %s and forwards its source',
-    async (category) => {
+    'switches category to %s, replaces visible data and forwards its source',
+    async (category, label) => {
+      // Тестовые ответы для проверки поведения UI, не эталоны BE3.
       const initialCategory = category === 'mood' ? 'wellbeing' : 'mood'
+      const initialLabel = initialCategory === 'mood' ? 'Настроение' : 'Самочувствие'
       const initial = response()
-      initial.series.checkin.category = initialCategory
+      initial.series.checkin = {
+        category: initialCategory,
+        points: [{
+          date: day, value: 1, unit: 'score_1_5',
+          source: {
+            entry_id: '22222222-2222-4222-8222-222222222290',
+            type: 'checkin', local_date: day,
+          },
+        }],
+      }
       const selected = response()
       const sourceId = '22222222-2222-4222-8222-222222222291'
       selected.series.checkin = {
@@ -1194,10 +1209,24 @@ describe('OverviewPage', () => {
           source: { entry_id: sourceId, type: 'checkin', local_date: day },
         }],
       }
-      getAnalyticsMock.mockResolvedValueOnce(initial).mockResolvedValueOnce(selected)
+
+      const pending = deferred<AnalyticsResponse>()
+      getAnalyticsMock
+        .mockResolvedValueOnce(initial)
+        .mockReturnValueOnce(pending.promise)
       renderOverview('/overview?period=days_7&checkin_category=' + initialCategory)
-      const region = await screen.findByRole('region', { name: 'Состояние' })
-      fireEvent.change(within(region).getByRole('combobox'), {
+
+      const initialTable = await chartTable('Состояние')
+      expect(initialTable.getByText('1 из 5')).toBeVisible()
+      expect(screen.getByRole('table', {
+        name: initialLabel + ': оценки по дням',
+      })).toBeVisible()
+      expect(getAnalyticsMock).toHaveBeenCalledExactlyOnceWith({
+        ...defaultAnalyticsQuery, checkin_category: initialCategory,
+      })
+
+      fireEvent.change(screen.getByRole('combobox', { name: 'Категория' }), {
+
         target: { value: category },
       })
       await waitFor(() => {
@@ -1205,7 +1234,35 @@ describe('OverviewPage', () => {
           ...defaultAnalyticsQuery, checkin_category: category,
         })
       })
+
+      expectLoading()
+      expect(screen.queryByRole('region', {
+        name: 'Состояние',
+      })).not.toBeInTheDocument()
+      expect(navigateMock).not.toHaveBeenCalled()
+
+      await act(async () => {
+        pending.resolve(selected)
+      })
+
       const table = await chartTable('Состояние')
+      expect(screen.getByRole('combobox', {
+        name: 'Категория',
+      })).toHaveValue(category)
+      expect(screen.getByLabelText('Период')).toHaveValue('days_7')
+      expect(screen.getByRole('table', {
+        name: label + ': оценки по дням',
+      })).toBeVisible()
+      expect(screen.queryByRole('table', {
+        name: initialLabel + ': оценки по дням',
+      })).not.toBeInTheDocument()
+      expect(table.getByText('4 из 5')).toBeVisible()
+      expect(table.queryByText('1 из 5')).not.toBeInTheDocument()
+      expect(screen.queryByRole('heading', {
+        name: 'Загрузка аналитики',
+      })).not.toBeInTheDocument()
+      expect(getAnalyticsMock).toHaveBeenCalledTimes(2)
+
       fireEvent.click(table.getByRole('button'))
       expectDiaryNavigation({
         kind: 'checkin', date: day, category,
@@ -1451,7 +1508,10 @@ describe('Overview refresh: current filters and new data', () => {
     expect(region('Аналитика сна').getByText('15 ч')).toBeVisible()
     expect(region('Аналитика шагов').getAllByText(/^5\s?000$/)).toHaveLength(2)
     expect(region('Аналитика пульса').getByText('72')).toBeVisible()
-    expect(region('Субъективные оценки состояния').getByText('3')).toBeVisible()
+
+    expect(
+  region('Субъективные оценки состояния').getByText('3 из 5'),).toBeVisible()
+
 
     const initialSleep = await chartTable('Сон')
     expect(initialSleep.getByText('7 ч')).toBeVisible()
@@ -1512,10 +1572,12 @@ describe('Overview refresh: current filters and new data', () => {
     expect(heartCard.queryByText('72')).not.toBeInTheDocument()
 
     const checkinCard = region('Субъективные оценки состояния')
-    expect(checkinCard.getAllByText('2')).toHaveLength(4)
-    expect(checkinCard.queryByText('3')).not.toBeInTheDocument()
-    expect(checkinCard.queryByText('4')).not.toBeInTheDocument()
-    expect(checkinCard.queryByText('5')).not.toBeInTheDocument()
+
+    expect(checkinCard.getAllByText('2 из 5')).toHaveLength(4)
+    expect(checkinCard.queryByText('3 из 5')).not.toBeInTheDocument()
+    expect(checkinCard.queryByText('4 из 5')).not.toBeInTheDocument()
+    expect(checkinCard.queryByText('5 из 5')).not.toBeInTheDocument()
+
 
     const sleepTable = await chartTable('Сон')
     expect(sleepTable.getByText('7 ч 30 мин')).toBeVisible()

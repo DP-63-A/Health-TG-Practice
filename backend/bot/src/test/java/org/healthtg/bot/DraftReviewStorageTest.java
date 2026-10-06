@@ -27,6 +27,39 @@ import static org.mockito.AdditionalAnswers.delegatesTo;
 
 @Testcontainers
 class DraftReviewStorageTest {
+    @ParameterizedTest @ValueSource(strings = {"-1", "-0.00001", "-1E-400"})
+    void negativePendingPulseCannotBeReplayedAfterRestart(String negative) {
+        flow().handleMessage(message(10, "06.10.2026 пульс 72 ударов в минуту"));
+        Entry draft = active();
+        dialogs.save(new org.healthtg.core.dialog.SaveDialogStateCommand(owner(), draft.id(), "draft_pending",
+                Map.of("schema_version", 1, "entry_revision", 1, "timezone", "Europe/Warsaw",
+                        "operation", "patch", "field", "v", "value", negative), new TelegramUpdateKey("main", 11)));
+        context.close(); reopen();
+        flow().handleMessage(message(11, negative));
+        assertEquals(1, active().revision());
+        assertEquals(72, ((Number) active().payload().get("value")).intValue());
+        flow().handleCallback(button(12, active(), "r"));
+        flow().handleCallback(button(13, active(), "v"));
+        flow().handleMessage(message(14, "0"));
+        flow().handleCallback(button(15, active(), "s"));
+        Entry saved = entries.requireEntry(owner(), draft.id());
+        assertEquals(EntryStatus.CONFIRMED, saved.status());
+        assertEquals(0, ((Number) saved.payload().get("value")).intValue());
+        assertEquals(SENT, saved.occurredAt());
+    }
+
+    @Test void negativePulseCorrectionIsRejectedAndZeroCanBeRetried() {
+        flow().handleMessage(message(10, "06.10.2026 пульс 72 ударов в минуту"));
+        Entry draft = active();
+        flow().handleCallback(button(11, draft, "v"));
+        flow().handleMessage(message(12, "-1"));
+        assertEquals(1, active().revision());
+        assertEquals(72, ((Number) active().payload().get("value")).intValue());
+        flow().handleMessage(message(13, "0"));
+        assertEquals(2, active().revision());
+        assertEquals(0, ((Number) active().payload().get("value")).intValue());
+    }
+
     @ParameterizedTest @ValueSource(booleans = {false, true})
     void mealDecimalEditsPreserveBasisAndOtherNutrientsAfterRestart(boolean afterWrite) {
         Entry draft = entries.createDraft(new CreateDraftCommand(owner(), EntryType.MEAL, SourceKind.TEXT,

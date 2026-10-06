@@ -594,8 +594,8 @@ import { describe, expect, it, vi } from 'vitest'
 
       expect(result).toEqual(analyticsFixture)
 
-      expect(result.cards.nutrition.energy_kcal).toBe
-      (930)
+      expect(result.cards.nutrition.energy_kcal).toBe(930)
+
 
       expect(result.cards.sleep.total_minutes).toBe(450)
       expect(result.cards.steps.total).toBe(8432)

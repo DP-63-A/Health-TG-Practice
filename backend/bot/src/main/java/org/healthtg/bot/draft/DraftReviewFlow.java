@@ -84,8 +84,7 @@ public final class DraftReviewFlow {
             return Optional.of(List.of(message(update, failure.message(), backRows(entry))));
         }
         Object value = ((CorrectionResult.Success<?>) parsed).value();
-        if (value instanceof BigDecimal decimal && decimal.signum() < 0
-                && !(entry.type() == EntryType.METRICS && "heart_rate".equals(entry.payload().get("code")))) {
+        if (value instanceof BigDecimal decimal && decimal.signum() < 0) {
             return Optional.of(List.of(message(update, "Значение не может быть отрицательным.", backRows(entry))));
         }
         Map<String, Object> context = base(entry, ZoneId.of(String.valueOf(state.context().get("timezone"))));
@@ -213,8 +212,7 @@ public final class DraftReviewFlow {
             // BigDecimal.toString() can use an exponent even though user input never does.
             BigDecimal decimal = new BigDecimal(value);
             if (decimal.precision() > 2000 || decimal.scale() < -2000 || decimal.scale() > 2000) return false;
-            return decimal.signum() >= 0 || (entry.type() == EntryType.METRICS
-                    && "heart_rate".equals(entry.payload().get("code")));
+            return decimal.signum() >= 0;
         } catch (IllegalArgumentException | ArithmeticException | DateTimeException invalid) {
             return false;
         }
@@ -312,9 +310,19 @@ public final class DraftReviewFlow {
         }
         if (miniAppUrl != null && entry.status() != EntryStatus.CANCELLED && entry.status() != EntryStatus.DELETED) {
             rows.add(List.of(new BotAction.InlineButton("Открыть в Mini App", null,
-                    miniAppUrl.resolve("/diary/" + entry.id()))));
+                    entryUrl(entry.id()))));
         }
         return withAnswer(update, message(update, limited(text.toString(), 4000), rows));
+    }
+
+    private URI entryUrl(UUID entryId) {
+        // Preserve the configured deployment prefix and its already encoded components.
+        String path = miniAppUrl.getRawPath();
+        String suffix = path == null || path.endsWith("/") ? "" : "/";
+        return URI.create(miniAppUrl.getScheme() + "://" + miniAppUrl.getRawAuthority()
+                + (path == null ? "" : path) + suffix + "diary/" + entryId
+                + (miniAppUrl.getRawQuery() == null ? "" : "?" + miniAppUrl.getRawQuery())
+                + (miniAppUrl.getRawFragment() == null ? "" : "#" + miniAppUrl.getRawFragment()));
     }
 
     private static String originLabel(String origin) {

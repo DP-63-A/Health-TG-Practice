@@ -906,7 +906,7 @@ function buildPayload(type: EntryType, form: EntryFormState, errors: FieldErrors
     }
 
     const value = parseRequiredNumber(form.metric_value, 'payload.value', errors)
-    if ((form.metric_code === 'steps' || form.metric_code === 'sleep_duration_min') && value !== null && value < 0) {
+    if (value !== null && value < 0) {
       errors['payload.value'] = 'Значение не может быть отрицательным по контракту.'
     }
 

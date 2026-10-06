@@ -56,8 +56,65 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
+@org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 @Testcontainers(disabledWithoutDocker = true)
 class CoreStorageIntegrationTest {
+    @Autowired org.springframework.test.web.servlet.MockMvc mockMvc;
+    @org.springframework.test.context.bean.override.mockito.MockitoBean org.healthtg.session.SessionService sessions;
+
+    @Test void pulseHttpPatchAndConfirmEnforceNonnegativeValueThroughRealCore() throws Exception {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        org.mockito.Mockito.when(sessions.authenticate("pulse-test")).thenReturn(owner.userId());
+        Entry pulse = entries.createDraft(new CreateDraftCommand(owner, EntryType.METRICS, SourceKind.TEXT,
+                Map.of(), Instant.parse("2026-10-06T12:00:00Z"),
+                Map.of("code", "heart_rate", "value", 72, "unit", "bpm", "local_date", "2026-10-06"),
+                Map.of(), new TelegramUpdateKey("main", 910))).entry();
+        for (String value : List.of("-1", "-0.0001")) {
+            mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/entries/{id}", pulse.id())
+                    .header("Authorization", "Bearer pulse-test").contentType("application/json")
+                    .content("{\"expected_revision\":1,\"payload\":{\"value\":" + value + "}}"))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isUnprocessableEntity())
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code").value("VALIDATION_ERROR"));
+            assertEquals(pulse, entries.requireEntry(owner, pulse.id()));
+        }
+        // Fault injection only in this test container: confirm must validate persisted data too.
+        mongoTemplate.updateFirst(org.springframework.data.mongodb.core.query.Query.query(
+                org.springframework.data.mongodb.core.query.Criteria.where("_id").is(pulse.id().toString())),
+                org.springframework.data.mongodb.core.query.Update.update("payload.value", -1), "entries");
+        assertThrows(EntryValidationException.class, () -> entries.confirm(new ConfirmEntryCommand(owner, pulse.id(), "bad-pulse", 1)));
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/entries/{id}/confirm", pulse.id())
+                .header("Authorization", "Bearer pulse-test").contentType("application/json")
+                .content("{\"expected_revision\":1,\"submission_id\":\"bad-pulse-http\"}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isUnprocessableEntity());
+        assertEquals(EntryStatus.DRAFT, entries.requireEntry(owner, pulse.id()).status());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/entries/{id}", pulse.id())
+                .header("Authorization", "Bearer pulse-test").contentType("application/json")
+                .content("{\"expected_revision\":1,\"payload\":{\"value\":0}}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.payload.value").value(0));
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/entries/{id}/confirm", pulse.id())
+                .header("Authorization", "Bearer pulse-test").contentType("application/json")
+                .content("{\"expected_revision\":2,\"submission_id\":\"zero-pulse-http\"}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.status").value("confirmed"));
+    }
+
+    @Test void pulseRejectsNegativeCreateAndPatchWithoutLosingValidZero() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Instant sent = Instant.parse("2026-10-06T12:00:00Z");
+        for (Number value : List.of(-1, new java.math.BigDecimal("-1E-400"))) {
+            assertThrows(EntryValidationException.class, () -> entries.createDraft(new CreateDraftCommand(
+                    owner, EntryType.METRICS, SourceKind.TEXT, Map.of(), sent,
+                    Map.of("code", "heart_rate", "value", value), Map.of(), new TelegramUpdateKey("main", 901))));
+        }
+        Entry zero = entries.createDraft(new CreateDraftCommand(owner, EntryType.METRICS, SourceKind.TEXT,
+                Map.of(), sent, Map.of("code", "heart_rate", "value", 0, "unit", "bpm", "local_date", "2026-10-06"),
+                Map.of(), new TelegramUpdateKey("main", 902))).entry();
+        assertThrows(EntryValidationException.class, () -> entries.patch(new PatchEntryCommand(owner,
+                zero.id(), zero.revision(), null, Map.of("value", -1), Map.of())));
+        assertEquals(zero, entries.requireEntry(owner, zero.id()));
+    }
+
     @Container
     static final MongoDBContainer MONGO = new MongoDBContainer(
             DockerImageName.parse("mongodb/mongodb-community-server:8.0-ubi9-slim")

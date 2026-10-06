@@ -1,89 +1,346 @@
 .steps-chart {
-    --steps-chart-color: var(--tg-theme-button-color,
-    #2563eb);
 
-    min-width: 0;
-    margin-top: 20px;
-    padding: 16px;
-    box-sizing: border-box;
-    border: 1px solid var(--tg-theme-hint-color,
-    #718096);
-    border-radius: 16px;
-    color: var(--tg-theme-text-color, #172033);
-    background: var(--tg-theme-bg-color, #fff);
+  --steps-chart-color: #8bc7a5;
+  --steps-chart-soft:
+    rgb(139 199 165 / 18%);
+
+  min-width: 0;
+  margin-top: 20px;
+  padding: 20px;
+
+  box-sizing: border-box;
+
+  border-radius: 20px;
+
+  color: var(
+    --tg-theme-text-color,
+    #222
+  );
+
+  background: var(
+    --tg-theme-secondary-bg-color,
+    #f5f5f5
+  );
+}
+
+/* Header */
+
+.steps-chart__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  margin-bottom: 20px;
+}
+
+.steps-chart h2 {
+  margin: 0 0 6px;
+
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.steps-chart__description {
+  margin: 0;
+
+  font-size: 13px;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.steps-chart__icon {
+  display: grid;
+  place-items: center;
+
+  flex: 0 0 auto;
+
+  width: 42px;
+  height: 42px;
+
+  border-radius: 14px;
+
+  color: var(--steps-chart-color);
+  background: var(--steps-chart-soft);
+}
+
+/* Unit */
+
+.steps-chart__unit {
+  margin-bottom: 4px;
+
+  font-size: 11px;
+  font-weight: 500;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+/* Chart */
+
+.steps-chart__plot {
+  width: 100%;
+  min-width: 0;
+  height: 240px;
+}
+
+.steps-chart__plot
+  .recharts-cartesian-axis-tick {
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.steps-chart__plot
+  .recharts-bar-rectangle {
+  cursor: pointer;
+}
+
+/* Tooltip */
+
+.steps-chart__tooltip {
+  display: grid;
+  gap: 8px;
+
+  min-width: 110px;
+  padding: 10px 12px;
+
+  border-radius: 12px;
+
+  color: var(
+    --tg-theme-text-color,
+    #222
+  );
+
+  background: var(
+    --tg-theme-bg-color,
+    #fff
+  );
+
+  box-shadow:
+    0 8px 24px rgb(0 0 0 / 10%);
+
+  pointer-events: none;
+}
+
+.steps-chart__tooltip-date {
+  font-size: 12px;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.steps-chart__tooltip-value {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  font-size: 14px;
+}
+
+.steps-chart__tooltip-dot {
+  width: 8px;
+  height: 8px;
+
+  border-radius: 50%;
+
+  background: var(--steps-chart-color);
+}
+
+/* Interaction hint */
+
+.steps-chart__hint {
+  margin: 8px 0 0;
+
+  text-align: center;
+
+  font-size: 11px;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+/* Empty state */
+
+.steps-chart__empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  min-height: 90px;
+  padding: 14px;
+
+  border-radius: 14px;
+
+  background: var(
+    --tg-theme-bg-color,
+    #fff
+  );
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.steps-chart__empty p {
+  margin: 0;
+
+  font-size: 13px;
+}
+
+.steps-chart__empty-icon {
+  display: grid;
+  place-items: center;
+
+  flex: 0 0 auto;
+
+  width: 32px;
+  height: 32px;
+
+  border-radius: 10px;
+
+  color: var(--steps-chart-color);
+  background: var(--steps-chart-soft);
+}
+
+/* Details */
+
+.steps-chart__details {
+  margin-top: 16px;
+
+  border-top: 1px solid
+    rgb(127 127 127 / 14%);
+}
+
+.steps-chart__details summary {
+  padding: 14px 0 6px;
+
+  cursor: pointer;
+
+  font-size: 13px;
+  font-weight: 500;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.steps-chart__table-wrapper {
+  overflow-x: auto;
+}
+
+/* Table */
+
+.steps-chart table {
+  width: 100%;
+
+  margin-top: 8px;
+
+  table-layout: fixed;
+  border-collapse: collapse;
+
+  font-size: 13px;
+}
+
+.steps-chart caption {
+  padding: 6px 0 10px;
+
+  text-align: left;
+
+  font-size: 11px;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.steps-chart th,
+.steps-chart td {
+  padding: 10px 6px;
+
+  text-align: left;
+  overflow-wrap: anywhere;
+
+  border-bottom: 1px solid
+    rgb(127 127 127 / 10%);
+}
+
+.steps-chart thead th {
+  font-size: 11px;
+  font-weight: 500;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.steps-chart tbody th {
+  font-weight: normal;
+}
+
+.steps-chart button {
+  min-height: 44px;
+
+  padding: 8px 4px;
+
+  border: 0;
+
+  background: transparent;
+  color: inherit;
+
+  font: inherit;
+
+  text-decoration: underline;
+  text-decoration-color:
+    var(--steps-chart-color);
+  text-underline-offset: 3px;
+
+  cursor: pointer;
+}
+
+.steps-chart button:focus-visible,
+.steps-chart summary:focus-visible {
+  outline: 2px solid
+    var(--steps-chart-color);
+
+  outline-offset: 3px;
+}
+
+/* Mobile */
+
+@media (max-width: 360px) {
+  .steps-chart {
+    padding: 14px;
   }
 
-  .steps-chart h2 {
-    margin: 0;
-    font-size: 20px;
+  .steps-chart__header {
+    margin-bottom: 16px;
   }
 
-  .steps-chart__description {
-    margin: 8px 0 16px;
+  .steps-chart__icon {
+    width: 38px;
+    height: 38px;
   }
 
   .steps-chart__plot {
-    width: 100%;
-    min-width: 0;
-    height: 240px;
+    height: 215px;
   }
 
-  .steps-chart__tooltip {
-    display: grid;
-    gap: 4px;
-    padding: 10px;
-    border: 1px solid var(--tg-theme-hint-color,
-    #718096);
-    border-radius: 8px;
-    color: var(--tg-theme-text-color, #172033);
-    background: var(--tg-theme-bg-color, #fff);
-    pointer-events: none;
+  .steps-chart__hint {
+    padding: 0 8px;
   }
-
-  .steps-chart__details {
-    margin-top: 12px;
-  }
-
-  .steps-chart__details summary {
-    padding: 12px 0;
-    cursor: pointer;
-  }
-
-  .steps-chart table {
-    width: 100%;
-    table-layout: fixed;
-    border-collapse: collapse;
-  }
-
-  .steps-chart caption {
-    padding: 8px 0;
-    text-align: left;
-  }
-
-  .steps-chart th,
-  .steps-chart td {
-    padding: 8px 4px;
-    text-align: left;
-    overflow-wrap: anywhere;
-  }
-
-  .steps-chart tbody th {
-    font-weight: normal;
-  }
-
-  .steps-chart button {
-    min-height: 44px;
-    padding: 8px 4px;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    text-decoration: underline;
-    cursor: pointer;
-  }
-
-  .steps-chart button:focus-visible,
-  .steps-chart summary:focus-visible {
-    outline: 2px solid var(--steps-chart-color);
-    outline-offset: 3px;
-  }
+}

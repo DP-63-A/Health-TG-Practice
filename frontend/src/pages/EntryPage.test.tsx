@@ -10,6 +10,23 @@ import { RefreshProvider, useRefreshSubscription } from '../refresh/RefreshProvi
 import { appRoutes } from '../router/router'
 
 describe('FE1-04 entry review and correction', () => {
+  it.each(['-1', '-0.00001'])('rejects negative pulse %s without sending a patch and accepts an explicit zero', async (negative) => {
+    const entry = entryFixture({ type: 'metrics', status: 'draft', payload: { code: 'heart_rate', value: 72 } })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch').mockResolvedValue({ ...entry, revision: 2, payload: { code: 'heart_rate', value: 0 } })
+    renderRoute('/diary/' + entry.id)
+    const value = await screen.findByLabelText(/Значение/)
+    fireEvent.change(value, { target: { value: negative } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByText(/не может быть отрицательным по контракту/)).toBeInTheDocument()
+    expect(patch).not.toHaveBeenCalled()
+    expect(value).toHaveAttribute('aria-invalid', 'true')
+    expect(value).toHaveFocus()
+    fireEvent.change(value, { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(patch).toHaveBeenCalledWith(entry.id, { expected_revision: 1, payload: { value: 0 } }))
+  })
+
   it.each(['heart_rate', 'sleep_duration_min'] as const)('combines %s date correction with accessible errors and preserves known time', async (code) => {
     const entry = entryFixture({ type: 'metrics', status: 'draft', submission_id: null,
       occurred_at: '2026-10-07T23:50:00Z', payload: { code, value: 70,
