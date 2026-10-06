@@ -78,7 +78,7 @@ class DemoDatasetServiceTest {
     }
 
     @Test
-    void rerunningSeedRejectsAnExistingRecordWithChangedPayloadOrStatus() {
+    void rerunningSeedRejectsAnExistingRecordWithChangedPayload() {
         UUID regularId = UUID.fromString("11111111-1111-4111-8111-111111111101");
         UUID irregularId = UUID.fromString("11111111-1111-4111-8111-111111111102");
         UUID incompleteId = UUID.fromString("11111111-1111-4111-8111-111111111103");
@@ -91,9 +91,34 @@ class DemoDatasetServiceTest {
         InMemoryEntryCore entries = new InMemoryEntryCore();
         DemoDatasetService service = new DemoDatasetService(entries, users, mock(MongoTemplate.class));
         service.seed("true", DEMO_URI, owners, SEED, START);
-        entries.corruptFirstEntry(entry -> new Entry(entry.id(), entry.ownerId(), entry.type(), EntryStatus.DRAFT,
+        entries.corruptFirstEntry(entry -> new Entry(entry.id(), entry.ownerId(), entry.type(), entry.status(),
                 entry.sourceKind(), entry.sourceRef(), entry.occurredAt(), entry.createdAt(), entry.updatedAt(),
                 entry.revision(), Map.of("tampered", true), entry.fieldOrigins(), entry.submissionId(),
+                entry.telegramUpdateKey()));
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> service.seed("true", DEMO_URI, owners, SEED, START));
+
+        assertEquals("Existing BE3-05 record differs from the expected dataset; run reset first", error.getMessage());
+    }
+
+    @Test
+    void rerunningSeedRejectsAnExistingRecordWithChangedStatus() {
+        UUID regularId = UUID.fromString("11111111-1111-4111-8111-111111111101");
+        UUID irregularId = UUID.fromString("11111111-1111-4111-8111-111111111102");
+        UUID incompleteId = UUID.fromString("11111111-1111-4111-8111-111111111103");
+        DemoProfileOwners owners = new DemoProfileOwners(regularId, irregularId, incompleteId);
+        UserService users = mock(UserService.class);
+        when(users.requireById(regularId)).thenReturn(new UserAccount(regularId, 10, ZoneId.of("Europe/Warsaw"), true));
+        when(users.requireById(irregularId)).thenReturn(new UserAccount(irregularId, 20, ZoneId.of("UTC"), true));
+        when(users.requireById(incompleteId))
+                .thenReturn(new UserAccount(incompleteId, 30, ZoneId.of("America/New_York"), true));
+        InMemoryEntryCore entries = new InMemoryEntryCore();
+        DemoDatasetService service = new DemoDatasetService(entries, users, mock(MongoTemplate.class));
+        service.seed("true", DEMO_URI, owners, SEED, START);
+        entries.corruptFirstConfirmedEntry(entry -> new Entry(entry.id(), entry.ownerId(), entry.type(),
+                EntryStatus.DRAFT, entry.sourceKind(), entry.sourceRef(), entry.occurredAt(), entry.createdAt(),
+                entry.updatedAt(), entry.revision(), entry.payload(), entry.fieldOrigins(), entry.submissionId(),
                 entry.telegramUpdateKey()));
 
         IllegalStateException error = assertThrows(IllegalStateException.class,
@@ -244,6 +269,12 @@ class DemoDatasetServiceTest {
 
         private void corruptFirstEntry(java.util.function.UnaryOperator<Entry> change) {
             Entry current = entries.values().iterator().next();
+            entries.put(current.id(), change.apply(current));
+        }
+
+        private void corruptFirstConfirmedEntry(java.util.function.UnaryOperator<Entry> change) {
+            Entry current = entries.values().stream().filter(entry -> entry.status() == EntryStatus.CONFIRMED)
+                    .findFirst().orElseThrow();
             entries.put(current.id(), change.apply(current));
         }
     }
