@@ -105,8 +105,17 @@ public final class CoreBotFlow implements BotFlow {
                 .orElse(update.text());
         TextParseResult parsed = parser.parse(input);
         if (clarification.isPresent()) parsed = mergeClarification(clarification.get(), parsed);
+        Instant messageSentAt = clarification.isPresent()
+                ? clarification.get().messageSentAt() : update.messageSentAt();
+        if (parsed.data() != null && "steps".equals(parsed.data().payload().get("code"))
+                && messageSentAt == null) {
+            save(owner, null, "idle", Map.of("schema_version", DIALOG_SCHEMA_VERSION), update.updateId());
+            return List.of(new BotAction.SendInlineMessage(update.chatId(),
+                    "Не удалось восстановить время исходного сообщения. Отправьте итог шагов заново с датой.",
+                    List.of()));
+        }
         if (parsed.outcome() == TextParseResult.Outcome.NEEDS_CLARIFICATION && parsed.data() != null) {
-            saveClarification(owner, parsed, update.updateId());
+            saveClarification(owner, parsed, update.updateId(), messageSentAt);
             return List.of(new BotAction.SendInlineMessage(update.chatId(),
                     "Нужно уточнить данные перед сохранением.", List.of()));
         }
@@ -119,7 +128,8 @@ public final class CoreBotFlow implements BotFlow {
             return List.of(new BotAction.SendInlineMessage(update.chatId(), text, List.of()));
         }
         var data = parsed.data();
-        Instant occurredAt = occurredAt(data.date(), data.time(), user.timezone());
+        Instant occurredAt = "steps".equals(data.payload().get("code")) ? messageSentAt
+                : occurredAt(data.date(), data.time(), user.timezone());
         var result = entries.createDraft(new CreateDraftCommand(owner,
                 EntryType.valueOf(data.type().toUpperCase()), SourceKind.TEXT,
                 Map.of("telegram_update_id", update.updateId()), occurredAt,
@@ -283,7 +293,7 @@ public final class CoreBotFlow implements BotFlow {
         return dialogs.save(new SaveDialogStateCommand(owner, entryId, step, context, key(updateId)));
     }
 
-    private void saveClarification(OwnerContext owner, TextParseResult parsed, long updateId) {
+    private void saveClarification(OwnerContext owner, TextParseResult parsed, long updateId, Instant messageSentAt) {
         var data = parsed.data();
         Map<String, Object> context = new LinkedHashMap<>();
         context.put("schema_version", DIALOG_SCHEMA_VERSION);
@@ -291,6 +301,7 @@ public final class CoreBotFlow implements BotFlow {
         context.put("payload", data.payload());
         context.put("field_origins", data.fieldOrigins());
         context.put("original_text", parsed.originalText());
+        if (messageSentAt != null) context.put("message_sent_at", messageSentAt.toString());
         if (data.date() != null) context.put("date", data.date().toString());
         if (data.time() != null) context.put("time", data.time().toString());
         save(owner, null, "text_clarification", context, updateId);
@@ -314,8 +325,17 @@ public final class CoreBotFlow implements BotFlow {
             Map<String, String> origins = stringMap(context.get("field_origins"));
             LocalDate date = context.get("date") instanceof String value ? LocalDate.parse(value) : null;
             LocalTime time = context.get("time") instanceof String value ? LocalTime.parse(value) : null;
-            return Optional.of(new ClarificationContext(entryType, payload, origins, date, time, text));
-        } catch (IllegalArgumentException invalid) {
+            Instant messageSentAt = null;
+            if (context.get("message_sent_at") instanceof String value) {
+                try {
+                    messageSentAt = Instant.parse(value);
+                } catch (java.time.DateTimeException invalidTimestamp) {
+                    // Keep the clarification: a reply must not become the original report.
+                    LOG.warn("Stored clarification has an invalid original message timestamp");
+                }
+            }
+            return Optional.of(new ClarificationContext(entryType, payload, origins, date, time, text, messageSentAt));
+        } catch (IllegalArgumentException | java.time.DateTimeException invalid) {
             LOG.warn("Stored text clarification state is invalid; resetting it without personal data");
             save(owner, null, "idle", Map.of("schema_version", DIALOG_SCHEMA_VERSION), updateId);
             return Optional.empty();
@@ -358,7 +378,7 @@ public final class CoreBotFlow implements BotFlow {
 
     private record ClarificationContext(String type, Map<String, Object> payload,
                                         Map<String, String> fieldOrigins, LocalDate date,
-                                        LocalTime time, String originalText) {}
+                                        LocalTime time, String originalText, Instant messageSentAt) {}
 
     private Instant occurredAt(LocalDate date, LocalTime time, ZoneId zone) {
         ZonedDateTime now = ZonedDateTime.ofInstant(clock.instant(), zone);

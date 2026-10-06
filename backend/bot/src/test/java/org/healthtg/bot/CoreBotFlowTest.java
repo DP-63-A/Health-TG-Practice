@@ -242,9 +242,78 @@ class CoreBotFlowTest {
         verify(entries, times(1)).createCheckin(any());
     }
 
+    @Test
+    void multipleClarificationsAndRecreatedFlowUseFirstMessageTimeNotAnswersOrClock() {
+        Instant firstTime = Instant.parse("2026-10-05T06:00:00Z");
+        Map<String, Object> payload = Map.of("code", "steps", "value", 9000);
+        when(parser.parse("first")).thenReturn(new TextParseResult(TextParseResult.Outcome.NEEDS_CLARIFICATION,
+                "first", new TextParseResult.ParsedData("metrics", payload, Map.of(), null, null), List.of()));
+        when(parser.parse("first second")).thenReturn(new TextParseResult(TextParseResult.Outcome.NEEDS_CLARIFICATION,
+                "first second", new TextParseResult.ParsedData("metrics", Map.of("unit", "count"), Map.of(), null, null), List.of()));
+        when(parser.parse("first second third")).thenReturn(new TextParseResult(TextParseResult.Outcome.PARSED,
+                "first second third", new TextParseResult.ParsedData("metrics", Map.of("local_date", "2026-10-04"),
+                Map.of(), java.time.LocalDate.of(2026, 10, 4), null), List.of()));
+        when(entries.createDraft(any())).thenAnswer(inv -> {
+            CreateDraftCommand c = inv.getArgument(0);
+            return new DraftCreationResult(new Entry(UUID.randomUUID(), OWNER_ID, c.type(), EntryStatus.DRAFT,
+                    c.sourceKind(), c.sourceRef(), c.occurredAt(), NOW, NOW, 1, c.payload(), c.fieldOrigins(), null,
+                    c.updateKey().storageKey()), DraftCreationResult.Outcome.CREATED);
+        });
+        flow.handleMessage(new BotUpdate(80, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE,
+                TELEGRAM_ID, TELEGRAM_ID, false, "first", List.of(), null, null, firstTime));
+        flow.handleMessage(new BotUpdate(81, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE,
+                TELEGRAM_ID, TELEGRAM_ID, false, "second", List.of(), null, null, firstTime.plusSeconds(86400)));
+        CoreBotFlow recreated = new CoreBotFlow(users, entries, dialogs, parser, new CheckinSelector(),
+                Clock.fixed(NOW, ZoneId.of("UTC")));
+        recreated.handleMessage(new BotUpdate(82, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE,
+                TELEGRAM_ID, TELEGRAM_ID, false, "third", List.of(), null, null, firstTime.plusSeconds(172800)));
+        var captured = ArgumentCaptor.forClass(CreateDraftCommand.class);
+        verify(entries).createDraft(captured.capture());
+        assertEquals(firstTime, captured.getValue().occurredAt());
+        assertEquals("2026-10-04", captured.getValue().payload().get("local_date"));
+        assertEquals("count", captured.getValue().payload().get("unit"));
+        assertEquals(9000, captured.getValue().payload().get("value"));
+    }
+
+    @Test
+    void missingOriginalTimestampNeverFallsBackToProcessingClockOrClarificationAnswer() {
+        var realFlow = new CoreBotFlow(users, entries, dialogs, Clock.fixed(NOW, ZoneId.of("UTC")));
+        var result = realFlow.handleMessage(new BotUpdate(90, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE,
+                TELEGRAM_ID, TELEGRAM_ID, false, "04.10.2026 за день прошёл 9000 шагов", List.of(), null, null));
+        assertEquals("Не удалось восстановить время исходного сообщения. Отправьте итог шагов заново с датой.",
+                ((BotAction.SendInlineMessage) result.getFirst()).text());
+        when(dialogs.find(any())).thenReturn(Optional.of(new DialogState(OWNER_ID, null, "text_clarification",
+                Map.of("schema_version", 1, "type", "metrics", "original_text", "за день прошёл 9000 шагов",
+                        "payload", Map.of("code", "steps", "value", 9000, "unit", "count"), "field_origins", Map.of()),
+                1, NOW, "main:91")));
+        var answerResult = realFlow.handleMessage(message(92, "04.10.2026"));
+        assertEquals("Не удалось восстановить время исходного сообщения. Отправьте итог шагов заново с датой.",
+                ((BotAction.SendInlineMessage) answerResult.getFirst()).text());
+        verify(entries, never()).createDraft(any());
+    }
+
+    @Test
+    void corruptOriginalTimestampCannotTurnCompleteClarificationReplyIntoNewReport() {
+        when(dialogs.find(any())).thenReturn(Optional.of(new DialogState(OWNER_ID, null, "text_clarification",
+                Map.of("schema_version", 1, "type", "metrics", "original_text", "за день прошёл 9000 шагов",
+                        "payload", Map.of("code", "steps", "value", 9000, "unit", "count"),
+                        "field_origins", Map.of(), "message_sent_at", "broken-timestamp"),
+                1, NOW, "main:93")));
+        var complete = new TextParseResult(TextParseResult.Outcome.PARSED,
+                "04.10.2026 за день прошёл 9000 шагов",
+                new TextParseResult.ParsedData("metrics", Map.of("code", "steps", "value", 9000,
+                        "unit", "count", "local_date", "2026-10-04"), Map.of(),
+                        java.time.LocalDate.of(2026, 10, 4), null), List.of());
+        when(parser.parse(any())).thenReturn(complete);
+        var result = flow.handleMessage(message(94, "04.10.2026 за день прошёл 9000 шагов"));
+        assertEquals("Не удалось восстановить время исходного сообщения. Отправьте итог шагов заново с датой.",
+                ((BotAction.SendInlineMessage) result.getFirst()).text());
+        verify(entries, never()).createDraft(any());
+    }
+
     private static BotUpdate message(long updateId, String text) {
         return new BotUpdate(updateId, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE,
-                TELEGRAM_ID, TELEGRAM_ID, false, text, List.of(), null, null);
+                TELEGRAM_ID, TELEGRAM_ID, false, text, List.of(), null, null, NOW);
     }
 
     private static BotUpdate callback(long updateId, String data) {
