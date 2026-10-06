@@ -44,10 +44,12 @@ const categories: {
   },
 ]
 
+
 const categoryLabels: Record<
   CheckinCategory,
   string
 > = {
+
   sleep_quality: 'Качество сна',
   digestion_comfort: 'Комфорт пищеварения',
   wellbeing: 'Самочувствие',
@@ -57,9 +59,11 @@ const categoryLabels: Record<
 interface CheckinChartProps {
   series: AnalyticsResponse['series']['checkin']
   selectedCategory?: CheckinCategory
+
   onCategoryChange?: (
     category: CheckinCategory,
   ) => void
+
   isLoading?: boolean
   onSelectDay?: (
     date: string,
@@ -67,12 +71,14 @@ interface CheckinChartProps {
   ) => void
 }
 
+
 function formatScore(
   value: number | null,
 ): string {
   return value === null
     ? 'Нет данных'
     : `${value} из 5`
+
 }
 
 export function CheckinChart({
@@ -86,8 +92,10 @@ export function CheckinChart({
   const selectId = useId()
   const scaleId = useId()
 
+
   const categoryLabel =
     categoryLabels[series.category]
+
 
   const matchesCategory =
     selectedCategory === series.category
@@ -97,6 +105,7 @@ export function CheckinChart({
   )
 
   function selectDay(date: string) {
+
     if (isLoading || !matchesCategory) {
       return
     }
@@ -110,6 +119,7 @@ export function CheckinChart({
         point.date,
         series.category,
       )
+
     }
   }
 
@@ -120,6 +130,7 @@ export function CheckinChart({
       aria-describedby={scaleId}
       aria-busy={isLoading}
     >
+
       <div className="checkin-chart__header">
         <div>
           <h2 id={titleId}>
@@ -165,11 +176,13 @@ export function CheckinChart({
         </div>
       </div>
 
+
       {onCategoryChange ? (
         <div className="checkin-chart__control">
           <label htmlFor={selectId}>
             Категория
           </label>
+
 
           <div className="checkin-chart__select-wrapper">
             <select
@@ -291,6 +304,7 @@ export function CheckinChart({
             выбранный период.
           </p>
         </div>
+
       ) : (
         <>
           <div className="checkin-chart__plot">
@@ -303,20 +317,25 @@ export function CheckinChart({
                 data={series.points}
                 accessibilityLayer
                 margin={{
+
                   top: 8,
                   right: 4,
                   bottom: 4,
+
                   left: 0,
                 }}
               >
                 <CartesianGrid
                   stroke="currentColor"
+
                   strokeOpacity={0.08}
+
                   vertical={false}
                 />
 
                 <XAxis
                   dataKey="date"
+
                   tickFormatter={
                     formatChartDate
                   }
@@ -329,6 +348,7 @@ export function CheckinChart({
                     fontSize: 11,
                   }}
                   tickMargin={10}
+
                 />
 
                 <YAxis
@@ -336,6 +356,7 @@ export function CheckinChart({
                   ticks={[1, 2, 3, 4, 5]}
                   allowDecimals={false}
                   allowDataOverflow
+
                   width={28}
                   axisLine={false}
                   tickLine={false}
@@ -358,9 +379,11 @@ export function CheckinChart({
                       !active ||
                       typeof label !==
                         'string'
+
                     ) {
                       return null
                     }
+
 
                     const point =
                       series.points.find(
@@ -368,6 +391,7 @@ export function CheckinChart({
                           item.date ===
                           label,
                       )
+
 
                     if (
                       !point ||
@@ -378,6 +402,7 @@ export function CheckinChart({
 
                     return (
                       <div className="checkin-chart__tooltip">
+
                         <span className="checkin-chart__tooltip-date">
                           {formatTooltipDate(
                             point.date,
@@ -400,6 +425,7 @@ export function CheckinChart({
                             )}
                           </strong>
                         </div>
+
                       </div>
                     )
                   }}
@@ -408,6 +434,7 @@ export function CheckinChart({
                 <Bar
                   dataKey="value"
                   name={categoryLabel}
+
                   fill="var(--checkin-chart-color)"
                   radius={[8, 8, 3, 3]}
                   maxBarSize={34}
@@ -420,6 +447,7 @@ export function CheckinChart({
                       typeof date ===
                       'string'
                     ) {
+
                       selectDay(date)
                     }
                   }}
@@ -427,6 +455,7 @@ export function CheckinChart({
               </BarChart>
             </ResponsiveContainer>
           </div>
+
 
           {onSelectDay && (
             <p className="checkin-chart__hint">
@@ -441,9 +470,11 @@ export function CheckinChart({
         matchesCategory &&
         series.points.length > 0 && (
           <details className="checkin-chart__details">
+
             <summary>
               Значения по дням
             </summary>
+
 
             <div className="checkin-chart__table-wrapper">
               <table>
@@ -517,3 +548,5 @@ export function CheckinChart({
     </section>
   )
 }
+
+ 

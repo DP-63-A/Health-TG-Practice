@@ -24,6 +24,7 @@ function formatScore(
 export function CheckinCard({
   checkins,
 }: CheckinCardProps) {
+
   const scores = [
     {
       key: 'sleep_quality',
@@ -47,6 +48,7 @@ export function CheckinCard({
     },
   ]
 
+     
   return (
     <section
       className="checkin-card"

@@ -1,4 +1,6 @@
+
 import { act, render, screen } from '@testing-library/react'
+
 import { MemoryRouter } from 'react-router-dom'
 import { expect, it, vi } from 'vitest'
 import { ApiError } from '../api/errors'
@@ -29,6 +31,7 @@ it(
         ),
       )
 
+
     // Дожидаемся авторизации fixture и обработки отклонённого ответа.
     await act(async () => {
       render(
@@ -43,6 +46,7 @@ it(
         </MemoryRouter>,
       )
     })
+
 
     expect(
       await screen.findByRole('heading', {
@@ -61,6 +65,7 @@ it(
         name: 'Проверить снова',
       }),
     ).toBeEnabled()
+
 
     // 401 показывает общий экран сессии, а не состояние аналитики.
     for (const name of [

@@ -1176,6 +1176,7 @@ describe('OverviewPage', () => {
   )
 
   it.each([
+
     ['sleep_quality', 'Качество сна'],
     ['digestion_comfort', 'Комфорт пищеварения'],
     ['wellbeing', 'Самочувствие'],
@@ -1206,6 +1207,7 @@ describe('OverviewPage', () => {
           source: { entry_id: sourceId, type: 'checkin', local_date: day },
         }],
       }
+
       const pending = deferred<AnalyticsResponse>()
       getAnalyticsMock
         .mockResolvedValueOnce(initial)
@@ -1222,6 +1224,7 @@ describe('OverviewPage', () => {
       })
 
       fireEvent.change(screen.getByRole('combobox', { name: 'Категория' }), {
+
         target: { value: category },
       })
       await waitFor(() => {
@@ -1229,6 +1232,7 @@ describe('OverviewPage', () => {
           ...defaultAnalyticsQuery, checkin_category: category,
         })
       })
+
       expectLoading()
       expect(screen.queryByRole('region', {
         name: 'Состояние',
@@ -1502,8 +1506,10 @@ describe('Overview refresh: current filters and new data', () => {
     expect(region('Аналитика сна').getByText('15 ч')).toBeVisible()
     expect(region('Аналитика шагов').getAllByText(/^5\s?000$/)).toHaveLength(2)
     expect(region('Аналитика пульса').getByText('72')).toBeVisible()
+
     expect(
   region('Субъективные оценки состояния').getByText('3 из 5'),).toBeVisible()
+
 
     const initialSleep = await chartTable('Сон')
     expect(initialSleep.getByText('7 ч')).toBeVisible()
@@ -1564,10 +1570,12 @@ describe('Overview refresh: current filters and new data', () => {
     expect(heartCard.queryByText('72')).not.toBeInTheDocument()
 
     const checkinCard = region('Субъективные оценки состояния')
+
     expect(checkinCard.getAllByText('2 из 5')).toHaveLength(4)
     expect(checkinCard.queryByText('3 из 5')).not.toBeInTheDocument()
     expect(checkinCard.queryByText('4 из 5')).not.toBeInTheDocument()
     expect(checkinCard.queryByText('5 из 5')).not.toBeInTheDocument()
+
 
     const sleepTable = await chartTable('Сон')
     expect(sleepTable.getByText('7 ч 30 мин')).toBeVisible()
