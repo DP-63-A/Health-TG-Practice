@@ -1,4 +1,4 @@
-import { useId } 
+import { useId } from 'react'
 import {
   Bar,
   BarChart,

@@ -13,7 +13,8 @@ export function getAnalytics(
   client: ApiClient = apiClient,
 ): Promise<AnalyticsResponse> {
   return client.get<AnalyticsResponse>(
-    '/api/v1/analytics',
+    
+'/analytics',
     {
       query,
     },
