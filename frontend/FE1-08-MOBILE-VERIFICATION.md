@@ -12,8 +12,8 @@ NOT VERIFIED / HUMAN REQUIRED.** Автоматизация и browser emulation
 | Поле | Значение / инструкция |
 | --- | --- |
 | Ветка | `fe1-08-responsive-accessibility` |
-| Commit under test | NOT COMMITTED. После будущего commit записать полный SHA (`git rev-parse HEAD`) и повторить проверки для этого SHA |
-| Текущий автоматизированный прогон | Рабочее дерево поверх `7c9f6207c442d4fb8e91ea741e014962817394e7`, незакоммиченные FE1-08 изменения |
+| Commit under test | Проверенный SHA после синхронизации указан в [PR #78](https://github.com/DP-63-A/Health-TG-Practice/pull/78). Для ручного прогона отдельно записать `git rev-parse HEAD` |
+| База синхронизации | `origin/develop` на `c5149e3b027a65cfd728f920eef081c1985c2ad6`; изменения дня итога шагов и соответствующие тесты сохранены |
 | URL / deployment / build | Заполнить при ручной проверке |
 | Дата / проверяющий | Заполнить при ручной проверке |
 | API mode / backend version | Явно записать `fixture` или `live`, окружение и версию backend без secrets |
@@ -81,7 +81,7 @@ CSS или по результату jsdom tests.
 | При наличии нескольких страниц нажать «Вперёд» и «Назад», затем изменить фильтр | Actions достижимы, номер страницы виден; disabled actions недоступны; фильтр возвращает на первую страницу | NOT VERIFIED | NOT VERIFIED |
 | Проверить loading, пустой результат, ошибку загрузки и «Повторить» | Понятные отдельные текстовые состояния; retry читаем и доступен; нет ложного empty/success | NOT VERIFIED | NOT VERIFIED |
 | Открыть detail с source/file; проверить длинную подпись, дату, revision, происхождение, file loading/error и file link | Обязательные значения не перекрываются; источник открывается существующим способом; ошибка объяснена | NOT VERIFIED | NOT VERIFIED |
-| Открыть draft каждого типа; отредактировать поля; пройти «Изменить», save и confirm | Все поля доступны и подписаны; «Изменить» фокусирует дату; actions читаемы; existing save/confirm behavior сохранён | NOT VERIFIED | NOT VERIFIED |
+| Открыть draft каждого типа; отредактировать поля; пройти «Изменить», save и confirm | Все поля доступны и подписаны; «Изменить» фокусирует дату, для steps — день итога шагов; actions читаемы; existing save/confirm behavior сохранён | NOT VERIFIED | NOT VERIFIED |
 | Открыть confirmed каждого типа; изменить поле и сохранить | Поля и save доступны; введённое значение сохраняется только после успешного ответа | NOT VERIFIED | NOT VERIFIED |
 | Ввести отрицательную массу, пустое обязательное описание/текст или score вне 1–5; сохранить | Видна текстовая ошибка; соответствующее поле имеет `aria-invalid`, связано с error и получает focus; API mutation не отправляется | NOT VERIFIED | NOT VERIFIED |
 | Получить согласованный 422 field error; исправить поле | Error программно связан с правильным полем; ввод сохранён; после исправления нет dangling error description | NOT VERIFIED | NOT VERIFIED |
@@ -137,15 +137,24 @@ npm run build
 ```
 
 Из корня: `git diff --check`, `git status --short`, `git diff --stat`,
-`git diff --name-only`. Учесть untracked FormField test и этот документ отдельно.
+`git diff --name-only`. Перед commit проверить, что FormField test и этот документ включены в diff.
 Build output и временные browser artifacts не добавлять в Git.
 
-Финальные проверки текущего рабочего дерева (01.10.2026): targeted suite —
+Исторические проверки рабочего дерева (01.10.2026): targeted suite —
 3 файла / 88 тестов PASS; полный suite — 12 файлов / 148 тестов PASS;
 lint, typecheck и build PASS. `git diff --check` PASS, только предупреждения
 о нормализации CRLF → LF. Свежий built HTML сохранил SDK и `viewport-fit=cover`;
 generated artifacts отсутствуют в `git status`. Это локальные результаты,
 не отчёт CI и не подтверждение будущего commit SHA.
+
+Проверки после синхронизации с `origin/develop` (06.10.2026): `npm ci --no-audit --no-fund`
+PASS; полный `npm test` — 12 файлов / 149 тестов PASS; `npm run lint`,
+`npm run typecheck`, `npm run build` и `git diff --check` PASS. Итоговый diff
+относительно `origin/develop` содержит только 8 файлов FE1-08. В `EntryPage.test.tsx`
+сохранены все актуальные тесты develop и проверки FE1-08, assertions не ослаблены.
+Built HTML сохраняет Telegram SDK и `viewport-fit=cover`. Проверенный SHA указан
+в PR #78; результаты локальные, REAL Telegram и ручной emulator checklist остаются
+NOT VERIFIED.
 
 ## Acceptance / review gates
 
@@ -155,7 +164,7 @@ generated artifacts отсутствуют в `git status`. Это локаль�
 | AC2 | Vitest labels/names, unique IDs, error associations, focus и disabled behavior | Native Tab/Shift+Tab и видимость focus в темах: NOT VERIFIED | PARTIAL |
 | AC3 | Vitest сохраняет input/focus при resize; CSS fallbacks проверены статически | Telegram safe areas/themes/software keyboard: NOT VERIFIED | PARTIAL |
 | AC4 | Автоматизация не закрывает этот критерий | REAL Telegram mobile client: NOT VERIFIED / HUMAN REQUIRED | NOT VERIFIED |
-| AC5 | Локальные tests/lint/typecheck/build PASS; повторить на окончательном SHA | FE2 review и human acceptance отсутствуют | PARTIAL |
+| AC5 | Локальные tests/lint/typecheck/build PASS после синхронизации с develop; проверенный SHA указан в PR #78 | FE2 review и human acceptance отсутствуют | PARTIAL |
 
 FE2 review: **NOT VERIFIED**. Reviewer / дата / SHA / замечания / решение:
 заполнить другим участником. Проверить общие tokens, button/state contrast,

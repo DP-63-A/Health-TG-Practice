@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -89,8 +91,8 @@ class DefaultEntryCoreService implements EntryCoreService {
         return store.findByOwnerAndStatus(query.owner().userId(), EntryStatus.CONFIRMED).stream()
                 .filter(entry -> query.types().isEmpty() || query.types().contains(entry.type()))
                 .filter(entry -> {
-                    LocalDate date = localDate(entry, query);
-                    return !date.isBefore(query.from()) && !date.isAfter(query.to());
+                    LocalDate date = localDate(entry, query.timezone());
+                    return date != null && !date.isBefore(query.from()) && !date.isAfter(query.to());
                 })
                 .sorted(Comparator.comparing(Entry::occurredAt).thenComparing(Entry::id))
                 .toList();
@@ -104,7 +106,9 @@ class DefaultEntryCoreService implements EntryCoreService {
         return store.findByOwnerAndStatus(query.owner().userId(), query.status()).stream()
                 .filter(entry -> query.type() == null || entry.type() == query.type())
                 .filter(entry -> {
-                    LocalDate date = entry.occurredAt().atZone(query.timezone()).toLocalDate();
+                    if (query.from() == null && query.to() == null) return true;
+                    LocalDate date = localDate(entry, query.timezone());
+                    if (date == null) return false;
                     return (query.from() == null || !date.isBefore(query.from()))
                             && (query.to() == null || !date.isAfter(query.to()));
                 })
@@ -126,6 +130,13 @@ class DefaultEntryCoreService implements EntryCoreService {
         }
         requireRevision(current, command.expectedRevision());
         Map<String, Object> payload = mergePayload(current.payload(), command.payload());
+        boolean wasSteps = isSteps(current.type(), current.payload());
+        if (wasSteps != isSteps(current.type(), payload)) {
+            throw new EntryValidationException("Cannot convert steps to or from another metric; create a new entry");
+        }
+        if (wasSteps && command.occurredAt() != null && !current.occurredAt().equals(command.occurredAt())) {
+            throw new EntryValidationException("The original steps report timestamp cannot be changed");
+        }
         Map<String, String> origins = merge(current.fieldOrigins(), command.fieldOrigins());
         EntryPayloadValidator.validateOrigins(origins);
         if (current.status() == EntryStatus.CONFIRMED) {
@@ -240,8 +251,22 @@ class DefaultEntryCoreService implements EntryCoreService {
         return clock.instant().truncatedTo(ChronoUnit.MILLIS);
     }
 
-    private static LocalDate localDate(Entry entry, ListConfirmedEntriesQuery query) {
-        return entry.occurredAt().atZone(query.timezone()).toLocalDate();
+    private static boolean isSteps(EntryType type, Map<String, Object> payload) {
+        return type == EntryType.METRICS && "steps".equals(payload.get("code"));
+    }
+
+    private static LocalDate localDate(Entry entry, ZoneId timezone) {
+        if (!isSteps(entry.type(), entry.payload())) return entry.occurredAt().atZone(timezone).toLocalDate();
+        Object value = entry.payload().get("local_date");
+        if (value instanceof LocalDate date) return date;
+        if (value instanceof String text) {
+            try {
+                return LocalDate.parse(text);
+            } catch (DateTimeParseException invalidLegacyDate) {
+                return null;
+            }
+        }
+        return null;
     }
 
 }

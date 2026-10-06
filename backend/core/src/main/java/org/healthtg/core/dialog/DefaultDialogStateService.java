@@ -5,6 +5,7 @@ import org.healthtg.core.entry.Entry;
 import org.healthtg.core.entry.EntryStore;
 import org.healthtg.core.entry.EntryOwnershipException;
 import org.healthtg.core.entry.EntryValidationException;
+import org.healthtg.core.entry.TelegramUpdateKey;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -68,6 +69,34 @@ class DefaultDialogStateService implements DialogStateService {
     @Override
     public Optional<DialogState> find(OwnerContext owner) {
         return repository.findById(owner.userId().toString()).map(DefaultDialogStateService::toDomain);
+    }
+
+    @Override
+    public boolean clearIfCurrent(OwnerContext owner, UUID activeEntryId, long expectedRevision,
+                                  TelegramUpdateKey updateKey) {
+        Objects.requireNonNull(owner, "owner");
+        Objects.requireNonNull(activeEntryId, "activeEntryId");
+        Objects.requireNonNull(updateKey, "updateKey");
+        if (expectedRevision < 1) throw new IllegalArgumentException("expectedRevision must be positive");
+
+        Optional<MongoDialogStateDocument> found = repository.findById(owner.userId().toString());
+        if (found.isEmpty()) return false;
+        MongoDialogStateDocument current = found.get();
+        if (current.revision() != expectedRevision
+                || !activeEntryId.toString().equals(current.activeEntryId())) return false;
+
+        SaveDialogStateCommand clear = new SaveDialogStateCommand(owner, null, "idle", Map.of(), updateKey);
+        if (alreadyProcessed(current, clear)) return false;
+        Map<String, Long> processed = processedUpdateIds(current);
+        processed.merge(updateKey.botKey(), updateKey.updateId(), Math::max);
+        try {
+            repository.save(new MongoDialogStateDocument(current.ownerId(), null, "idle", Map.of(),
+                    current.revision() + 1, clock.instant().truncatedTo(ChronoUnit.MILLIS),
+                    updateKey.storageKey(), Map.copyOf(processed), current.mongoVersion()));
+            return true;
+        } catch (DuplicateKeyException | OptimisticLockingFailureException conflict) {
+            return false;
+        }
     }
 
     private void validateActiveEntry(SaveDialogStateCommand command) {

@@ -22,8 +22,53 @@ import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class TelegramAdapterTest {
+    @Test void forwardsOriginalMessageTimestampWithoutInventingMissingDate() throws Exception {
+        BotFlow flow = mock(BotFlow.class);
+        when(flow.handleMessage(any())).thenReturn(List.of());
+        var subject = new TelegramAdapter(client, new BotHandler(
+                new BotSettings(Set.of(1001L), "test_bot", null), id -> "", flow));
+        var dated = message("04.10.2026 за день прошёл 9000 шагов");
+        dated.getMessage().setDate(1791183600);
+        subject.accept(dated);
+        subject.accept(message("04.10.2026 за день прошёл 8000 шагов"));
+        var captured = ArgumentCaptor.forClass(BotUpdate.class);
+        verify(flow, times(2)).handleMessage(captured.capture());
+        assertEquals(java.time.Instant.ofEpochSecond(1791183600), captured.getAllValues().get(0).messageSentAt());
+        assertNull(captured.getAllValues().get(1).messageSentAt());
+    }
+    private static final String EXPIRED_QUERY =
+            "Bad Request: query is too old and response timeout expired or query ID is invalid";
     private final TelegramClient client = mock(TelegramClient.class);
     private final List<Long> checkins = new ArrayList<>();
+
+    private TelegramAdapter callbackAdapter() {
+        BotFlow flow = mock(BotFlow.class);
+        when(flow.handleCallback(any())).thenReturn(List.of(
+                new BotAction.AnswerCallback("expired", "Сохранено"),
+                new BotAction.SendInlineMessage(1001L, "Отметка сохранена.", List.of())));
+        return new TelegramAdapter(client, new BotHandler(
+                new BotSettings(Set.of(1001L), "test_bot", null), id -> "", flow));
+    }
+
+    private static Update callback() {
+        var query = new org.telegram.telegrambots.meta.api.objects.CallbackQuery();
+        query.setId("expired");
+        query.setData("test");
+        query.setFrom(message("text").getMessage().getFrom());
+        query.setMessage(message("text").getMessage());
+        var update = new Update();
+        update.setUpdateId(20);
+        update.setCallbackQuery(query);
+        return update;
+    }
+
+    private static org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException rejection(
+            Integer code, String description) {
+        var error = mock(org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException.class);
+        when(error.getErrorCode()).thenReturn(code);
+        when(error.getApiResponse()).thenReturn(description);
+        return error;
+    }
     private TelegramAdapter adapter(URI url) {
         return new TelegramAdapter(client, new BotHandler(new BotSettings(Set.of(1001L), "test_bot", url), id -> {
             checkins.add(id); return "CHECKIN";
@@ -40,6 +85,51 @@ class TelegramAdapterTest {
             message.setEntities(List.of(entity));
         }
         var update = new Update(); update.setUpdateId(10); update.setMessage(message); return update;
+    }
+
+    @Test void expiredCallbackStillDeliversResultAndAcceptsNextMessage() throws Exception {
+        var error = rejection(400, EXPIRED_QUERY);
+        when(client.execute(any(org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery.class)))
+                .thenThrow(error);
+        var subject = callbackAdapter();
+
+        subject.accept(callback());
+        subject.accept(message("/start"));
+
+        var sent = ArgumentCaptor.forClass(SendMessage.class);
+        verify(client, times(2)).execute(sent.capture());
+        assertEquals("Отметка сохранена.", sent.getAllValues().getFirst().getText());
+        assertTrue(sent.getAllValues().getLast().getText().contains("учебный"));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {401, 409, 429, 500, 502})
+    void otherStatusWithSameDescriptionStillPropagates(int code) throws Exception {
+        var error = rejection(code, EXPIRED_QUERY);
+        when(client.execute(any(org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery.class)))
+                .thenThrow(error);
+        assertSame(error, assertThrows(org.telegram.telegrambots.meta.exceptions.TelegramApiException.class,
+                () -> callbackAdapter().accept(callback())));
+        verify(client, never()).execute(any(SendMessage.class));
+    }
+
+    @Test void unrelatedBadRequestAndTransportErrorStillPropagate() throws Exception {
+        for (var error : List.of(rejection(400, "Bad Request: message text is empty"),
+                rejection(null, EXPIRED_QUERY),
+                new org.telegram.telegrambots.meta.exceptions.TelegramApiException("connection failed"))) {
+            when(client.execute(any(org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery.class)))
+                    .thenThrow(error);
+            assertSame(error, assertThrows(org.telegram.telegrambots.meta.exceptions.TelegramApiException.class,
+                    () -> callbackAdapter().accept(callback())));
+        }
+        verify(client, never()).execute(any(SendMessage.class));
+    }
+
+    @Test void expiredDescriptionFromOrdinaryMessageStillPropagates() throws Exception {
+        var error = rejection(400, EXPIRED_QUERY);
+        when(client.execute(any(SendMessage.class))).thenThrow(error);
+        assertSame(error, assertThrows(org.telegram.telegrambots.meta.exceptions.TelegramApiException.class,
+                () -> callbackAdapter().accept(callback())));
     }
 
     @Test void startProducesPrivateWebAppMenuAndPersistentKeyboard() throws Exception {

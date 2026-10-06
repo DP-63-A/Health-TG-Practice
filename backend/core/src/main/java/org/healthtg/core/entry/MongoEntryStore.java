@@ -17,6 +17,8 @@ import java.util.Map;
 @Repository
 @ConditionalOnProperty(name = "health-tg.core.storage.enabled", matchIfMissing = true)
 class MongoEntryStore implements EntryStore {
+    private static final char MAP_KEY_ESCAPE = '\uFF0E';
+
     private final MongoEntryRepository repository;
     private final MongoTemplate mongoTemplate;
 
@@ -70,7 +72,7 @@ class MongoEntryStore implements EntryStore {
                 .set("updatedAt", replacement.updatedAt())
                 .set("revision", replacement.revision())
                 .set("payload", replacement.payload())
-                .set("fieldOrigins", replacement.fieldOrigins())
+                .set("fieldOrigins", encodeMapKeys(replacement.fieldOrigins()))
                 .set("submissionId", replacement.submissionId())
                 .push("history").slice(-10).each(snapshot(current));
         MongoEntryDocument changed = mongoTemplate.findAndModify(query, update,
@@ -85,7 +87,7 @@ class MongoEntryStore implements EntryStore {
         snapshot.put("occurredAt", entry.occurredAt());
         snapshot.put("updatedAt", entry.updatedAt());
         snapshot.put("payload", entry.payload());
-        snapshot.put("fieldOrigins", entry.fieldOrigins());
+        snapshot.put("fieldOrigins", encodeMapKeys(entry.fieldOrigins()));
         snapshot.put("submissionId", entry.submissionId());
         return snapshot;
     }
@@ -93,7 +95,7 @@ class MongoEntryStore implements EntryStore {
     private static MongoEntryDocument toDocument(Entry entry) {
         return new MongoEntryDocument(entry.id().toString(), entry.ownerId().toString(), entry.type().code(),
                 entry.status().code(), entry.sourceKind().code(), entry.sourceRef(), entry.occurredAt(),
-                entry.createdAt(), entry.updatedAt(), entry.revision(), entry.payload(), entry.fieldOrigins(),
+                entry.createdAt(), entry.updatedAt(), entry.revision(), entry.payload(), encodeMapKeys(entry.fieldOrigins()),
                 entry.submissionId(), entry.telegramUpdateKey(), List.of());
     }
 
@@ -102,6 +104,43 @@ class MongoEntryStore implements EntryStore {
                 EntryType.fromCode(document.type()), EntryStatus.fromCode(document.status()),
                 SourceKind.fromCode(document.sourceKind()), document.sourceRef(), document.occurredAt(),
                 document.createdAt(), document.updatedAt(), document.revision(), document.payload(),
-                document.fieldOrigins(), document.submissionId(), document.telegramUpdateKey());
+                decodeMapKeys(document.fieldOrigins()), document.submissionId(), document.telegramUpdateKey());
+    }
+
+    private static Map<String, String> encodeMapKeys(Map<String, String> values) {
+        Map<String, String> encoded = new LinkedHashMap<>();
+        values.forEach((key, value) -> {
+            StringBuilder safeKey = new StringBuilder(key.length());
+            for (int index = 0; index < key.length(); index++) {
+                char character = key.charAt(index);
+                if (character == MAP_KEY_ESCAPE) safeKey.append(MAP_KEY_ESCAPE).append(MAP_KEY_ESCAPE);
+                else if (character == '.') safeKey.append(MAP_KEY_ESCAPE);
+                else safeKey.append(character);
+            }
+            encoded.put(safeKey.toString(), value);
+        });
+        return encoded;
+    }
+
+    private static Map<String, String> decodeMapKeys(Map<String, String> values) {
+        Map<String, String> decoded = new LinkedHashMap<>();
+        values.forEach((key, value) -> {
+            StringBuilder originalKey = new StringBuilder(key.length());
+            for (int index = 0; index < key.length(); index++) {
+                char character = key.charAt(index);
+                if (character == MAP_KEY_ESCAPE) {
+                    if (index + 1 < key.length() && key.charAt(index + 1) == MAP_KEY_ESCAPE) {
+                        originalKey.append(MAP_KEY_ESCAPE);
+                        index++;
+                    } else {
+                        originalKey.append('.');
+                    }
+                } else {
+                    originalKey.append(character);
+                }
+            }
+            decoded.put(originalKey.toString(), value);
+        });
+        return decoded;
     }
 }

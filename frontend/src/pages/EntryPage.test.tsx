@@ -10,6 +10,29 @@ import { RefreshProvider, useRefreshSubscription } from '../refresh/RefreshProvi
 import { appRoutes } from '../router/router'
 
 describe('FE1-04 entry review and correction', () => {
+  it('edits the steps day without changing report time and focuses the editable day', async () => {
+    const entry = entryFixture({ type: 'metrics', status: 'draft', submission_id: null,
+      occurred_at: '2026-10-05T06:00:00Z',
+      payload: { code: 'steps', value: 9000, unit: 'count', local_date: '2026-10-04' } })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch').mockResolvedValue({ ...entry, revision: 2,
+      payload: { ...entry.payload, local_date: '2026-10-03' } })
+    renderRoute(`/diary/${entry.id}`)
+    const day = await screen.findByLabelText(/День итога шагов/)
+    expect(day).toHaveValue('2026-10-04')
+    expect(screen.getByLabelText(/Время сообщения итога/)).toHaveAttribute('readonly')
+    expect(screen.getByLabelText(/Показатель/)).toBeDisabled()
+    expect(screen.queryByLabelText(/Локальное время/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }))
+    expect(day).toHaveFocus()
+    fireEvent.change(day, { target: { value: '2026-10-03' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1))
+    expect(patch.mock.calls[0][1]).toEqual(expect.objectContaining({ expected_revision: 1,
+      payload: expect.objectContaining({ local_date: '2026-10-03' }) }))
+    expect(patch.mock.calls[0][1]).not.toHaveProperty('occurred_at')
+  })
+
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
@@ -126,7 +149,7 @@ describe('FE1-04 entry review and correction', () => {
 
   it.each([
     ['meal', { description: 'Meal', mass_g: null, nutrients: { energy_kcal: null }, nutrients_basis: 'unknown' }, [/Описание/, /Масса/, /Ккал/]],
-    ['metrics', { code: 'steps', value: 0, unit: null, local_date: null, local_time: null, qualifier: null }, [/Показатель/, /Значение/, /Единица/, /Локальная дата/]],
+    ['metrics', { code: 'steps', value: 0, unit: null, local_date: null, local_time: null, qualifier: null }, [/Показатель/, /Значение/, /Единица/, /День итога шагов/]],
     ['checkin', { category: 'mood', score: 4 }, [/Категория/, /Оценка/]],
     ['note', { text: 'Plain note' }, [/Текст/]],
   ] satisfies Array<[EntryType, EntryPayload, RegExp[]]>)('builds the %s form from contract fields', async (type, payload, labels) => {
