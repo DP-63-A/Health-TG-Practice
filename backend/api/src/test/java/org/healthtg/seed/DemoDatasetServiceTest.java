@@ -78,6 +78,70 @@ class DemoDatasetServiceTest {
     }
 
     @Test
+    void rerunningSeedRejectsAnExistingRecordWithChangedPayloadOrStatus() {
+        UUID regularId = UUID.fromString("11111111-1111-4111-8111-111111111101");
+        UUID irregularId = UUID.fromString("11111111-1111-4111-8111-111111111102");
+        UUID incompleteId = UUID.fromString("11111111-1111-4111-8111-111111111103");
+        DemoProfileOwners owners = new DemoProfileOwners(regularId, irregularId, incompleteId);
+        UserService users = mock(UserService.class);
+        when(users.requireById(regularId)).thenReturn(new UserAccount(regularId, 10, ZoneId.of("Europe/Warsaw"), true));
+        when(users.requireById(irregularId)).thenReturn(new UserAccount(irregularId, 20, ZoneId.of("UTC"), true));
+        when(users.requireById(incompleteId))
+                .thenReturn(new UserAccount(incompleteId, 30, ZoneId.of("America/New_York"), true));
+        InMemoryEntryCore entries = new InMemoryEntryCore();
+        DemoDatasetService service = new DemoDatasetService(entries, users, mock(MongoTemplate.class));
+        service.seed("true", DEMO_URI, owners, SEED, START);
+        entries.corruptFirstEntry(entry -> new Entry(entry.id(), entry.ownerId(), entry.type(), EntryStatus.DRAFT,
+                entry.sourceKind(), entry.sourceRef(), entry.occurredAt(), entry.createdAt(), entry.updatedAt(),
+                entry.revision(), Map.of("tampered", true), entry.fieldOrigins(), entry.submissionId(),
+                entry.telegramUpdateKey()));
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> service.seed("true", DEMO_URI, owners, SEED, START));
+
+        assertEquals("Existing BE3-05 record differs from the expected dataset; run reset first", error.getMessage());
+    }
+
+    @Test
+    void seedRejectsDuplicateResolvedAccountsBeforeWriting() {
+        UUID regularId = UUID.fromString("11111111-1111-4111-8111-111111111101");
+        UUID irregularId = UUID.fromString("11111111-1111-4111-8111-111111111102");
+        UUID incompleteId = UUID.fromString("11111111-1111-4111-8111-111111111103");
+        DemoProfileOwners owners = new DemoProfileOwners(regularId, irregularId, incompleteId);
+        UserService users = mock(UserService.class);
+        UserAccount duplicate = new UserAccount(regularId, 10, ZoneId.of("Europe/Warsaw"), true);
+        when(users.requireById(regularId)).thenReturn(duplicate);
+        when(users.requireById(irregularId)).thenReturn(
+                new UserAccount(regularId, 10, ZoneId.of("UTC"), true));
+        when(users.requireById(incompleteId)).thenReturn(
+                new UserAccount(incompleteId, 30, ZoneId.of("America/New_York"), true));
+        InMemoryEntryCore entries = new InMemoryEntryCore();
+        DemoDatasetService service = new DemoDatasetService(entries, users, mock(MongoTemplate.class));
+
+        assertThrows(IllegalArgumentException.class, () -> service.seed("true", DEMO_URI, owners, SEED, START));
+
+        assertEquals(0, entries.entries.size());
+    }
+
+    @Test
+    void seedRejectsMissingAccountBeforeWriting() {
+        UUID regularId = UUID.fromString("11111111-1111-4111-8111-111111111101");
+        UUID irregularId = UUID.fromString("11111111-1111-4111-8111-111111111102");
+        UUID incompleteId = UUID.fromString("11111111-1111-4111-8111-111111111103");
+        DemoProfileOwners owners = new DemoProfileOwners(regularId, irregularId, incompleteId);
+        UserService users = mock(UserService.class);
+        when(users.requireById(regularId)).thenReturn(new UserAccount(regularId, 10, ZoneId.of("Europe/Warsaw"), true));
+        when(users.requireById(irregularId)).thenReturn(new UserAccount(irregularId, 20, ZoneId.of("UTC"), true));
+        when(users.requireById(incompleteId)).thenThrow(new IllegalStateException("Account not found"));
+        InMemoryEntryCore entries = new InMemoryEntryCore();
+        DemoDatasetService service = new DemoDatasetService(entries, users, mock(MongoTemplate.class));
+
+        assertThrows(IllegalStateException.class, () -> service.seed("true", DEMO_URI, owners, SEED, START));
+
+        assertEquals(0, entries.entries.size());
+    }
+
+    @Test
     void resetRefusesOutsideDemoBeforeTouchingMongo() {
         MongoTemplate mongo = mock(MongoTemplate.class);
         DemoDatasetService service = new DemoDatasetService(mock(EntryCoreService.class), mock(UserService.class), mongo);
@@ -106,8 +170,10 @@ class DemoDatasetServiceTest {
             if (existingId != null) return new DraftCreationResult(entries.get(existingId),
                     DraftCreationResult.Outcome.EXISTING_UPDATE);
             UUID id = UUID.nameUUIDFromBytes(key.getBytes(StandardCharsets.UTF_8));
+            Map<String, Object> sourceRef = new HashMap<>(command.sourceRef());
+            sourceRef.putIfAbsent("telegram_update_id", command.updateKey().updateId());
             Entry entry = new Entry(id, command.owner().userId(), command.type(), EntryStatus.DRAFT,
-                    command.sourceKind(), command.sourceRef(), command.occurredAt(), NOW, NOW, 1,
+                    command.sourceKind(), sourceRef, command.occurredAt(), NOW, NOW, 1,
                     command.payload(), command.fieldOrigins(), null, key);
             entries.put(id, entry);
             updateKeys.put(key, id);
@@ -174,6 +240,11 @@ class DemoDatasetServiceTest {
 
         private Map<String, UUID> keySnapshot() {
             return Map.copyOf(updateKeys);
+        }
+
+        private void corruptFirstEntry(java.util.function.UnaryOperator<Entry> change) {
+            Entry current = entries.values().iterator().next();
+            entries.put(current.id(), change.apply(current));
         }
     }
 }

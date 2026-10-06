@@ -20,8 +20,11 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -49,10 +52,25 @@ public class DemoDatasetService {
 
     public int seed(String demoFlag, String mongoUri, DemoProfileOwners owners, long seed, LocalDate startDate) {
         DemoEnvironmentGuard.requireDemoEnvironment(demoFlag, mongoUri);
+        Map<SyntheticProfile, UserAccount> accounts = new EnumMap<>(SyntheticProfile.class);
+        for (SyntheticProfile profile : SyntheticProfile.values()) {
+            accounts.put(profile, users.requireById(owners.owner(profile)));
+        }
+        if (accounts.values().stream().map(UserAccount::id).distinct().count() != SyntheticProfile.values().length) {
+            throw new IllegalArgumentException("BE3-05 demo profiles must use three distinct user accounts");
+        }
+
+        Map<SyntheticProfile, SyntheticDatasetGenerator.SyntheticProfileData> datasets =
+                new EnumMap<>(SyntheticProfile.class);
+        for (SyntheticProfile profile : SyntheticProfile.values()) {
+            datasets.put(profile, generator.generateProfile(profile, seed, startDate,
+                    accounts.get(profile).timezone()));
+        }
+
         int count = 0;
         for (SyntheticProfile profile : SyntheticProfile.values()) {
-            UserAccount account = users.requireById(owners.owner(profile));
-            var dataset = generator.generateProfile(profile, seed, startDate, account.timezone());
+            UserAccount account = accounts.get(profile);
+            var dataset = datasets.get(profile);
             OwnerContext owner = new OwnerContext(account.id());
             for (SyntheticEntry synthetic : dataset.entries()) {
                 persist(owner, profile, startDate, seed, account.timezone().getId(), synthetic);
@@ -95,6 +113,10 @@ public class DemoDatasetService {
                 throw new IllegalStateException("A different draft is active for a configured demo account");
             }
             Entry entry = result.entry();
+            if (result.outcome() == DraftCreationResult.Outcome.EXISTING_UPDATE) {
+                validateExisting(entry, owner, synthetic, sourceRef, key, updateKey);
+                continue;
+            }
             if (entry.status() != EntryStatus.DRAFT) continue;
 
             if (!entry.payload().equals(synthetic.payload())) {
@@ -106,6 +128,26 @@ public class DemoDatasetService {
             } else {
                 entries.confirm(new ConfirmEntryCommand(owner, entry.id(), submissionId, entry.revision()));
             }
+        }
+    }
+
+    private static void validateExisting(Entry entry, OwnerContext owner, SyntheticEntry synthetic,
+                                         Map<String, Object> sourceRef, String key, TelegramUpdateKey updateKey) {
+        EntryStatus expectedStatus = synthetic.cancelled() ? EntryStatus.CANCELLED : EntryStatus.CONFIRMED;
+        String expectedSubmissionId = synthetic.cancelled() ? null : key;
+        Map<String, Object> expectedSourceRef = new HashMap<>(sourceRef);
+        expectedSourceRef.put("telegram_update_id", updateKey.updateId());
+        if (!entry.ownerId().equals(owner.userId())
+                || entry.type() != synthetic.type()
+                || entry.sourceKind() != SourceKind.SEED
+                || !entry.sourceRef().equals(expectedSourceRef)
+                || !entry.occurredAt().equals(synthetic.occurredAt().toInstant())
+                || !entry.payload().equals(synthetic.payload())
+                || !entry.fieldOrigins().equals(synthetic.fieldOrigins())
+                || entry.status() != expectedStatus
+                || !Objects.equals(entry.submissionId(), expectedSubmissionId)
+                || !entry.telegramUpdateKey().equals(updateKey.storageKey())) {
+            throw new IllegalStateException("Existing BE3-05 record differs from the expected dataset; run reset first");
         }
     }
 }

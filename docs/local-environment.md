@@ -119,9 +119,12 @@ From PowerShell at the repository root:
 
 The default seed is `20260505` and the default start date is `2026-09-01`.
 The seed and start date are recorded in stable internal update keys: rerunning
-with the same parameters verifies the same logical records without duplicates.
-Different parameters intentionally identify a different dataset and can add
-records; reset first if replacing a dataset. Run the API against the same
+with the same parameters verifies the existing record payload, type, owner, time,
+field origins, source metadata, and final status without duplicates. A mismatch
+stops the command and requires reset before reseeding. All three configured
+accounts must exist and resolve to distinct user UUIDs before any records are
+generated or written. Different parameters intentionally identify a different
+dataset and can add records; reset first if replacing a dataset. Run the API against the same
 `health_tg_demo` URI and authenticate normally to read entries through
 `GET /api/v1/entries` (`from`, `to`, `limit=100`, and normal cursor pagination).
 There is no HTTP seed route or profile-switching option.
@@ -152,3 +155,9 @@ users, sessions, other seed data, or files. No educational file-storage
 implementation or BE1-05 cleanup rule is present in this checkout, so file
 cleanup is deliberately not attempted. Never point this command at the ordinary
 `health_tg` database.
+
+The seed service is covered by a Testcontainers integration scenario against
+MongoDB. It verifies first-seed count and content, repeat-seed idempotency,
+reset behavior, and preservation of unrelated records. Run it with
+`sh ./gradlew :backend:api:test --tests org.healthtg.seed.DemoDatasetMongoIntegrationTest`;
+Docker must be available.
