@@ -35,6 +35,57 @@ describe('FE1-04 entry review and correction', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it.each([
+    ['meal', { description: 'Meal' }, 'Описание', '', 'Описание обязательно.'],
+    ['metrics', { code: 'steps', value: 100, unit: 'steps', local_date: '2026-09-16' }, 'Единица', '', 'Единица обязательна для подтверждённой метрики.'],
+    ['checkin', { category: 'mood', score: 3 }, 'Оценка', '0', 'Оценка должна быть целым числом от 1 до 5.'],
+    ['note', { text: 'Note' }, 'Текст', '', 'Текст обязателен.'],
+  ] satisfies Array<[EntryType, EntryPayload, string, string, string]>)('connects %s validation to its named field and focuses it', async (type, payload, name, value, error) => {
+    const entry = entryFixture({ type, payload })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch')
+    renderRoute(`/diary/${entry.id}`)
+    const field = await screen.findByLabelText(name)
+    fireEvent.change(field, { target: { value } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+
+    expect(await screen.findByText(error)).toBeInTheDocument()
+    expect(field).toHaveAttribute('aria-invalid', 'true')
+    expect(field).toHaveAccessibleDescription(expect.stringContaining(error))
+    expect(field).toHaveFocus()
+    expect(patch).not.toHaveBeenCalled()
+  })
+
+  it.each(['draft', 'confirmed'] as const)('preserves unsaved %s input and focus across viewport resize', async (status) => {
+    const entry = entryFixture({ status })
+    const get = vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch')
+    const confirm = vi.spyOn(entriesApi, 'confirm')
+    const viewport = new EventTarget()
+    vi.stubGlobal('visualViewport', viewport)
+    renderRoute(`/diary/${entry.id}`)
+    const description = await screen.findByLabelText('Описание')
+    fireEvent.change(description, { target: { value: 'Unsaved mobile input' } })
+    description.focus()
+
+    for (const [width, height] of [[360, 320], [390, 844], [360, 740]]) {
+      vi.stubGlobal('innerWidth', width)
+      vi.stubGlobal('innerHeight', height)
+      fireEvent(window, new Event('resize'))
+      act(() => {
+        viewport.dispatchEvent(new Event('resize'))
+      })
+      expect(screen.getByLabelText('Описание')).toBe(description)
+      expect(description).toHaveValue('Unsaved mobile input')
+      expect(description).toHaveFocus()
+      expect(screen.getByRole('button', { name: 'Сохранить' })).toBeEnabled()
+    }
+    expect(get).toHaveBeenCalledTimes(1)
+    expect(patch).not.toHaveBeenCalled()
+    expect(confirm).not.toHaveBeenCalled()
   })
 
   it('loads a draft by id and shows contract fields, source, unknown and origin data', async () => {
@@ -63,6 +114,8 @@ describe('FE1-04 entry review and correction', () => {
     expect(screen.getByRole('button', { name: 'Изменить' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Подтвердить' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Не сохранять' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }))
+    expect(screen.getByLabelText('Дата и время')).toHaveFocus()
     expect(screen.queryByRole('button', { name: 'Убрать из дневника' })).not.toBeInTheDocument()
   })
 
@@ -109,6 +162,16 @@ describe('FE1-04 entry review and correction', () => {
     for (const label of labels) {
       expect(screen.getByLabelText(label)).toBeInTheDocument()
     }
+    const fields = screen.getByRole('form', { name: 'Редактирование записи' }).querySelectorAll('input, select, textarea')
+    for (const field of fields) {
+      expect(field).toHaveAccessibleName()
+      expect(field.id).toBeTruthy()
+      for (const id of field.getAttribute('aria-describedby')?.split(' ') ?? []) {
+        expect(document.getElementById(id)).toBeInTheDocument()
+      }
+    }
+    const ids = [...document.querySelectorAll('[id]')].map((element) => element.id)
+    expect(new Set(ids).size).toBe(ids.length)
   })
 
   it('confirms a draft with expected_revision and a stable submission_id without duplicate double-click', async () => {
@@ -206,6 +269,9 @@ describe('FE1-04 entry review and correction', () => {
 
     expect(await screen.findByText('mass must be >= 0')).toBeInTheDocument()
     expect(screen.getByLabelText(/Масса/)).toHaveValue('150')
+    expect(screen.getByLabelText('Масса')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('Масса')).toHaveAccessibleDescription(/mass must be >= 0/)
+    expect(screen.getByLabelText('Масса')).toHaveFocus()
     expect(screen.queryByText('Изменения сохранены.')).not.toBeInTheDocument()
   })
 
@@ -220,6 +286,9 @@ describe('FE1-04 entry review and correction', () => {
 
     expect(await screen.findByText(/не может быть отрицательным по контракту/)).toBeInTheDocument()
     expect(screen.getByLabelText(/Масса/)).toHaveValue('-1')
+    expect(screen.getByLabelText('Масса')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('Масса')).toHaveAccessibleDescription(/не может быть отрицательным по контракту/)
+    expect(screen.getByLabelText('Масса')).toHaveFocus()
     expect(patch).not.toHaveBeenCalled()
     expect(screen.queryByText('Изменения сохранены.')).not.toBeInTheDocument()
   })
@@ -450,7 +519,11 @@ describe('FE1-04 entry review and correction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     expect(await screen.findByText('Check energy')).toBeInTheDocument()
     expect(screen.getByLabelText(/Ккал/)).toHaveValue('400')
+    expect(screen.getByLabelText('Ккал')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('Ккал')).toHaveAccessibleDescription(/Check energy/)
     fireEvent.change(screen.getByLabelText(/Ккал/), { target: { value: '390' } })
+    expect(screen.getByLabelText('Ккал')).not.toHaveAttribute('aria-invalid')
+    expect(screen.getByLabelText('Ккал')).not.toHaveAccessibleDescription(/Check energy/)
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => expect(patch).toHaveBeenCalledTimes(2))
   })
