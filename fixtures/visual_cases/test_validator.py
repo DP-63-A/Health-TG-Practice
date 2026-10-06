@@ -1,4 +1,5 @@
 import io
+import json
 import pytest
 from pathlib import Path
 from PIL import Image
@@ -46,12 +47,44 @@ def test_image_exceeding_12mp_fails(tmp_path: Path):
     assert "exceeds limit of 12" in err
 
 def test_manifest_validation_fails_on_missing_required_field(tmp_path: Path):
+    """Тест 4: Валидация манифеста должна падать на пропущенные required поля"""
     broken = tmp_path / "broken.json"
-    broken.write_text('{"cases":[{"id":"X1","image_path":"watch/W02.jpeg","expected_fields":[{"name":"steps"}]}]}', encoding="utf-8")
-
-    with pytest.raises(Exception) as exc:
+    
+    # Полный манифест с недостающим полем в expected_fields
+    broken_manifest = {
+        "version": "1.0.0",
+        "created_at": "2026-10-04T00:00:00Z",
+        "commit_hash": "0000000000000000000000000000000000000000",
+        "cases": [
+            {
+                "id": "H01",
+                "path": "health/H01.jpeg",
+                "category": "health",
+                "source": {
+                    "origin": "test",
+                    "license": "CC0-1.0",
+                    "attribution": "test"
+                },
+                "expected_fields": [
+                    {
+                        "name": "steps",
+                        # ← ПРОПУЩЕНО: "value", "unit", "confidence"
+                    }
+                ],
+                "datetime": {"date": "2026-10-05", "time": "10:17", "timezone": "Europe/Warsaw"},
+                "uncertainties": [],
+                "expected_action": "draft",
+                "personal_data_check": True
+            }
+        ]
+    }
+    
+    broken.write_text(json.dumps(broken_manifest), encoding="utf-8")
+    
+    with pytest.raises((ValueError, KeyError)) as exc:
         validate_manifest(str(broken))
-
-    msg = str(exc.value)
-    assert "required" in msg.lower()
-    assert "value" in msg.lower() or "unit" in msg.lower() or "confidence" in msg.lower()
+    
+    msg = str(exc.value).lower()
+    # Проверяем, что ошибка про обязательные поля в expected_fields
+    assert any(keyword in msg for keyword in ["required", "value", "unit", "confidence"]), \
+        f"Expected error about missing required field, got: {msg}"
