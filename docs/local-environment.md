@@ -126,7 +126,10 @@ accounts must exist and resolve to distinct user UUIDs before any records are
 generated or written. Different parameters intentionally identify a different
 dataset and can add records; reset first if replacing a dataset. Run the API against the same
 `health_tg_demo` URI and authenticate normally to read entries through
-`GET /api/v1/entries` (`from`, `to`, `limit=100`, and normal cursor pagination).
+`GET /api/v1/entries` (`from`, `to`, `limit=100`, and normal cursor pagination) or
+the analytics endpoint, `GET /api/v1/analytics?period=days_21&timezone=Europe%2FWarsaw`.
+The analytics endpoint uses the authenticated account as owner and supports
+`today`, `days_7`, and `days_21`; `checkin_category` selects the check-in series.
 There is no HTTP seed route or profile-switching option.
 
 For the default seed, the independent BE3-04/07 entry-count controls are:
@@ -156,8 +159,9 @@ implementation or BE1-05 cleanup rule is present in this checkout, so file
 cleanup is deliberately not attempted. Never point this command at the ordinary
 `health_tg` database.
 
-The seed service is covered by a Testcontainers integration scenario against
-MongoDB. It verifies first-seed count and content, repeat-seed idempotency,
-reset behavior, and preservation of unrelated records. Run it with
+The seed service and analytics read path are covered by Testcontainers integration
+scenarios against MongoDB. They verify first-seed count and content, repeat-seed
+idempotency, reset behavior (including a repeated reset), preservation of unrelated
+records, and analytics over a seeded profile. Run them with
 `sh ./gradlew :backend:api:test --tests org.healthtg.seed.DemoDatasetMongoIntegrationTest`;
 Docker must be available.
