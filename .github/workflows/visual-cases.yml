@@ -24,17 +24,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r fixtures/visual_cases/requirements.txt
 
-      - name: Ensure dataset_hash is not placeholder
+      - name: Ensure commit_hash is filled
         run: |
           python - <<'PY'
           import json
+          import re
           from pathlib import Path
 
           p = Path("fixtures/visual_cases/manifest.json")
           data = json.loads(p.read_text(encoding="utf-8"))
-          h = data.get("dataset_hash", "")
-          assert h and h != "<to-be-filled-by-ci>", "dataset_hash is still placeholder"
-          assert h.startswith("sha256:"), "dataset_hash must start with sha256:"
+          h = data.get("commit_hash", "")
+          assert h and h != "<to-be-filled-by-ci>", "commit_hash is still placeholder"
+          assert re.fullmatch(r"[0-9a-f]{40}", h), "commit_hash must be a 40-char lowercase hex git SHA"
           PY
 
       - name: Validate manifest
