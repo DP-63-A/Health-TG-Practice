@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -37,6 +39,14 @@ jobs:
           assert h and h != "<to-be-filled-by-ci>", "commit_hash is still placeholder"
           assert re.fullmatch(r"[0-9a-f]{40}", h), "commit_hash must be a 40-char lowercase hex git SHA"
           PY
+
+      - name: Verify commit_hash points to a real, matching commit
+        run: |
+          H=$(python -c "import json;print(json.load(open('fixtures/visual_cases/manifest.json'))['commit_hash'])")
+          git cat-file -e "$H^{commit}" || { echo "commit $H does not exist"; exit 1; }
+          git merge-base --is-ancestor "$H" HEAD || { echo "commit $H is not an ancestor of HEAD"; exit 1; }
+          git diff --quiet "$H" HEAD -- fixtures/visual_cases/food fixtures/visual_cases/health fixtures/visual_cases/watch fixtures/visual_cases/negative \
+            || { echo "images changed since $H; update commit_hash"; exit 1; }
 
       - name: Validate manifest
         run: |
