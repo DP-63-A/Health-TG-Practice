@@ -1,7 +1,9 @@
-
 .heart-rate-card {
+  --heart-accent: #e97979;
+  --heart-accent-soft: rgb(233 121 121 / 16%);
+
   padding: 20px;
-  border-radius: 16px;
+  border-radius: 20px;
 
   background: var(
     --tg-theme-secondary-bg-color,
@@ -14,15 +16,36 @@
   );
 }
 
+.heart-rate-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 18px;
+}
+
 .heart-rate-card__title {
-  margin: 0 0 20px;
+  margin: 0;
 
   font-size: 16px;
   font-weight: 600;
 }
 
+.heart-rate-card__icon {
+  display: grid;
+  place-items: center;
+
+  width: 42px;
+  height: 42px;
+
+  border-radius: 14px;
+
+  color: var(--heart-accent);
+  background: var(--heart-accent-soft);
+}
+
 .heart-rate-card__label {
-  margin: 0 0 8px;
+  margin: 0 0 7px;
 
   font-size: 13px;
 
@@ -32,51 +55,124 @@
   );
 }
 
-.heart-rate-card__value {
-  margin: 0 0 20px;
+.heart-rate-card__measurement {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
 
-  font-size: 28px;
+  margin-bottom: 22px;
+}
+
+.heart-rate-card__value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+
+  flex: 0 0 auto;
+
+  margin: 0;
+
+  font-size: 34px;
+  line-height: 1;
   font-weight: 700;
+  letter-spacing: -0.5px;
 }
 
 .heart-rate-card__value span {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 400;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.heart-rate-card__pulse {
+  width: 110px;
+  height: 40px;
+
+  color: var(--heart-accent);
+}
+
+.heart-rate-card__pulse svg {
+  display: block;
+
+  width: 100%;
+  height: 100%;
+}
+
+.heart-rate-card__pulse path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .heart-rate-card__details {
-  padding-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 
-  border-top: 1px solid
-    var(--tg-theme-hint-color, #ddd);
-}
+  padding: 14px;
 
-.heart-rate-card__time {
-  margin: 0;
-
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.heart-rate-card__qualifier {
-  display: inline-block;
-
-  margin-top: 12px;
-  padding: 6px 10px;
-
-  border-radius: 8px;
+  border-radius: 14px;
 
   background: var(
     --tg-theme-bg-color,
     #fff
   );
+}
+
+.heart-rate-card__time-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  min-width: 0;
+}
+
+.heart-rate-card__clock {
+  display: grid;
+  place-items: center;
+
+  flex: 0 0 auto;
+
+  width: 32px;
+  height: 32px;
+
+  border-radius: 10px;
+
+  color: var(--heart-accent);
+  background: var(--heart-accent-soft);
+}
+
+.heart-rate-card__time-info .heart-rate-card__label {
+  margin-bottom: 3px;
+}
+
+.heart-rate-card__time {
+  margin: 0;
+
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.heart-rate-card__qualifier {
+  flex: 0 0 auto;
+
+  padding: 6px 10px;
+
+  border-radius: 999px;
+
+  background: var(--heart-accent-soft);
+  color: var(--heart-accent);
 
   font-size: 12px;
-
-  color: var(
-    --tg-theme-text-color,
-    #222
-  );
+  font-weight: 600;
 }
 
 @media (max-width: 360px) {
@@ -84,7 +180,21 @@
     padding: 14px;
   }
 
+  .heart-rate-card__icon {
+    width: 38px;
+    height: 38px;
+  }
+
   .heart-rate-card__value {
-    font-size: 24px;
+    font-size: 30px;
+  }
+
+  .heart-rate-card__pulse {
+    width: 80px;
+  }
+
+  .heart-rate-card__details {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

@@ -1,10 +1,11 @@
+import { createDiaryNavigationEntries } from '../overview/fixtures/diary-navigation.fixture'
 import { analyticsFixture } from '../overview/fixtures/analytics.fixture'
 import { ApiError } from './errors'
 import type { ApiBodyRequestOptions, ApiClient, ApiRequestOptions, Entry, EntryFilters, EntryPatchRequest, ConfirmRequest, MetricsPayload, TelegramAuthResponse, User } from './types'
 import type { AnalyticsResponse } from '../overview/analytics.types'
 
 const user: User = { id: '11111111-1111-4111-8111-111111111101', telegram_id: 10001, timezone: 'Europe/Warsaw', stand_access: true }
-const entries: Entry[] = [
+const defaultEntries: Entry[] = [
   {
     id: '22222222-2222-4222-8222-222222222201', user_id: user.id, type: 'meal', status: 'confirmed', source_kind: 'food_photo',
     source_ref: { file_id: '33333333-3333-4333-8333-333333333301', telegram_update_id: 9001, telegram_message_id: 42, label: 'Фото еды' },
@@ -63,6 +64,13 @@ const entries: Entry[] = [
   },
 ]
 
+const overviewNavigationScenario =
+  import.meta.env.VITE_FIXTURE_SCENARIO === 'overview-navigation'
+
+const entries: Entry[] = overviewNavigationScenario
+  ? createDiaryNavigationEntries()
+  : defaultEntries
+
 export const fixtureApiClient: ApiClient = {
 async get<TResponse>(path: string, options?: ApiRequestOptions) {
   const pathname = normalizePath(path)
@@ -82,6 +90,24 @@ async get<TResponse>(path: string, options?: ApiRequestOptions) {
   // }
 
   if (pathname === '/api/v1/analytics') {
+    const requestedPeriod = options?.query?.period
+
+    if (
+      overviewNavigationScenario &&
+      requestedPeriod !== undefined &&
+      requestedPeriod !== 'days_7'
+    ) {
+      throw new ApiError(
+        {
+          code: 'fixture_period_unavailable',
+          message:
+            'В сценарии overview-navigation подготовлен ответ только за 7 дней. Ответы для других периодов ожидаются от BE3.',
+          request_id: 'fixture-overview-period',
+        },
+        501,
+      )
+    }
+
     // const response = clone(analyticsFixture)
     const response: AnalyticsResponse = clone(analyticsFixture)
     const requestedCategory =
