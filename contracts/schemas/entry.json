@@ -47,7 +47,10 @@
         }
       }
     },
-    "occurred_at": { "$ref": "common.json#/$defs/DateTimeUtc" },
+    "occurred_at": {
+      "$ref": "common.json#/$defs/DateTimeUtc",
+      "description": "For steps: immutable full timestamp of the original report, not the day covered by the total. Telegram uses the original message date, never processing or clarification time. Other entry semantics are unchanged."
+    },
     "created_at": { "$ref": "common.json#/$defs/DateTimeUtc" },
     "updated_at": { "$ref": "common.json#/$defs/DateTimeUtc" },
     "revision": { "$ref": "common.json#/$defs/Revision" },

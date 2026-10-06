@@ -34,6 +34,7 @@ function AppLayout() {
             Обновить
           </Button>
           <nav className="app-nav" aria-label="Основная навигация">
+
             {/* <NavLink to="/diary">Дневник</NavLink> */}
 
             <NavLink

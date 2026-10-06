@@ -23,12 +23,12 @@
         { "$ref": "../common.json#/$defs/LocalDate" },
         { "type": "null" }
       ],
-      "description": "May be omitted or null while a draft is awaiting clarification; required for confirmed metrics."
+      "description": "Calendar day of the metric; for steps, the day covered by the daily total, used for filtering and grouping independently of occurred_at. May be omitted or null in a draft; required for confirmed metrics."
     },
     "local_time": {
       "type": ["string", "null"],
       "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$",
-      "description": "Local wall time; null if unknown."
+      "description": "Local wall time; null if unknown. Not required or used to select daily steps totals."
     },
     "qualifier": { "$ref": "../common.json#/$defs/HeartRateQualifier" }
   },

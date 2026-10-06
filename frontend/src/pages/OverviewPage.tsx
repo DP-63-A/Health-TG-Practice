@@ -207,6 +207,7 @@ function OverviewPage() {
   const [reloadKey, setReloadKey] =
     useState(0)
 
+
   const [searchParams, setSearchParams] = useSearchParams()
 
 const period = parsePeriod(
@@ -376,6 +377,7 @@ function updateCategory(value: CheckinCategory) {
       )}
 
       <div className="overview-cards">
+
   <NutritionCard
     nutrition={cardData?.cards.nutrition ?? null}
   />
@@ -403,6 +405,7 @@ function updateCategory(value: CheckinCategory) {
     checkins={cardData?.cards.checkins ?? null}
   />
 </div>
+
 
       {/* Питание */}
 

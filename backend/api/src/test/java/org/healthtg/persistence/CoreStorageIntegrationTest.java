@@ -354,14 +354,14 @@ class CoreStorageIntegrationTest {
                 Instant.parse("2026-09-19T09:00:00Z"), Map.of("text", "cancelled")));
         entryStore.save(stored(owner, EntryStatus.DELETED, EntryType.NOTE, "deleted-506",
                 Instant.parse("2026-09-19T10:00:00Z"), Map.of("text", "deleted")));
-        entryStore.save(stored(owner, EntryStatus.CONFIRMED, EntryType.METRICS,
+        Entry steps = entryStore.save(stored(owner, EntryStatus.CONFIRMED, EntryType.METRICS,
                 "metric-507", Instant.parse("2026-09-10T10:00:00Z"),
                 Map.of("code", "steps", "value", 3000, "unit", "count", "local_date", "2026-09-19")));
 
         List<Entry> allTypes = entries.listConfirmedEntries(new ListConfirmedEntriesQuery(owner,
                 LocalDate.of(2026, 9, 19), LocalDate.of(2026, 9, 19), warsaw, Set.of()));
 
-        assertEquals(List.of(boundary.id()), allTypes.stream().map(Entry::id).toList());
+        assertEquals(List.of(steps.id(), boundary.id()), allTypes.stream().map(Entry::id).toList());
         assertTrue(allTypes.stream().allMatch(entry -> entry.ownerId().equals(owner.userId())));
         assertTrue(allTypes.stream().allMatch(entry -> entry.status() == EntryStatus.CONFIRMED));
 
@@ -598,6 +598,66 @@ class CoreStorageIntegrationTest {
         }
         assertEquals(1, mongoTemplate.getCollection("entries")
                 .countDocuments(new org.bson.Document("submissionId", "shared-submit")));
+    }
+
+    @Test
+    void stepsUseReportedDayForBothQueriesAndKeepUnknownDayOnlyInUnfilteredDiary() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        LocalDate day = LocalDate.of(2026, 10, 4);
+        Instant messageTime = Instant.parse("2026-10-05T06:00:00Z");
+        Entry reported = entryStore.save(stored(owner, EntryStatus.CONFIRMED, EntryType.METRICS,
+                "steps-reported", messageTime, Map.of("code", "steps", "value", 9000, "local_date", day.toString())));
+        Entry unknown = entryStore.save(stored(owner, EntryStatus.CONFIRMED, EntryType.METRICS,
+                "steps-unknown", messageTime, metrics("steps", 99999)));
+        for (EntryStatus status : List.of(EntryStatus.DRAFT, EntryStatus.CANCELLED, EntryStatus.DELETED)) {
+            entryStore.save(stored(owner, status, EntryType.METRICS, "inactive-" + status,
+                    messageTime, Map.of("code", "steps", "value", 99000, "local_date", day.toString())));
+        }
+        OwnerContext stranger = new OwnerContext(UUID.randomUUID());
+        entryStore.save(stored(stranger, EntryStatus.CONFIRMED, EntryType.METRICS,
+                "stranger-steps", messageTime, Map.of("code", "steps", "value", 99000, "local_date", day.toString())));
+        for (String zone : List.of("Europe/Vilnius", "Pacific/Kiritimati", "America/Los_Angeles")) {
+            ZoneId tz = ZoneId.of(zone);
+            assertEquals(List.of(reported.id()), entries.listEntries(new ListEntriesQuery(owner,
+                    EntryStatus.CONFIRMED, null, day, day, tz)).stream().map(Entry::id).toList());
+            assertEquals(List.of(reported.id()), entries.listConfirmedEntries(new ListConfirmedEntriesQuery(
+                    owner, day, day, tz, Set.of())).stream().map(Entry::id).toList());
+            assertTrue(entries.listEntries(new ListEntriesQuery(owner, EntryStatus.CONFIRMED,
+                    null, day.plusDays(1), day.plusDays(1), tz)).isEmpty());
+            assertTrue(entries.listConfirmedEntries(new ListConfirmedEntriesQuery(owner,
+                    day.plusDays(1), day.plusDays(1), tz, Set.of())).isEmpty());
+        }
+        assertEquals(Set.of(reported.id(), unknown.id()), new HashSet<>(entries.listEntries(
+                new ListEntriesQuery(owner, EntryStatus.CONFIRMED, null, null, null, ZoneId.of("UTC")))
+                .stream().map(Entry::id).toList()));
+    }
+
+    @Test
+    void stepsDatePatchPreservesMessageTimeAndRejectsTamperingWithTimeCodeOwnerOrRevision() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Entry original = entries.createDraft(draft(owner, 1100,
+                Map.of("code", "steps", "value", 8000, "unit", "count", "local_date", "2026-10-04"))).entry();
+        Entry changed = entries.patch(new PatchEntryCommand(owner, original.id(), 1, null,
+                Map.of("local_date", "2026-10-03"), Map.of("local_date", "reported")));
+        assertEquals(original.occurredAt(), changed.occurredAt());
+        assertEquals("2026-10-03", changed.payload().get("local_date"));
+        assertThrows(EntryVersionConflictException.class, () -> entries.patch(new PatchEntryCommand(
+                owner, original.id(), 1, null, Map.of("local_date", "2026-10-02"), null)));
+        assertThrows(EntryNotFoundException.class, () -> entries.patch(new PatchEntryCommand(
+                new OwnerContext(UUID.randomUUID()), original.id(), 2, null, Map.of("local_date", "2026-10-02"), null)));
+        assertThrows(EntryValidationException.class, () -> entries.patch(new PatchEntryCommand(
+                owner, original.id(), 2, original.occurredAt().plusSeconds(1), Map.of(), null)));
+        assertThrows(EntryValidationException.class, () -> entries.patch(new PatchEntryCommand(
+                owner, original.id(), 2, null, Map.of("code", "heart_rate"), null)));
+        assertEquals(changed, entries.requireEntry(owner, original.id()));
+        OwnerContext another = new OwnerContext(UUID.randomUUID());
+        Entry pulse = entries.createDraft(draft(another, 1101,
+                Map.of("code", "heart_rate", "value", 72, "unit", "bpm", "local_date", "2026-10-04"))).entry();
+        assertThrows(EntryValidationException.class, () -> entries.patch(new PatchEntryCommand(
+                another, pulse.id(), 1, null, Map.of("code", "steps", "unit", "count"), null)));
+        Entry editedPulse = entries.patch(new PatchEntryCommand(another, pulse.id(), 1,
+                pulse.occurredAt().plusSeconds(60), Map.of(), null));
+        assertEquals(pulse.occurredAt().plusSeconds(60), editedPulse.occurredAt());
     }
 
     private static CreateDraftCommand draft(OwnerContext owner, long updateId, Map<String, Object> payload) {

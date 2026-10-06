@@ -594,6 +594,7 @@ import { describe, expect, it, vi } from 'vitest'
 
       expect(result.cards.nutrition.energy_kcal).toBe(930)
 
+
       expect(result.cards.sleep.total_minutes).toBe(450)
       expect(result.cards.steps.total).toBe(8432)
       expect(result.cards.heart_rate?.entry_id).toBe(
