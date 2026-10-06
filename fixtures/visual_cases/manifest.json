@@ -205,7 +205,7 @@
         "license": "CC0-1.0",
         "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
       },
-      "datetime": {"date": "2026-10-04", "time": "14:07", "timezone": "Europe/Warsaw"},
+      "datetime": {"date": "2026-10-02", "time": "14:07", "timezone": "Europe/Warsaw"},
       "expected_fields": [
         {"name": "steps", "value": 5320, "unit": "steps", "confidence": 1.0},
         {"name": "heart_rate", "value": 75, "unit": "bpm", "confidence": 1.0, "qualifier": "instant"}
