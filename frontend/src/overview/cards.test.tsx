@@ -28,10 +28,11 @@ describe('NutritionCard', () => {
       />,
     )
 
-    expect(text).toContain('930 ккал')
-    expect(text).toContain('40 г')
-    expect(text).toContain('20 г')
-    expect(text).toContain('80 г')
+    
+  expect(text).toContain('930 ккал')
+  expect(text).toContain('Белки 50 г')
+  expect(text).toContain('Жиры 30 г')
+  expect(text).toContain('Углеводы 110 г')
   })
 
   it('показывает прочерки при отсутствии данных', () => {
@@ -120,9 +121,9 @@ describe('SleepCard', () => {
     )
 
     expect(text).toContain('7 ч 30 мин')
-    expect(text).toContain('Дней с данными 1')
-    expect(text).toContain('10.09.2026')
-    expect(text).toContain('16.09.2026')
+    expect(text).toContain('Дней с данными 2')
+    expect(text).toContain('13.09.2026')
+    expect(text).toContain('19.09.2026')
   })
 
   it('показывает прочерки при отсутствии данных', () => {
@@ -165,7 +166,7 @@ describe('StepsCard', () => {
       />,
     )
 
-    expect(text).toContain('8 432')
+    expect(text).toContain('5 000')
     expect(text).toContain('Дней с данными 1')
   })
 
@@ -208,10 +209,10 @@ describe('HeartRateCard', () => {
       />,
     )
 
-    expect(text).toContain('62')
+    expect(text).toContain('72')
     expect(text).toContain('уд/мин')
-    expect(text).toContain('16.09.2026')
-    expect(text).toContain('08:05')
+    expect(text).toContain('19.09.2026')
+    expect(text).toContain('12:15')
     expect(text).toContain('В покое')
   })
 
@@ -236,6 +237,7 @@ it('не придумывает контекст отсутствующего и
         value_bpm: 62,
         occurred_at: '2026-09-16T06:05:00Z',
         qualifier: null,
+        entry_id: null,
       }}
       period={analyticsFixture.period}
     />,
@@ -255,7 +257,7 @@ describe('CheckinCard', () => {
     )
 
     expect(text).toContain('Качество сна 4')
-    expect(text).toContain('Комфорт пищеварения —')
+    expect(text).toContain('Комфорт пищеварения 5')
     expect(text).toContain('Самочувствие 3')
     expect(text).toContain('Настроение 4')
   })
@@ -276,7 +278,10 @@ describe('CheckinCard', () => {
       <CheckinCard
         checkins={{
           ...analyticsFixture.cards.checkins,
-          mood: 0,
+          mood: {
+            ...analyticsFixture.cards.checkins.mood,
+            score: 0,
+          },
         }}
       />,
     )

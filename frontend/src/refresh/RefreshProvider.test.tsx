@@ -7,6 +7,7 @@ import { analyticsFixture } from '../overview/fixtures/analytics.fixture'
 import * as analytics from '../overview/analytics'
 import { appRoutes } from '../router/router'
 import { AuthProvider } from '../auth/AuthProvider'
+import { AuthGate } from '../auth/AuthGate'
 import { RefreshProvider, useRefresh, useRefreshSubscription } from './RefreshProvider'
 
 describe('refresh mechanism', () => {
@@ -159,6 +160,146 @@ describe('refresh mechanism', () => {
     expect(within(card).getByText('9')).toBeInTheDocument()
     expect(within(card).queryByText('2')).not.toBeInTheDocument()
   })
+
+  it.each(['manual', 'mutation', 'lifecycle'] as const)(
+    'обновляет обзор по сигналу %s с сохранением периода и категории',
+    async (reason) => {
+      const initial = structuredClone(analyticsFixture)
+      initial.period = {
+        kind: 'days_21',
+        from: '2026-08-30',
+        to: '2026-09-19',
+        timezone: 'Europe/Warsaw',
+      }
+      initial.observations.days_in_period = 21
+      initial.series.checkin = {
+        category: 'wellbeing',
+        points: [{
+          date: '2026-09-19',
+          value: 3,
+          unit: 'score_1_5',
+          source: {
+            entry_id: initial.cards.checkins.wellbeing.entry_id!,
+            type: 'checkin',
+            local_date: '2026-09-19',
+          },
+        }],
+      }
+
+      const updated = structuredClone(initial)
+      updated.cards.heart_rate.value_bpm = 81
+      updated.observations.generated_at = '2026-09-19T20:06:00Z'
+
+      let resolveRefresh!: (value: typeof analyticsFixture) => void
+      const pending = new Promise<typeof analyticsFixture>((resolve) => {
+        resolveRefresh = resolve
+      })
+      const getAnalytics = vi.spyOn(analytics, 'getAnalytics')
+        .mockResolvedValueOnce(initial)
+        .mockReturnValueOnce(pending)
+
+      const visibilityDescriptor = Object.getOwnPropertyDescriptor(
+        document, 'visibilityState',
+      )
+      const router = createMemoryRouter(appRoutes, {
+        initialEntries: [
+          '/overview?period=days_21&checkin_category=wellbeing',
+        ],
+      })
+
+      // Как в main.tsx: обзор монтируется после получения пользователя.
+      // Мокаем только ответ аналитики; общий refresh и router настоящие.
+      const view = render(
+        <AuthProvider>
+          <AuthGate>
+            <RefreshProvider>
+              {reason === 'mutation' && <MutationRefreshButton />}
+              <RouterProvider router={router} />
+            </RefreshProvider>
+          </AuthGate>
+        </AuthProvider>,
+      )
+
+      try {
+        const heartCard = await screen.findByRole('region', {
+          name: 'Аналитика пульса',
+        })
+        await waitFor(() => {
+          expect(within(heartCard).getByText('72')).toBeVisible()
+        })
+
+        const query = {
+          period: 'days_21',
+          timezone: 'Europe/Warsaw',
+          checkin_category: 'wellbeing',
+        }
+        expect(getAnalytics).toHaveBeenCalledExactlyOnceWith(query)
+
+        if (reason === 'manual') {
+          fireEvent.click(screen.getByRole('button', { name: 'Обновить' }))
+        } else if (reason === 'mutation') {
+          // Сигнал FE1 после успешной мутации; саму HTTP-операцию
+          // отдельно проверяют тесты EntryPage.
+          fireEvent.click(
+            screen.getByRole('button', { name: 'Mutation refresh' }),
+          )
+        } else {
+          Object.defineProperty(document, 'visibilityState', {
+            configurable: true, value: 'hidden',
+          })
+          fireEvent(document, new Event('visibilitychange'))
+          expect(getAnalytics).toHaveBeenCalledTimes(1)
+
+          Object.defineProperty(document, 'visibilityState', {
+            configurable: true, value: 'visible',
+          })
+          fireEvent(document, new Event('visibilitychange'))
+          fireEvent(window, new Event('focus'))
+        }
+
+        await waitFor(() => {
+          expect(getAnalytics).toHaveBeenCalledTimes(2)
+        })
+        expect(getAnalytics).toHaveBeenNthCalledWith(2, query)
+
+        // Обновление действительно ожидает новый ответ.
+        expect(screen.getByRole('heading', {
+          name: 'Загрузка аналитики',
+        })).toBeVisible()
+        expect(within(heartCard).queryByText('72')).not.toBeInTheDocument()
+
+        await act(async () => {
+          resolveRefresh(updated)
+        })
+
+        await waitFor(() => {
+          const currentCard = within(screen.getByRole('region', {
+            name: 'Аналитика пульса',
+          }))
+          expect(currentCard.getByText('81')).toBeVisible()
+          expect(currentCard.queryByText('72')).not.toBeInTheDocument()
+        })
+        expect(screen.queryByRole('heading', {
+          name: 'Загрузка аналитики',
+        })).not.toBeInTheDocument()
+        expect(screen.getByLabelText('Период')).toHaveValue('days_21')
+        expect(screen.getByLabelText('Категория')).toHaveValue('wellbeing')
+        expect(router.state.location.search).toBe(
+          '?period=days_21&checkin_category=wellbeing',
+        )
+        expect(getAnalytics).toHaveBeenCalledTimes(2)
+      } finally {
+        view.unmount()
+        router.dispose()
+        if (visibilityDescriptor) {
+          Object.defineProperty(document, 'visibilityState', visibilityDescriptor)
+        } else {
+          Reflect.deleteProperty(document, 'visibilityState')
+        }
+      }
+    },
+  )
+
 })
 
 function RefreshProbe() {
@@ -197,6 +338,13 @@ function renderRoute(path: string, withMutationButton = false) {
   })
 
   return render(
-    <AuthProvider><RefreshProvider>{withMutationButton && <MutationRefreshButton />}<RouterProvider router={router} /></RefreshProvider></AuthProvider>,
+    <AuthProvider>
+      <AuthGate>
+        <RefreshProvider>
+          {withMutationButton && <MutationRefreshButton />}
+          <RouterProvider router={router} />
+        </RefreshProvider>
+      </AuthGate>
+    </AuthProvider>,
   )
 }
