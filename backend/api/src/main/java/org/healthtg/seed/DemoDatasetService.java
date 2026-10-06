@@ -12,6 +12,8 @@ import org.healthtg.core.entry.SourceKind;
 import org.healthtg.core.entry.TelegramUpdateKey;
 import org.healthtg.user.UserAccount;
 import org.healthtg.user.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -23,6 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
+@ConditionalOnProperty(name = "health-tg.core.storage.enabled", matchIfMissing = true)
 public class DemoDatasetService {
     public static final String DATASET_MARKER = "be3-05-v1";
 
@@ -31,6 +34,7 @@ public class DemoDatasetService {
     private final MongoTemplate mongoTemplate;
     private final SyntheticDatasetGenerator generator;
 
+    @Autowired
     public DemoDatasetService(EntryCoreService entries, UserService users, MongoTemplate mongoTemplate) {
         this(entries, users, mongoTemplate, new SyntheticDatasetGenerator());
     }
@@ -69,7 +73,8 @@ public class DemoDatasetService {
 
     private void persist(OwnerContext owner, SyntheticProfile profile, LocalDate startDate, long seed,
                          String timezone, SyntheticEntry synthetic) {
-        String key = "be3-05:" + profile.code() + ":" + startDate + ":" + seed + ":" + synthetic.logicalKey();
+        String key = "be3-05:" + profile.code() + ":" + startDate + ":" + seed + ":" + timezone + ":"
+                + synthetic.logicalKey();
         TelegramUpdateKey updateKey = new TelegramUpdateKey(key, 0);
         String submissionId = key;
         Map<String, Object> sourceRef = Map.of(

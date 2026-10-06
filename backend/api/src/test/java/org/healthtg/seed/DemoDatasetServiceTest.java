@@ -69,6 +69,12 @@ class DemoDatasetServiceTest {
                 .filter(entry -> entry.status() == EntryStatus.CANCELLED).count());
         assertEquals(1, entries.entries.values().stream()
                 .filter(entry -> entry.status() == EntryStatus.CONFIRMED && entry.revision() == 3).count());
+        assertEquals(52, entries.entries.values().stream()
+                .filter(entry -> entry.ownerId().equals(incompleteId) && entry.status() == EntryStatus.CONFIRMED)
+                .count());
+        assertEquals(1, entries.entries.values().stream()
+                .filter(entry -> entry.ownerId().equals(incompleteId) && entry.status() == EntryStatus.CANCELLED)
+                .count());
     }
 
     @Test
