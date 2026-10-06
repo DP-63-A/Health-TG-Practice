@@ -351,6 +351,144 @@ def validate_expected_actions(manifest: Dict) -> None:
         sys.exit(1)
 
 
+def validate_manifest(manifest_path: str) -> None:
+    """
+    Wrapper for external validation calls.
+    
+    Raises ValidationError or other exceptions instead of calling sys.exit(),
+    so it can be used in tests with pytest.raises().
+    """
+    base_dir = Path(manifest_path).parent
+    manifest = load_manifest(Path(manifest_path))
+    schema = load_schema(base_dir / 'manifest-schema.json')
+    
+    # Validate schema — raises ValidationError directly
+    try:
+        validate(instance=manifest, schema=schema, format_checker=FormatChecker())
+    except ValidationError as e:
+        raise ValidationError(f"Schema validation failed: {e.message}") from e
+    
+    # Validate case uniqueness
+    ids: Set[str] = set()
+    paths: Set[str] = set()
+    for case in manifest.get('cases', []):
+        case_id = case.get('id')
+        case_path = case.get('path')
+        
+        if case_id in ids:
+            raise ValueError(f"Duplicate case ID: {case_id}")
+        ids.add(case_id)
+        
+        if case_path in paths:
+            raise ValueError(f"Duplicate case path: {case_path}")
+        paths.add(case_path)
+    
+    # Validate case count and coverage
+    cases = manifest.get('cases', [])
+    if len(cases) != 12:
+        raise ValueError(f"Expected 12 cases, got {len(cases)}")
+    
+    required_ids = {
+        'food': {'F01', 'F02', 'F03', 'F04'},
+        'health': {'H01', 'H02', 'H03', 'H04'},
+        'watch': {'W01', 'W02'},
+        'negative': {'N01', 'N02'}
+    }
+    
+    found_ids: Dict[str, Set[str]] = {
+        'food': set(),
+        'health': set(),
+        'watch': set(),
+        'negative': set()
+    }
+    
+    for case in cases:
+        category = case.get('category')
+        case_id = case.get('id')
+        if category in found_ids:
+            found_ids[category].add(case_id)
+    
+    for category, expected_ids in required_ids.items():
+        missing = expected_ids - found_ids[category]
+        if missing:
+            raise ValueError(f"Category '{category}' missing: {sorted(missing)}")
+    
+    # Validate file existence
+    for case in manifest.get('cases', []):
+        file_path = base_dir / case.get('path', '')
+        if not file_path.exists():
+            raise FileNotFoundError(f"File missing: {case['id']} -> {case['path']}")
+        if not file_path.is_file():
+            raise ValueError(f"Not a file: {case['id']} -> {case['path']}")
+    
+    # Validate images
+    for case in manifest.get('cases', []):
+        case_id = case.get('id')
+        file_path = base_dir / case.get('path', '')
+        
+        if not file_path.exists():
+            continue
+        
+        is_valid, error_msg = validate_image_format(file_path, case_id)
+        if not is_valid:
+            raise ValueError(f"{case_id}: {error_msg}")
+        
+        is_valid, error_msg = validate_image_integrity(file_path, case_id)
+        if not is_valid:
+            raise ValueError(f"{case_id}: {error_msg}")
+        
+        is_valid, error_msg = validate_image_size(file_path, case_id)
+        if not is_valid:
+            raise ValueError(f"{case_id}: {error_msg}")
+        
+        is_valid, error_msg = validate_image_resolution(file_path, case_id)
+        if not is_valid:
+            raise ValueError(f"{case_id}: {error_msg}")
+    
+    # Validate dates and times
+    dates = []
+    for case in manifest.get('cases', []):
+        case_id = case.get('id')
+        datetime_obj = case.get('datetime', {})
+        date_str = datetime_obj.get('date')
+        time_str = datetime_obj.get('time')
+        
+        if date_str:
+            try:
+                parsed_date = datetime.fromisoformat(date_str)
+                dates.append(parsed_date)
+            except ValueError:
+                raise ValueError(f"Invalid date format in {case_id}: {date_str}")
+        
+        if time_str:
+            try:
+                parts = time_str.split(':')
+                if len(parts) != 2:
+                    raise ValueError(f"Expected HH:MM format in {case_id}, got {time_str}")
+                hour, minute = int(parts[0]), int(parts[1])
+                if not (0 <= hour <= 23):
+                    raise ValueError(f"Hour out of range in {case_id}: {hour}")
+                if not (0 <= minute <= 59):
+                    raise ValueError(f"Minute out of range in {case_id}: {minute}")
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"Invalid time format in {case_id}: {time_str} ({e})")
+    
+    if dates:
+        min_date = min(dates)
+        max_date = max(dates)
+        date_range = (max_date - min_date).days
+        if date_range < 3:
+            raise ValueError(f"Date range too small: {date_range} days (expected at least 3)")
+    
+    # Validate expected_action values
+    valid_actions = {'draft', 'ask', 'refuse'}
+    for case in manifest.get('cases', []):
+        case_id = case.get('id')
+        action = case.get('expected_action')
+        if action not in valid_actions:
+            raise ValueError(f"{case_id}: invalid action '{action}' (expected one of {valid_actions})")
+
+
 def main():
     """Run all validations"""
     base_dir = Path(__file__).parent
@@ -403,19 +541,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-def validate_manifest(manifest_path: str) -> None:
-    """Wrapper for external validation calls"""
-    base_dir = Path(manifest_path).parent
-    manifest = load_manifest(Path(manifest_path))
-    schema = load_schema(base_dir / 'manifest-schema.json')
-    
-    validate_schema(manifest, schema)
-    validate_case_uniqueness(manifest)
-    validate_case_count_and_coverage(manifest)
-    validate_file_existence(base_dir, manifest)
-    validate_images(base_dir, manifest)
-    min_date, max_date = validate_dates(manifest)
-    if min_date and max_date:
-        validate_date_coverage(min_date, max_date)
-    validate_expected_actions(manifest)
