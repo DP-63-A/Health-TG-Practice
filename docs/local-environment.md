@@ -89,5 +89,53 @@ Removing containers without removing persistent data:
 docker-compose down
 ```
 
-Destructive reset is intentionally not part of the ordinary workflow. The final
-reset command belongs to the BE3-05 integration and must be documented separately.
+## BE3-05 synthetic demo dataset
+
+The command-line tool creates three synthetic 21-day profiles in MongoDB:
+`regular`, `irregular`, and `incomplete`. Each has meals, device metrics, and
+quick notes; the incomplete profile has an intentionally empty day. The data is
+fictional and is not a model of real health. It includes local morning/evening
+times, gaps, varied values, a repeated delivery, a corrected draft, and a
+cancelled draft. Metrics retain the configured account's IANA timezone, units,
+status, `seed` source, and field origins. Existing entry APIs expose confirmed
+records to the authenticated owner; drafts and cancelled entries remain subject
+to the normal API status rules.
+
+Use a dedicated local database. In `.env`, set `MONGODB_URI` to
+`mongodb://localhost:27017/health_tg_demo`, set `HEALTH_TG_DEMO=true`, and provide
+the existing internal user UUIDs in `BE3_05_REGULAR_USER_ID`,
+`BE3_05_IRREGULAR_USER_ID`, and `BE3_05_INCOMPLETE_USER_ID`. These values are
+user document IDs, not Telegram IDs. Keep actual Telegram authentication and
+allow-list configuration unchanged; the seed tool does not create accounts or
+replace live Telegram verification. Use three test accounts with access to the
+demo database.
+
+From PowerShell at the repository root:
+
+```powershell
+.\scripts\demo-data.ps1 -Command seed
+.\scripts\demo-data.ps1 -Command seed -StartDate 2026-09-01 -Seed 20260505
+```
+
+The default seed is `20260505` and the default start date is `2026-09-01`.
+The seed and start date are recorded in stable internal update keys: rerunning
+with the same parameters verifies the same logical records without duplicates.
+Different parameters intentionally identify a different dataset and can add
+records; reset first if replacing a dataset. Run the API against the same
+`health_tg_demo` URI and authenticate normally to read entries through
+`GET /api/v1/entries`. There is no HTTP seed route or profile-switching option.
+
+Reset only the BE3-05-tagged entries in the fixed local demo database:
+
+```powershell
+.\scripts\demo-data.ps1 -Command reset
+```
+
+Both commands refuse to run unless `HEALTH_TG_DEMO=true` and `MONGODB_URI`
+targets the fixed `health_tg_demo` database on a loopback host. Reset never drops
+a database or collection; it removes only `seed` entries bearing the BE3-05
+dataset marker and one of the three fixed profile names. It does not remove
+users, sessions, other seed data, or files. No educational file-storage
+implementation or BE1-05 cleanup rule is present in this checkout, so file
+cleanup is deliberately not attempted. Never point this command at the ordinary
+`health_tg` database.
