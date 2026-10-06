@@ -1,0 +1,351 @@
+.nutrition-chart {
+  --nutrition-chart-color: #e8a96a;
+  --nutrition-chart-soft:
+    rgb(232 169 106 / 16%);
+
+  min-width: 0;
+  margin-top: 20px;
+  padding: 20px;
+  box-sizing: border-box;
+
+  border-radius: 20px;
+
+  color: var(
+    --tg-theme-text-color,
+    #222
+  );
+
+  background: var(
+    --tg-theme-secondary-bg-color,
+    #f5f5f5
+  );
+}
+
+/* Header */
+
+.nutrition-chart__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  margin-bottom: 20px;
+}
+
+.nutrition-chart h2 {
+  margin: 0 0 6px;
+
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.nutrition-chart__description {
+  margin: 0;
+
+  font-size: 13px;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.nutrition-chart__icon {
+  display: grid;
+  place-items: center;
+
+  flex: 0 0 auto;
+
+  width: 42px;
+  height: 42px;
+
+  border-radius: 14px;
+
+  color: var(--nutrition-chart-color);
+  background: var(--nutrition-chart-soft);
+}
+
+/* Unit */
+
+.nutrition-chart__unit {
+  margin-bottom: 4px;
+
+  font-size: 11px;
+  font-weight: 500;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+/* Chart */
+
+.nutrition-chart__plot {
+  width: 100%;
+  min-width: 0;
+  height: 240px;
+}
+
+/*
+ * Recharts SVG inherits the card text color.
+ * Axis labels stay less prominent than the data.
+ */
+
+.nutrition-chart__plot
+  .recharts-cartesian-axis-tick {
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.nutrition-chart__plot
+  .recharts-bar-rectangle {
+  cursor: pointer;
+}
+
+/* Tooltip */
+
+.nutrition-chart__tooltip {
+  display: grid;
+  gap: 8px;
+
+  min-width: 110px;
+  padding: 10px 12px;
+
+  border: 0;
+  border-radius: 12px;
+
+  color: var(
+    --tg-theme-text-color,
+    #222
+  );
+
+  background: var(
+    --tg-theme-bg-color,
+    #fff
+  );
+
+  box-shadow:
+    0 8px 24px rgb(0 0 0 / 10%);
+
+  pointer-events: none;
+}
+
+.nutrition-chart__tooltip-date {
+  font-size: 12px;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.nutrition-chart__tooltip-value {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  font-size: 14px;
+}
+
+.nutrition-chart__tooltip-dot {
+  width: 8px;
+  height: 8px;
+
+  border-radius: 50%;
+
+  background:
+    var(--nutrition-chart-color);
+}
+
+/* Interaction hint */
+
+.nutrition-chart__hint {
+  margin: 8px 0 0;
+
+  text-align: center;
+
+  font-size: 11px;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+/* Empty state */
+
+.nutrition-chart__empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  min-height: 90px;
+  padding: 14px;
+
+  border-radius: 14px;
+
+  background: var(
+    --tg-theme-bg-color,
+    #fff
+  );
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.nutrition-chart__empty p {
+  margin: 0;
+
+  font-size: 13px;
+}
+
+.nutrition-chart__empty-icon {
+  display: grid;
+  place-items: center;
+
+  flex: 0 0 auto;
+
+  width: 32px;
+  height: 32px;
+
+  border-radius: 10px;
+
+  color: var(--nutrition-chart-color);
+  background: var(--nutrition-chart-soft);
+}
+
+/* Details */
+
+.nutrition-chart__details {
+  margin-top: 16px;
+
+  border-top: 1px solid
+    rgb(127 127 127 / 14%);
+}
+
+.nutrition-chart__details summary {
+  padding: 14px 0 6px;
+
+  cursor: pointer;
+
+  font-size: 13px;
+  font-weight: 500;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.nutrition-chart__table-wrapper {
+  overflow-x: auto;
+}
+
+/* Table */
+
+.nutrition-chart table {
+  width: 100%;
+
+  margin-top: 8px;
+
+  table-layout: fixed;
+  border-collapse: collapse;
+
+  font-size: 13px;
+}
+
+.nutrition-chart caption {
+  padding: 6px 0 10px;
+
+  text-align: left;
+
+  font-size: 11px;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.nutrition-chart th,
+.nutrition-chart td {
+  padding: 10px 6px;
+
+  text-align: left;
+  overflow-wrap: anywhere;
+
+  border-bottom: 1px solid
+    rgb(127 127 127 / 10%);
+}
+
+.nutrition-chart thead th {
+  font-size: 11px;
+  font-weight: 500;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.nutrition-chart tbody th {
+  font-weight: normal;
+}
+
+.nutrition-chart button {
+  min-height: 44px;
+
+  padding: 8px 4px;
+
+  border: 0;
+
+  background: transparent;
+  color: inherit;
+
+  font: inherit;
+
+  text-decoration: underline;
+  text-decoration-color:
+    var(--nutrition-chart-color);
+  text-underline-offset: 3px;
+
+  cursor: pointer;
+}
+
+.nutrition-chart button:focus-visible,
+.nutrition-chart summary:focus-visible {
+  outline: 2px solid
+    var(--nutrition-chart-color);
+
+  outline-offset: 3px;
+}
+
+/* Mobile */
+
+@media (max-width: 360px) {
+  .nutrition-chart {
+    padding: 14px;
+  }
+
+  .nutrition-chart__header {
+    margin-bottom: 16px;
+  }
+
+  .nutrition-chart__icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .nutrition-chart__plot {
+    height: 215px;
+  }
+
+  .nutrition-chart__hint {
+    padding: 0 8px;
+  }
+}

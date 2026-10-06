@@ -1,4 +1,3 @@
-
 import type { AnalyticsResponse } from '../../overview/analytics.types'
 
 import './SleepCard.css'
@@ -66,22 +65,46 @@ export function SleepCard({
       className="sleep-card"
       aria-label="Аналитика сна"
     >
-      <h2 className="sleep-card__title">
-        Сон
-      </h2>
+      <div className="sleep-card__header">
+        <h2 className="sleep-card__title">
+          Сон
+        </h2>
 
-      <p className="sleep-card__label">
-        Всего за период
-      </p>
+        <div
+          className="sleep-card__icon"
+          aria-hidden="true"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7Z" />
+          </svg>
+        </div>
+      </div>
 
-      <p className="sleep-card__total">
-        {formatSleep(sleep?.total_minutes)}
-      </p>
+      <div className="sleep-card__main">
+        <p className="sleep-card__label">
+          Всего за период
+        </p>
+
+        <p className="sleep-card__total">
+          {formatSleep(
+            sleep?.total_minutes,
+          )}
+        </p>
+      </div>
 
       <div className="sleep-card__details">
-        <div>
+        <div className="sleep-card__stat">
           <span className="sleep-card__label">
-            Среднее за день с данными
+            Среднее
           </span>
 
           <strong>
@@ -89,9 +112,13 @@ export function SleepCard({
               sleep?.average_minutes,
             )}
           </strong>
+
+          <span className="sleep-card__hint">
+            за день с данными
+          </span>
         </div>
 
-        <div>
+        <div className="sleep-card__stat">
           <span className="sleep-card__label">
             Дней с данными
           </span>
@@ -101,16 +128,46 @@ export function SleepCard({
               sleep?.days_with_data,
             )}
           </strong>
+
+          <span className="sleep-card__hint">
+            в выбранном периоде
+          </span>
         </div>
       </div>
 
-      <p className="sleep-card__period">
-        Период:{' '}
+      <div className="sleep-card__period">
+        <span
+          className="sleep-card__calendar"
+          aria-hidden="true"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="15"
+            height="15"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect
+              x="3"
+              y="5"
+              width="18"
+              height="16"
+              rx="2"
+            />
 
-        {period
-          ? `${formatDate(period.from)} — ${formatDate(period.to)}`
-          : '—'}
-      </p>
+            <path d="M16 3v4M8 3v4M3 10h18" />
+          </svg>
+        </span>
+
+        <span>
+          {period
+            ? `${formatDate(period.from)} — ${formatDate(period.to)}`
+            : '—'}
+        </span>
+      </div>
     </section>
   )
 }

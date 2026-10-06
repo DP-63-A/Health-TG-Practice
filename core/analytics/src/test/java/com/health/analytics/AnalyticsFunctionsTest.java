@@ -60,9 +60,9 @@ class AnalyticsFunctionsTest {
     @Test void dailyTotalsDeduplicateAndTieBreak() {
         Instant occurred = Instant.parse("2026-09-19T10:00:00Z");
         Entry old = new Entry("a", "metrics", Status.CONFIRMED, occurred, Instant.parse("2026-09-19T10:01:00Z"), 1L,
-                null, null, Metric.STEPS, d("3000"), null, null, null, null, null, (Basis) null);
+                LocalDate.of(2026, 9, 19), null, Metric.STEPS, d("3000"), null, null, null, null, null, (Basis) null);
         Entry latest = new Entry("b", "metrics", Status.CONFIRMED, occurred, Instant.parse("2026-09-19T10:02:00Z"), 2L,
-                null, null, Metric.STEPS, d("5000"), null, null, null, null, null, (Basis) null);
+                LocalDate.of(2026, 9, 19), null, Metric.STEPS, d("5000"), null, null, null, null, null, (Basis) null);
         DailyResult result = dailyMetric(List.of(latest, old), Metric.STEPS, WEEK);
         assertEquals(d("5000"), result.aggregate().total()); assertEquals(1, result.aggregate().daysWithData());
     }
@@ -94,7 +94,7 @@ class AnalyticsFunctionsTest {
             occurredAt,
             updatedAt,
             1L,
-            null,
+            LocalDate.of(2026, 9, 19),
             null,
             Metric.STEPS,
             d("3000"),
@@ -113,7 +113,7 @@ class AnalyticsFunctionsTest {
             occurredAt,
             updatedAt,
             2L,
-            null,
+            LocalDate.of(2026, 9, 19),
             null,
             Metric.STEPS,
             d("5000"),
@@ -304,7 +304,7 @@ class AnalyticsFunctionsTest {
             beforeWarsawDay,
             null,
             1L,
-            null,
+            LocalDate.of(2026, 9, 18),
             null,
             Metric.STEPS,
             d("100"),
@@ -323,7 +323,7 @@ class AnalyticsFunctionsTest {
             atWarsawDay,
             null,
             2L,
-            null,
+            LocalDate.of(2026, 9, 19),
             null,
             Metric.STEPS,
             d("200"),
@@ -684,7 +684,7 @@ class AnalyticsFunctionsTest {
             Instant.parse("2026-09-19T10:00:00Z"),
             Instant.parse("2026-09-19T10:01:00Z"),
             1L,
-            null,
+            LocalDate.of(2026, 9, 19),
             null,
             Metric.STEPS,
             d("3000"),
@@ -703,7 +703,7 @@ class AnalyticsFunctionsTest {
             Instant.parse("2026-09-19T18:00:00Z"),
             Instant.parse("2026-09-19T18:01:00Z"),
             2L,
-            null,
+            LocalDate.of(2026, 9, 19),
             null,
             Metric.STEPS,
             d("5000"),
@@ -1054,7 +1054,7 @@ class AnalyticsFunctionsTest {
             Instant.parse("2026-09-13T10:00:00Z"),
             null,
             1L,
-            null,
+            LocalDate.of(2026, 9, 13),
             null,
             Metric.STEPS,
             d("1"),
@@ -1073,7 +1073,7 @@ class AnalyticsFunctionsTest {
             Instant.parse("2026-09-14T10:00:00Z"),
             null,
             1L,
-            null,
+            LocalDate.of(2026, 9, 14),
             null,
             Metric.STEPS,
             d("0"),
@@ -1092,7 +1092,7 @@ class AnalyticsFunctionsTest {
             Instant.parse("2026-09-15T10:00:00Z"),
             null,
             1L,
-            null,
+            LocalDate.of(2026, 9, 15),
             null,
             Metric.STEPS,
             d("0"),

@@ -4,6 +4,8 @@
 
 ## Принятые части решений
 
+- **D2 / дневные шаги — уточнение 2026-10-05:** для `steps` календарный день отбора и группировки — `payload.local_date`; `occurred_at` хранит полный момент сообщения итога и используется при выборе последнего итога за этот день. Исторический вариант D2 ниже не применяется к шагам. Остальные типы записей не меняются. См. [правила и ограничения старых данных](rules/runtime-invariants.md#дневные-итоги-шагов).
+
 - **D9 / timezone — ACCEPTED 2026-09-21 (BE1, FE2):** `timezone` является необязательным query-параметром `GET /analytics`; при отсутствии сервер использует `Europe/Warsaw`. FE2 передаёт timezone явно. Подтверждение получено в обсуждении команды; финальная схема ответа `/analytics` остаётся `PROPOSED` до завершения review BE3-01.
 
 Фиксированные ТЗ (не обсуждаются): `Europe/Warsaw` по умолчанию; initData ≤ 15 мин; сессия 60 мин; статусы `draft|confirmed|cancelled|deleted`; типы `meal|metrics|checkin|note`; источники `text|food_photo|health_screenshot|watch_photo|quick_checkin|seed`; origins `reported|extracted|estimated|computed`; префикс `/api/v1`; без публичного create entry.
