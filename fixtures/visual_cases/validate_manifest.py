@@ -403,3 +403,19 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+def validate_manifest(manifest_path: str) -> None:
+    """Wrapper for external validation calls"""
+    base_dir = Path(manifest_path).parent
+    manifest = load_manifest(Path(manifest_path))
+    schema = load_schema(base_dir / 'manifest-schema.json')
+    
+    validate_schema(manifest, schema)
+    validate_case_uniqueness(manifest)
+    validate_case_count_and_coverage(manifest)
+    validate_file_existence(base_dir, manifest)
+    validate_images(base_dir, manifest)
+    min_date, max_date = validate_dates(manifest)
+    if min_date and max_date:
+        validate_date_coverage(min_date, max_date)
+    validate_expected_actions(manifest)
