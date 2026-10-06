@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -25,7 +26,17 @@ class SyntheticDatasetGeneratorTest {
 
         assertEquals(List.of(SyntheticProfile.REGULAR, SyntheticProfile.IRREGULAR, SyntheticProfile.INCOMPLETE),
                 generated.stream().map(SyntheticDatasetGenerator.SyntheticProfileData::profile).toList());
-        for (var profile : generated) {
+        assertEquals(List.of(147, 80, 53),
+                generated.stream().map(profile -> profile.entries().size()).toList());
+        List<Map<EntryType, Long>> expectedTypeCounts = List.of(
+                Map.of(EntryType.MEAL, 42L, EntryType.METRICS, 63L, EntryType.NOTE, 21L,
+                        EntryType.CHECKIN, 21L),
+                Map.of(EntryType.MEAL, 33L, EntryType.METRICS, 34L, EntryType.NOTE, 7L,
+                        EntryType.CHECKIN, 6L),
+                Map.of(EntryType.MEAL, 19L, EntryType.METRICS, 26L, EntryType.NOTE, 4L,
+                        EntryType.CHECKIN, 4L));
+        for (int index = 0; index < generated.size(); index++) {
+            var profile = generated.get(index);
             assertEquals(21, profile.days().size());
             assertEquals(startDate, profile.days().getFirst());
             assertEquals(startDate.plusDays(20), profile.days().getLast());
@@ -35,6 +46,8 @@ class SyntheticDatasetGeneratorTest {
             assertTrue(profile.entries().stream().allMatch(entry -> entry.occurredAt().getZone().equals(timezone)));
             assertTrue(profile.entries().stream().anyMatch(entry -> entry.occurredAt().getHour() < 12));
             assertTrue(profile.entries().stream().anyMatch(entry -> entry.occurredAt().getHour() >= 18));
+            assertEquals(expectedTypeCounts.get(index), profile.entries().stream()
+                    .collect(Collectors.groupingBy(SyntheticEntry::type, Collectors.counting())));
         }
 
         var incomplete = generated.get(2);

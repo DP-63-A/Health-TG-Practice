@@ -123,7 +123,20 @@ with the same parameters verifies the same logical records without duplicates.
 Different parameters intentionally identify a different dataset and can add
 records; reset first if replacing a dataset. Run the API against the same
 `health_tg_demo` URI and authenticate normally to read entries through
-`GET /api/v1/entries`. There is no HTTP seed route or profile-switching option.
+`GET /api/v1/entries` (`from`, `to`, `limit=100`, and normal cursor pagination).
+There is no HTTP seed route or profile-switching option.
+
+For the default seed, the independent BE3-04/07 entry-count controls are:
+
+| Profile | Meals | Metrics | Notes | Check-ins | Confirmed API entries | Other |
+|---|---:|---:|---:|---:|---:|---|
+| regular | 42 | 63 | 21 | 21 | 147 | one meal delivery is repeated |
+| irregular | 33 | 34 | 7 | 6 | 80 | intentional meal/metric/note gaps |
+| incomplete | 19 | 26 | 4 | 4 | 52 | one additional cancelled check-in; day 11 is empty |
+
+These values count logical records, not delivery attempts. Incomplete's
+cancelled check-in is excluded from the confirmed API count. The empty day is
+the eleventh local date of the selected start date (2026-09-11 by default).
 
 Reset only the BE3-05-tagged entries in the fixed local demo database:
 

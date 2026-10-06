@@ -20,7 +20,7 @@ public final class DemoDataCommand {
 
         try (ConfigurableApplicationContext context = new SpringApplicationBuilder(HealthTgApplication.class)
                 .web(WebApplicationType.NONE)
-                .run()) {
+                .run("--spring.data.mongodb.uri=" + mongoUri)) {
             DemoDatasetService service = context.getBean(DemoDatasetService.class);
             if (command.action().equals("seed")) {
                 int entries = service.seed(environment.get("HEALTH_TG_DEMO"), mongoUri,
