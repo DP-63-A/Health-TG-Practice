@@ -196,7 +196,7 @@
 //     expect(getSpy).toHaveBeenCalledTimes(1)
 
 //     expect(getSpy).toHaveBeenCalledWith(
-//       '/api/v1/analytics',
+//       '/analytics',
 //       {
 //         query: {
 //           period: 'days_7',
@@ -578,7 +578,7 @@ import { describe, expect, it, vi } from 'vitest'
       await getAnalytics(analyticsQuery, client)
 
       expect(getSpy).toHaveBeenCalledTimes(1)
-      expect(getSpy).toHaveBeenCalledWith('/api/v1/analytics', {
+      expect(getSpy).toHaveBeenCalledWith('/analytics', {
  query: analyticsQuery,
       })
     })

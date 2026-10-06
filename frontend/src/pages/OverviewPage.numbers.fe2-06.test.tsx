@@ -132,7 +132,7 @@ async function renderResponse(fixture: ContractFixture) {
   })
 
   expect(get).toHaveBeenCalledExactlyOnceWith(
-    '/api/v1/analytics',
+    '/analytics',
     {
       query: {
         period: data.period.kind,
