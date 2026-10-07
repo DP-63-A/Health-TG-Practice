@@ -280,8 +280,8 @@ public class AnalyticsService {
     }
 
     /**
-     * Metric value usable by analytics. Steps and sleep minutes are treated as whole, non-negative numbers
-     * within a bounded range; fractional or malformed values are ignored instead of failing the response.
+     * Metric value usable by analytics. Steps and sleep minutes are treated as non-negative numbers
+     * within a bounded range; malformed or out-of-bound values are ignored instead of failing the response.
      */
     private static BigDecimal metricValue(Entry entry) {
         BigDecimal value;
@@ -292,8 +292,7 @@ public class AnalyticsService {
         }
         if (value == null || entry.type() != EntryType.METRICS) return value;
         if (!isMetric(entry, Metric.STEPS) && !isMetric(entry, Metric.SLEEP_DURATION_MIN)) return value;
-        if (value.signum() < 0 || value.stripTrailingZeros().scale() > 0
-                || value.compareTo(MAX_WHOLE_METRIC) > 0) {
+        if (value.signum() < 0 || value.compareTo(MAX_WHOLE_METRIC) > 0) {
             return null;
         }
         return value;
