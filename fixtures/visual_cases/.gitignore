@@ -1,0 +1,29 @@
+# Ignore actual image files (they will be added via LFS or separately)
+*.jpg
+*.jpeg
+*.png
+*.gif
+!.gitkeep
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test artifacts
+.pytest_cache/
+.coverage
+*.log
