@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -37,7 +38,14 @@ public final class AnalyticsFunctions {
     public record Entry(String id, String type, Status status, Instant occurredAt, Instant updatedAt,
                         Long revision, LocalDate localDate, LocalDate wakeDate, Metric metric,
                         BigDecimal value, Qualifier qualifier, CheckinCategory category, Integer score,
-                        BigDecimal massGrams, Nutrients nutrients, Basis basis) {
+                        BigDecimal massGrams, Nutrients nutrients, Basis basis, LocalTime localTime) {
+        public Entry(String id, String type, Status status, Instant occurredAt, Instant updatedAt,
+                     Long revision, LocalDate localDate, LocalDate wakeDate, Metric metric,
+                     BigDecimal value, Qualifier qualifier, CheckinCategory category, Integer score,
+                     BigDecimal massGrams, Nutrients nutrients, Basis basis) {
+            this(id, type, status, occurredAt, updatedAt, revision, localDate, wakeDate, metric,
+                    value, qualifier, category, score, massGrams, nutrients, basis, null);
+        }
         public Entry {
             Objects.requireNonNull(id, "id");
             Objects.requireNonNull(status, "status");
@@ -62,7 +70,9 @@ public final class AnalyticsFunctions {
     public record NutritionResult(BigDecimal energyKcal, BigDecimal proteinG, BigDecimal fatG,
                                   BigDecimal carbsG, int countedMeals, boolean incomplete) {}
     public record AggregateResult(BigDecimal total, BigDecimal average, int daysWithData) {}
-    public record HeartRateResult(BigDecimal value, Instant occurredAt, Qualifier qualifier, String entryId) {}
+    /** occurredAt is the original report instant, never the measurement time. */
+    public record HeartRateResult(BigDecimal value, Instant occurredAt, Qualifier qualifier, String entryId,
+                                  LocalDate localDate, LocalTime localTime) {}
     public record RatingPoint(LocalDate date, Integer value, String entryId) {}
     public record DailyResult(Map<LocalDate, BigDecimal> values, AggregateResult aggregate) {}
 
@@ -314,14 +324,16 @@ public final class AnalyticsFunctions {
             .filter(entry -> entry.value() != null)
             .filter(entry -> entry.occurredAt() != null)
             .filter(entry -> period.contains(
-                localDate(entry.occurredAt(), period.zone())
+                entry.localDate()
             ))
-            .max(byOccurredUpdatedAndId())
+            .max(Comparator.comparing(Entry::localDate).thenComparing(byOccurredUpdatedAndId()))
             .map(entry -> new HeartRateResult(
                 entry.value(),
                 entry.occurredAt(),
                 entry.qualifier(),
-                entry.id()
+                entry.id(),
+                entry.localDate(),
+                entry.localTime()
             ));
     }
 

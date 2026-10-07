@@ -36,6 +36,7 @@ tasks.test {
     // Repo contracts/ is two levels up from this module when run from tools/contract-validator,
     // or via root include. Pass absolute path for stability.
     val contractsDir = rootProject.projectDir.resolve("contracts")
+    inputs.dir(contractsDir).withPathSensitivity(PathSensitivity.RELATIVE)
     systemProperty("contracts.root", contractsDir.absolutePath)
     workingDir = rootProject.projectDir
 }

@@ -8,7 +8,7 @@
     {"id":"22222222-2222-4222-8222-222222222215","type":"metrics","status":"confirmed","code":"steps","value":5000,"occurred_at":"2026-09-19T20:00:00+02:00","updated_at":"2026-09-19T20:01:00+02:00"},
     {"id":"22222222-2222-4222-8222-222222222216","type":"metrics","status":"confirmed","code":"sleep_duration_min","value":420,"wake_date":"2026-09-14"},
     {"id":"22222222-2222-4222-8222-222222222217","type":"metrics","status":"confirmed","code":"sleep_duration_min","value":480,"wake_date":"2026-09-16"},
-    {"id":"22222222-2222-4222-8222-222222222221","type":"metrics","status":"confirmed","code":"heart_rate","value":72,"occurred_at":"2026-09-19T10:15:00Z","qualifier":"resting"},
+    {"id":"22222222-2222-4222-8222-222222222221","type":"metrics","status":"confirmed","code":"heart_rate","value":72,"local_date":"2026-09-19","local_time":null,"occurred_at":"2026-09-19T10:15:00Z","qualifier":"resting"},
     {"id":"22222222-2222-4222-8222-222222222222","type":"checkin","status":"confirmed","category":"sleep_quality","score":4,"local_date":"2026-09-19"},
     {"id":"22222222-2222-4222-8222-222222222223","type":"checkin","status":"confirmed","category":"digestion_comfort","score":5,"local_date":"2026-09-19"},
     {"id":"22222222-2222-4222-8222-222222222224","type":"checkin","status":"confirmed","category":"wellbeing","score":3,"local_date":"2026-09-19"},

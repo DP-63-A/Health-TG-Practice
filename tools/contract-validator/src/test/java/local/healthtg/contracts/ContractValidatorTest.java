@@ -73,6 +73,26 @@ class ContractValidatorTest {
                 () -> String.join("\n", failures));
     }
 
+    @Test void negativePulseViolatesSchemaWhileZeroIsValid() throws Exception {
+        Path contracts = copyContracts();
+        Path path = contracts.resolve("examples/valid/entry-metrics.json");
+        // Use a complete existing Entry so this test isolates the metric value boundary.
+        Path source = contracts.resolve("examples/valid/entry-meal.json");
+        ObjectNode entry = (ObjectNode) JSON.readTree(source.toFile());
+        entry.put("type", "metrics");
+        ObjectNode payload = entry.putObject("payload");
+        payload.put("code", "heart_rate"); payload.put("value", 0);
+        payload.put("unit", "bpm"); payload.put("local_date", "2026-10-06");
+        JSON.writeValue(path.toFile(), entry);
+        assertTrue(new ContractValidator(contracts).validateAll().isEmpty());
+        for (String negative : java.util.List.of("-1", "-0.00001")) {
+            payload.put("value", new java.math.BigDecimal(negative));
+            JSON.writeValue(path.toFile(), entry);
+            var failures = new ContractValidator(contracts).validateAll();
+            assertTrue(failures.stream().anyMatch(f -> f.contains("entry-metrics.json")), () -> negative + ": " + String.join("\n", failures));
+        }
+    }
+
     private Path copyContracts() throws IOException {
         Path source = resolveContractsRoot();
         Path target = tempDir.resolve("contracts");

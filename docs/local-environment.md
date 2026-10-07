@@ -27,8 +27,8 @@ docker compose ps
 
 Only frontend is published, on loopback port `FRONTEND_PORT` (8088 by default).
 MongoDB, API and the file volume have no host port or bind mount. Nginx forwards
-`/api/` to the private API service. The file volume is reserved for BE1-05 and is
-not a public file server.
+`/api/` to the private API service. The `file-data` volume is the private BE1-05
+storage shared by API and bot; it is not a public file server.
 
 Readiness check (API and MongoDB only):
 
@@ -140,10 +140,10 @@ available for a dedicated loopback MongoDB and still requires
 `HEALTH_TG_DEMO=true` with a matching `MONGODB_URI`. Reset never drops
 a database or collection; it removes only `seed` entries bearing the BE3-05
 dataset marker and one of the three fixed profile names. It does not remove
-users, sessions, other seed data, or files. No educational file-storage
-implementation or BE1-05 cleanup rule is present in this checkout, so file
-cleanup is deliberately not attempted. Never point this command at the ordinary
-`health_tg` database.
+users, sessions, other seed data, file metadata or physical files. BE1-05
+originals belong to ordinary user entries and the retention policy does not
+permit this dataset-only reset to delete them. Never point this command at the
+ordinary `health_tg` database.
 
 The seed service is covered by a Testcontainers integration scenario against
 MongoDB. It verifies first-seed count and content, repeat-seed idempotency,

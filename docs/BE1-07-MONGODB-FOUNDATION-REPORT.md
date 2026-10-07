@@ -15,7 +15,8 @@ Implemented:
 - safe `.env.example` and required-variable diagnostics;
 - separate non-root API and bot runtime images;
 - frontend live build served by Nginx with an API reverse proxy;
-- GitHub Actions jobs for backend, frontend, contracts and Compose images;
+- GitHub Actions jobs for backend, frontend, contracts, Compose images, API
+  readiness and private file-volume recreation;
 - Java Checkstyle, frontend lint/typecheck/tests/build and contract validation;
 - full build, run, restart, stop and diagnostic instructions.
 
@@ -70,19 +71,19 @@ Verified on 2026-09-23:
 
 | BE1-07 criterion | Status | Evidence |
 |---|---|---|
-| AC1 Compose starts agreed components | Implemented, verification pending | Compose defines MongoDB, API, bot and frontend using one database |
-| AC2 persistent private storage | Implemented, restart proof pending | Named MongoDB/file volumes; neither is published to the host |
+| AC1 Compose starts agreed components | Implemented | Compose defines MongoDB, API, bot and frontend using one database; CI starts MongoDB, API and frontend without external Telegram calls |
+| AC2 persistent private storage | Implemented | Named MongoDB/file volumes; neither is published to the host; CI recreates API and verifies the file probe survives |
 | AC3 safe environment configuration | Implemented | Required substitutions, ignored `.env`, safe example and diagnostics |
-| AC4 CI | Implemented | Backend style/tests/JARs, frontend checks, contracts and image builds |
+| AC4 CI | Implemented | Backend style/tests/JARs, frontend checks, contracts, image builds, readiness and volume smoke checks |
 | AC5 explicit modes and no paid calls | Implemented | CI uses fixtures/placeholders; Compose frontend is explicitly `live` |
-| AC6 clean reproduction and seed/reset | Blocked externally | Requires BE3-05 commands, HTTPS stand and another participant |
+| AC6 clean reproduction and seed/reset | Implemented, external reproduction pending | BE3-05 one-shot commands and complete local instructions are present; another participant must record the clean run |
 | AC7 configuration/log audit | Partial | Secret-safe defaults are configured; human log audit still required |
 
 ## External acceptance work
 
 - run the full Compose stack with authorized credentials and agreed HTTPS;
-- verify ordinary restart after a database record and, after BE1-05, a file upload;
-- connect and execute the protected BE3-05 seed/reset commands when delivered;
+- verify an actual authorized BE1-05 upload/download after an ordinary restart;
+- execute the protected BE3-05 one-shot seed/reset commands in the training environment;
 - reproduce the README from a clean environment by another participant;
 - record green GitHub Actions evidence for the final reviewed commit;
 - inspect runtime logs for absence of secrets and user health content.

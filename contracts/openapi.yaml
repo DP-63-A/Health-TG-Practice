@@ -93,8 +93,8 @@ paths:
       description: |
         Default `status=confirmed` for diary. Use `status=draft` for review screen.
         `from`/`to` are inclusive local calendar dates (PROPOSED D2).
-        For steps, these bounds apply to payload.local_date, independently of occurred_at.
-        Steps with unknown local_date are excluded when a date bound is present.
+        For steps, sleep_duration_min and heart_rate, these bounds apply to payload.local_date, independently of occurred_at.
+        Metrics with unknown local_date are excluded when a date bound is present.
         Pagination: `limit` + `cursor` (PROPOSED D1).
       parameters:
         - name: from
@@ -366,6 +366,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
   /healthz:
     get:

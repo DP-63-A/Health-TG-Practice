@@ -22,6 +22,21 @@ import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class TelegramAdapterTest {
+    @Test void draftButtonOpensWebAppInsteadOfCallback() throws Exception {
+        BotFlow flow = mock(BotFlow.class);
+        when(flow.handleMessage(any())).thenReturn(List.of(new BotAction.SendInlineMessage(1001L,
+                "Печёное яблоко 🍎", List.of(List.of(new BotAction.InlineButton("Открыть в Mini App", null,
+                URI.create("https://example.test/diary/123")))))));
+        new TelegramAdapter(client, new BotHandler(new BotSettings(Set.of(1001L), "test_bot", null), id -> "", flow))
+                .accept(message("яблоко"));
+        var sent = ArgumentCaptor.forClass(SendMessage.class);
+        verify(client).execute(sent.capture());
+        var keyboard = (org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup) sent.getValue().getReplyMarkup();
+        var button = keyboard.getKeyboard().getFirst().getFirst();
+        assertNull(button.getCallbackData());
+        assertEquals("https://example.test/diary/123", button.getWebApp().getUrl());
+        assertEquals("Печёное яблоко 🍎", sent.getValue().getText());
+    }
     @Test void forwardsOriginalMessageTimestampWithoutInventingMissingDate() throws Exception {
         BotFlow flow = mock(BotFlow.class);
         when(flow.handleMessage(any())).thenReturn(List.of());

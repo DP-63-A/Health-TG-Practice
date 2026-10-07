@@ -10,6 +10,100 @@ import { RefreshProvider, useRefreshSubscription } from '../refresh/RefreshProvi
 import { appRoutes } from '../router/router'
 
 describe('FE1-04 entry review and correction', () => {
+  it.each(['-1', '-0.00001'])('rejects negative pulse %s without sending a patch and accepts an explicit zero', async (negative) => {
+    const entry = entryFixture({ type: 'metrics', status: 'draft', payload: { code: 'heart_rate', value: 72 } })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch').mockResolvedValue({ ...entry, revision: 2, payload: { code: 'heart_rate', value: 0 } })
+    renderRoute('/diary/' + entry.id)
+    const value = await screen.findByLabelText(/Значение/)
+    fireEvent.change(value, { target: { value: negative } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByText(/не может быть отрицательным по контракту/)).toBeInTheDocument()
+    expect(patch).not.toHaveBeenCalled()
+    expect(value).toHaveAttribute('aria-invalid', 'true')
+    expect(value).toHaveFocus()
+    fireEvent.change(value, { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(patch).toHaveBeenCalledWith(entry.id, { expected_revision: 1, payload: { value: 0 } }))
+  })
+
+  it.each([
+    ['metrics', { code: 'heart_rate', value: 72, unit: 'bpm', local_date: '2026-10-06' }, 'Значение'],
+    ['meal', { description: 'Печёное яблоко 🍎', mass_g: 100 }, 'Масса'],
+    ['meal', { description: 'Печёное яблоко 🍎', nutrients: { energy_kcal: 12 } }, 'Ккал'],
+  ] satisfies Array<[EntryType, EntryPayload, string]>)('blocks underflow in %s / %s / %s without sending zero', async (type, payload, label) => {
+    const entry = entryFixture({ type, payload })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch').mockResolvedValue({ ...entry, revision: 2 })
+    renderRoute(`/diary/${entry.id}`)
+    const field = await screen.findByLabelText(label)
+    for (const value of ['-1e-400', '1e-400']) {
+      fireEvent.change(field, { target: { value } })
+      fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+      expect(await screen.findByText(/при отправке оно превратится в ноль/)).toBeInTheDocument()
+      expect(field).toHaveValue(value)
+      expect(field).toHaveFocus()
+      expect(patch).not.toHaveBeenCalled()
+    }
+    fireEvent.change(field, { target: { value: '0e-400' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1))
+  })
+
+  it.each(['heart_rate', 'sleep_duration_min'] as const)('combines %s date correction with accessible errors and preserves known time', async (code) => {
+    const entry = entryFixture({ type: 'metrics', status: 'draft', submission_id: null,
+      occurred_at: '2026-10-07T23:50:00Z', payload: { code, value: 70,
+        unit: code === 'heart_rate' ? 'bpm' : 'min', local_date: '2026-10-06', local_time: '07:15' } })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch')
+      .mockRejectedValueOnce(new ApiError({ code: 'VALIDATION_ERROR', message: 'Invalid date',
+        request_id: 'integration94', field_errors: [{ field: 'payload.local_date', message: 'Проверьте дату показателя' }] }, 422))
+      .mockResolvedValueOnce({ ...entry, revision: 2, payload: { ...entry.payload, local_date: '2026-10-04' } })
+    renderRoute(`/diary/${entry.id}`)
+    const day = await screen.findByLabelText(code === 'heart_rate' ? 'Дата измерения' : 'Дата пробуждения')
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }))
+    expect(day).toHaveFocus()
+    expect(screen.getByLabelText('Время сообщения итога')).toHaveAttribute('readonly')
+    fireEvent.change(day, { target: { value: '2026-10-05' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await screen.findByText('Проверьте дату показателя')
+    expect(day).toHaveAttribute('aria-invalid', 'true')
+    expect(day).toHaveAccessibleDescription(/Проверьте дату показателя/)
+    expect(day).toHaveFocus()
+    expect(screen.getByLabelText('Локальное время')).toHaveValue('07:15')
+    fireEvent.change(day, { target: { value: '2026-10-04' } })
+    expect(day).not.toHaveAttribute('aria-invalid')
+    expect(day).not.toHaveAccessibleDescription(/Проверьте дату показателя/)
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await screen.findByText('Изменения сохранены.')
+    expect(patch).toHaveBeenCalledTimes(2)
+    for (const [, body] of patch.mock.calls) {
+      expect(body.expected_revision).toBe(1)
+      expect(body).not.toHaveProperty('occurred_at')
+      expect(body.payload).not.toHaveProperty('local_time')
+    }
+    expect(screen.getByLabelText('Локальное время')).toHaveValue('07:15')
+  })
+
+  it.each(['heart_rate', 'sleep_duration_min'] as const)('changes %s date without inventing time or replacing original report', async (code) => {
+    const entry = entryFixture({ type: 'metrics', status: 'draft', submission_id: null,
+      occurred_at: '2026-10-07T23:50:00Z',
+      payload: { code, value: 70, unit: code === 'heart_rate' ? 'bpm' : 'min', local_date: '2026-10-06' } })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch').mockResolvedValue({ ...entry, revision: 2,
+      payload: { ...entry.payload, local_date: '2026-10-05' } })
+    renderRoute(`/diary/${entry.id}`)
+    const day = await screen.findByLabelText(code === 'heart_rate' ? /Дата измерения/ : /Дата пробуждения/)
+    expect(screen.getByLabelText(/Локальное время/)).toHaveValue('')
+    expect(screen.getByLabelText(/Время сообщения итога/)).toHaveAttribute('readonly')
+    fireEvent.change(day, { target: { value: '2026-10-05' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1))
+    expect(patch.mock.calls[0][1]).toEqual(expect.objectContaining({ expected_revision: 1,
+      payload: { local_date: '2026-10-05' } }))
+    expect(patch.mock.calls[0][1]).not.toHaveProperty('occurred_at')
+  })
+
   it('edits the steps day without changing report time and focuses the editable day', async () => {
     const entry = entryFixture({ type: 'metrics', status: 'draft', submission_id: null,
       occurred_at: '2026-10-05T06:00:00Z',
@@ -35,6 +129,57 @@ describe('FE1-04 entry review and correction', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it.each([
+    ['meal', { description: 'Meal' }, 'Описание', '', 'Описание обязательно.'],
+    ['metrics', { code: 'steps', value: 100, unit: 'steps', local_date: '2026-09-16' }, 'Единица', '', 'Единица обязательна для подтверждённой метрики.'],
+    ['checkin', { category: 'mood', score: 3 }, 'Оценка', '0', 'Оценка должна быть целым числом от 1 до 5.'],
+    ['note', { text: 'Note' }, 'Текст', '', 'Текст обязателен.'],
+  ] satisfies Array<[EntryType, EntryPayload, string, string, string]>)('connects %s validation to its named field and focuses it', async (type, payload, name, value, error) => {
+    const entry = entryFixture({ type, payload })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch')
+    renderRoute(`/diary/${entry.id}`)
+    const field = await screen.findByLabelText(name)
+    fireEvent.change(field, { target: { value } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+
+    expect(await screen.findByText(error)).toBeInTheDocument()
+    expect(field).toHaveAttribute('aria-invalid', 'true')
+    expect(field).toHaveAccessibleDescription(expect.stringContaining(error))
+    expect(field).toHaveFocus()
+    expect(patch).not.toHaveBeenCalled()
+  })
+
+  it.each(['draft', 'confirmed'] as const)('preserves unsaved %s input and focus across viewport resize', async (status) => {
+    const entry = entryFixture({ status })
+    const get = vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch')
+    const confirm = vi.spyOn(entriesApi, 'confirm')
+    const viewport = new EventTarget()
+    vi.stubGlobal('visualViewport', viewport)
+    renderRoute(`/diary/${entry.id}`)
+    const description = await screen.findByLabelText('Описание')
+    fireEvent.change(description, { target: { value: 'Unsaved mobile input' } })
+    description.focus()
+
+    for (const [width, height] of [[360, 320], [390, 844], [360, 740]]) {
+      vi.stubGlobal('innerWidth', width)
+      vi.stubGlobal('innerHeight', height)
+      fireEvent(window, new Event('resize'))
+      act(() => {
+        viewport.dispatchEvent(new Event('resize'))
+      })
+      expect(screen.getByLabelText('Описание')).toBe(description)
+      expect(description).toHaveValue('Unsaved mobile input')
+      expect(description).toHaveFocus()
+      expect(screen.getByRole('button', { name: 'Сохранить' })).toBeEnabled()
+    }
+    expect(get).toHaveBeenCalledTimes(1)
+    expect(patch).not.toHaveBeenCalled()
+    expect(confirm).not.toHaveBeenCalled()
   })
 
   it('loads a draft by id and shows contract fields, source, unknown and origin data', async () => {
@@ -63,6 +208,8 @@ describe('FE1-04 entry review and correction', () => {
     expect(screen.getByRole('button', { name: 'Изменить' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Подтвердить' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Не сохранять' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }))
+    expect(screen.getByLabelText('Дата и время')).toHaveFocus()
     expect(screen.queryByRole('button', { name: 'Убрать из дневника' })).not.toBeInTheDocument()
   })
 
@@ -109,6 +256,16 @@ describe('FE1-04 entry review and correction', () => {
     for (const label of labels) {
       expect(screen.getByLabelText(label)).toBeInTheDocument()
     }
+    const fields = screen.getByRole('form', { name: 'Редактирование записи' }).querySelectorAll('input, select, textarea')
+    for (const field of fields) {
+      expect(field).toHaveAccessibleName()
+      expect(field.id).toBeTruthy()
+      for (const id of field.getAttribute('aria-describedby')?.split(' ') ?? []) {
+        expect(document.getElementById(id)).toBeInTheDocument()
+      }
+    }
+    const ids = [...document.querySelectorAll('[id]')].map((element) => element.id)
+    expect(new Set(ids).size).toBe(ids.length)
   })
 
   it('confirms a draft with expected_revision and a stable submission_id without duplicate double-click', async () => {
@@ -206,6 +363,9 @@ describe('FE1-04 entry review and correction', () => {
 
     expect(await screen.findByText('mass must be >= 0')).toBeInTheDocument()
     expect(screen.getByLabelText(/Масса/)).toHaveValue('150')
+    expect(screen.getByLabelText('Масса')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('Масса')).toHaveAccessibleDescription(/mass must be >= 0/)
+    expect(screen.getByLabelText('Масса')).toHaveFocus()
     expect(screen.queryByText('Изменения сохранены.')).not.toBeInTheDocument()
   })
 
@@ -220,6 +380,9 @@ describe('FE1-04 entry review and correction', () => {
 
     expect(await screen.findByText(/не может быть отрицательным по контракту/)).toBeInTheDocument()
     expect(screen.getByLabelText(/Масса/)).toHaveValue('-1')
+    expect(screen.getByLabelText('Масса')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('Масса')).toHaveAccessibleDescription(/не может быть отрицательным по контракту/)
+    expect(screen.getByLabelText('Масса')).toHaveFocus()
     expect(patch).not.toHaveBeenCalled()
     expect(screen.queryByText('Изменения сохранены.')).not.toBeInTheDocument()
   })
@@ -370,7 +533,7 @@ describe('FE1-04 entry review and correction', () => {
     expect(await screen.findByLabelText(/Показатель/)).toHaveValue('heart_rate')
     expect(screen.getByLabelText(/Значение/)).toHaveValue('80')
     expect(screen.getByLabelText(/Единица/)).toHaveValue('bpm')
-    expect(screen.getByLabelText(/Локальная дата/)).toHaveValue('2026-09-16')
+    expect(screen.getByLabelText(/Дата измерения/)).toHaveValue('2026-09-16')
     expect(screen.getByLabelText(/Локальное время/)).toHaveValue('08:35')
     expect(screen.getByLabelText(/Уточнение пульса/)).toHaveValue('resting')
   })
@@ -450,7 +613,11 @@ describe('FE1-04 entry review and correction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     expect(await screen.findByText('Check energy')).toBeInTheDocument()
     expect(screen.getByLabelText(/Ккал/)).toHaveValue('400')
+    expect(screen.getByLabelText('Ккал')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('Ккал')).toHaveAccessibleDescription(/Check energy/)
     fireEvent.change(screen.getByLabelText(/Ккал/), { target: { value: '390' } })
+    expect(screen.getByLabelText('Ккал')).not.toHaveAttribute('aria-invalid')
+    expect(screen.getByLabelText('Ккал')).not.toHaveAccessibleDescription(/Check energy/)
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => expect(patch).toHaveBeenCalledTimes(2))
   })

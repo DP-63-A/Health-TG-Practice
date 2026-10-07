@@ -8,7 +8,7 @@
 |---|---|---|
 | Общая сборка | Java 21, Gradle 8.11.1 | Подключены модули `backend:api`, `backend:bot` и `contract-validator` |
 | API | Spring Boot 3.5.6, Spring Web, Spring Security, Spring Data MongoDB | Реализованы Telegram-аутентификация, сессии, `/api/v1/me` и owner guard |
-| Бот | Spring Boot 3.5.6, TelegramBots 9.2.0 | Отдельный запуск, long polling, закрытый доступ, команды и кнопки; сохранение отметок пока не реализовано |
+| Бот | Spring Boot 3.5.6, TelegramBots 9.2.0 | Отдельный запуск, long polling, закрытый доступ, черновики и быстрые отметки через core storage |
 | Миграции | Liquibase | Входит в согласованный стек, пока не подключён |
 | Frontend | React, TypeScript, Vite | Реализованы страницы дневника, записи и обзора; API-клиент поддерживает fixture и live, сборка через npm |
 | Окружение | Docker Compose, GitHub Actions | Compose собирает MongoDB, API, bot и frontend; CI проверяет Java, frontend, контракты и контейнерные сборки |
