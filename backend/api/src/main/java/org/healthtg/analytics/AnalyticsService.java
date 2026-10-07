@@ -78,11 +78,13 @@ public class AnalyticsService {
         LocalDate from = to.minusDays(periodDays - 1L);
         Period period = new Period(from, to, zone);
 
-        // Steps, sleep and heart rate belong to payload.local_date (the wake date for sleep), so the
-        // period filter must not be applied to occurred_at in core. Load all confirmed entries of the
-        // owner and select by the analytics date here.
+        // Fetch entries with a safety margin around [from, to] so time zone shifts 
+        // and payload.local_date overrides are safely captured without loading full history.
+        LocalDate queryFrom = from.minusDays(3);
+        LocalDate queryTo = to.plusDays(3);
+
         List<Entry> found = entries.listEntries(new ListEntriesQuery(owner, EntryStatus.CONFIRMED,
-                        null, null, null, zone)).stream()
+                        queryFrom, queryTo, null, zone)).stream()
                 .filter(entry -> ANALYTICS_TYPES.contains(entry.type()))
                 .filter(entry -> inPeriod(entry, period))
                 .sorted(Comparator.comparing(Entry::occurredAt).thenComparing(entry -> entry.id().toString()))
