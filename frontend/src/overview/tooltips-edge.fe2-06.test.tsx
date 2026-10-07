@@ -48,7 +48,7 @@ const cases: EdgeCase[] = [
     input: 'fractional-energy',
     interaction: 'keyboard',
     date: '19.09.2026',
-    expected: '847,5 ккал',
+    expected: '847.5 kcal',
   },
   {
     name: 'дробная энергия — мышь',
@@ -56,7 +56,7 @@ const cases: EdgeCase[] = [
     input: 'fractional-energy',
     interaction: 'mouse',
     date: '19.09.2026',
-    expected: '847,5 ккал',
+    expected: '847.5 kcal',
   },
   {
     name: 'настоящие нулевые калории',
@@ -64,7 +64,7 @@ const cases: EdgeCase[] = [
     input: 'zero',
     interaction: 'keyboard',
     date: '19.09.2026',
-    expected: '0 ккал',
+    expected: '0 kcal',
   },
   {
     name: 'настоящий нулевой сон',
@@ -72,22 +72,22 @@ const cases: EdgeCase[] = [
     input: 'zero',
     interaction: 'keyboard',
     date: '14.09.2026',
-    expected: '0 мин',
+    expected: '0 min',
   },
   {
-    name: 'настоящие нулевые шаги',
+    name: 'настоящие нулевые steps',
     kind: 'steps',
     input: 'zero',
     interaction: 'keyboard',
     date: '19.09.2026',
-    expected: '0 шагов',
+    expected: '0 steps',
   },
 ]
 
 const names: Record<Kind, string> = {
-  nutrition: 'Питание',
-  sleep: 'Сон',
-  steps: 'Шаги',
+  nutrition: 'Nutrition',
+  sleep: 'Sleep',
+  steps: 'Steps',
 }
 
 function energyOracle(): number {
@@ -307,7 +307,7 @@ describe('FE2-06: дроби и настоящие нули в tooltip', () => {
       ).toBeVisible()
 
       expect(
-        within(tooltip).queryByText('Нет данных', {
+        within(tooltip).queryByText('No data', {
           exact: true,
         }),
       ).not.toBeInTheDocument()
@@ -320,13 +320,13 @@ describe('FE2-06: дроби и настоящие нули в tooltip', () => {
 
       if (oracle.input === 'fractional-energy') {
         expect(
-          within(tooltip).queryByText('848 ккал', {
+          within(tooltip).queryByText('848 kcal', {
             exact: true,
           }),
         ).not.toBeInTheDocument()
 
         expect(
-          within(tooltip).queryByText('847 ккал', {
+          within(tooltip).queryByText('847 kcal', {
             exact: true,
           }),
         ).not.toBeInTheDocument()

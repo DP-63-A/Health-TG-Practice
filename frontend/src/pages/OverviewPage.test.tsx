@@ -64,7 +64,7 @@ const defaultAnalyticsQuery = {
   checkin_category: 'mood',
 }
 
-const emptyMessage = 'За выбранный период нет записей для аналитики.'
+const emptyMessage = 'No entries for the selected period.'
 
 function response(): AnalyticsResponse {
   return structuredClone(analyticsFixture)
@@ -206,7 +206,7 @@ function requestRefresh(
 function expectLoading() {
   expect(
     screen.getByRole('heading', {
-      name: 'Загрузка аналитики',
+      name: 'Loading analytics',
     }),
   ).toBeVisible()
 }
@@ -220,7 +220,7 @@ async function chartTable(name: string) {
 
   if (!details) {
     throw new Error(
-      `У графика «${name}» нет таблицы с данными по дням`,
+      `У gрафика «${name}» нет таблицы с данными по дням`,
     )
   }
 
@@ -295,13 +295,13 @@ describe('OverviewPage', () => {
 
       expect(
         await screen.findByRole('region', {
-          name: 'Питание',
+          name: 'Nutrition',
         }),
       ).toBeVisible()
 
       expect(
         screen.queryByRole('heading', {
-          name: 'Загрузка аналитики',
+          name: 'Loading analytics',
         }),
       ).not.toBeInTheDocument()
     },
@@ -341,7 +341,7 @@ describe('OverviewPage', () => {
     )
 
     // Старый период действительно содержит данные.
-    const initialTable = await chartTable('Питание')
+    const initialTable = await chartTable('Nutrition')
 
     expect(
       initialTable.getByText(formatCalories(930)),
@@ -349,7 +349,7 @@ describe('OverviewPage', () => {
 
     // Переходим на новый период.
     fireEvent.change(
-      screen.getByLabelText('Период'),
+      screen.getByLabelText('Period'),
       {
         target: {
           value: 'days_21',
@@ -372,7 +372,7 @@ describe('OverviewPage', () => {
     // Backend вернул пустой новый период.
     expect(
       await screen.findByRole('heading', {
-        name: 'Нет данных',
+        name: 'No data',
       }),
     ).toBeVisible()
 
@@ -387,30 +387,30 @@ describe('OverviewPage', () => {
 
     expect(
       screen.getByText(
-        'Нет данных о питании за выбранный период.',
+        'No nutrition data for the selected period.',
       ),
     ).toBeVisible()
 
     expect(
       screen.getByText(
-        'Нет данных о сне за выбранный период.',
+        'No sleep data for the selected period.',
       ),
     ).toBeVisible()
 
     expect(
       screen.getByText(
-        'Нет данных о шагах за выбранный период.',
+        'No step data for the selected period.',
       ),
     ).toBeVisible()
 
     expect(
       screen.getByText(
-        'Нет оценок «Настроение» за выбранный период.',
+        'No scores for “Mood” for the selected period.',
       ),
     ).toBeVisible()
 
     expect(
-      screen.getByLabelText('Период'),
+      screen.getByLabelText('Period'),
     ).toHaveValue('days_21')
   },
 )
@@ -424,7 +424,7 @@ describe('OverviewPage', () => {
 
     renderOverview()
 
-    const initialTable = await chartTable('Питание')
+    const initialTable = await chartTable('Nutrition')
 
     expect(
       initialTable.getByText(formatCalories(930)),
@@ -438,7 +438,7 @@ describe('OverviewPage', () => {
 
     expect(
       within(alert).getByRole('heading', {
-        name: 'Ошибка загрузки',
+        name: 'Loading error',
       }),
     ).toBeVisible()
 
@@ -450,7 +450,7 @@ describe('OverviewPage', () => {
 
     expect(
       screen.queryByRole('region', {
-        name: 'Питание',
+        name: 'Nutrition',
       }),
     ).not.toBeInTheDocument()
 
@@ -501,7 +501,7 @@ describe('OverviewPage', () => {
 
     // A = days_7 ещё выполняется.
     fireEvent.change(
-      screen.getByLabelText('Период'),
+      screen.getByLabelText('Period'),
       {
         target: {
           value: 'days_21',
@@ -528,14 +528,14 @@ describe('OverviewPage', () => {
 
     let mealCard = within(
       await screen.findByRole('region', {
-        name: 'Количество приёмов пищи',
+        name: 'Meal count',
       }),
     )
 
     expect(mealCard.getByText('9')).toBeVisible()
 
     expect(
-      screen.getByLabelText('Период'),
+      screen.getByLabelText('Period'),
     ).toHaveValue('days_21')
 
     // Потом поздно приходит старый A.
@@ -546,7 +546,7 @@ describe('OverviewPage', () => {
     await waitFor(() => {
       mealCard = within(
         screen.getByRole('region', {
-          name: 'Количество приёмов пищи',
+          name: 'Meal count',
         }),
       )
 
@@ -557,7 +557,7 @@ describe('OverviewPage', () => {
     })
 
     expect(
-      screen.getByLabelText('Период'),
+      screen.getByLabelText('Period'),
     ).toHaveValue('days_21')
 
     expect(getAnalyticsMock).toHaveBeenCalledTimes(2)
@@ -585,11 +585,11 @@ describe('OverviewPage', () => {
       renderOverview()
 
       await screen.findByRole('region', {
-        name: 'Питание',
+        name: 'Nutrition',
       })
 
       fireEvent.change(
-        screen.getByLabelText('Период'),
+        screen.getByLabelText('Period'),
         {
           target: {
             value: 'days_21',
@@ -610,11 +610,11 @@ describe('OverviewPage', () => {
       })
 
       await screen.findByRole('region', {
-        name: 'Питание',
+        name: 'Nutrition',
       })
 
       fireEvent.change(
-        screen.getByLabelText('Категория'),
+        screen.getByLabelText('Category'),
         {
           target: {
             value: 'wellbeing',
@@ -637,14 +637,14 @@ describe('OverviewPage', () => {
 
       expect(
         await screen.findByRole('region', {
-          name: 'Питание',
+          name: 'Nutrition',
         }),
       ).toBeVisible()
     },
   )
 
   it(
-    'показывает общий empty и все четыре пустых графика',
+    'показывает общий empty и все четыре пустых gрафика',
     async () => {
       getAnalyticsMock.mockResolvedValueOnce(
         emptyResponse(),
@@ -658,15 +658,15 @@ describe('OverviewPage', () => {
 
       expect(
         screen.getByRole('heading', {
-          name: 'Нет данных',
+          name: 'No data',
         }),
       ).toBeVisible()
 
       for (const message of [
-        'Нет данных о питании за выбранный период.',
-        'Нет данных о сне за выбранный период.',
-        'Нет данных о шагах за выбранный период.',
-        'Нет оценок «Настроение» за выбранный период.',
+        'No nutrition data for the selected period.',
+        'No sleep data for the selected period.',
+        'No step data for the selected period.',
+        'No scores for “Mood” for the selected period.',
       ]) {
         expect(
           screen.getByText(message),
@@ -675,7 +675,7 @@ describe('OverviewPage', () => {
 
       expect(
         screen.queryByRole('button', {
-          name: /Выбрать день/,
+          name: /Select day/,
         }),
       ).not.toBeInTheDocument()
 
@@ -749,16 +749,16 @@ describe('OverviewPage', () => {
       renderOverview()
 
       const table =
-        await chartTable('Питание')
+        await chartTable('Nutrition')
 
       const missingRow =
         table.getByRole('row', {
-          name: /15\.09\.2026.*Нет данных/,
+          name: /15\.09\.2026.*No data/,
         })
 
       expect(
         within(missingRow).getByText(
-          'Нет данных',
+          'No data',
         ),
       ).toBeVisible()
 
@@ -780,19 +780,19 @@ describe('OverviewPage', () => {
 
       expect(
         screen.getByText(
-          'Нет данных о сне за выбранный период.',
+          'No sleep data for the selected period.',
         ),
       ).toBeVisible()
 
       expect(
         screen.getByText(
-          'Нет данных о шагах за выбранный период.',
+          'No step data for the selected period.',
         ),
       ).toBeVisible()
 
       expect(
         screen.getByText(
-          'Нет оценок «Настроение» за выбранный период.',
+          'No scores for “Mood” for the selected period.',
         ),
       ).toBeVisible()
 
@@ -831,14 +831,14 @@ describe('OverviewPage', () => {
       expect(
         within(alert).getByRole(
           'heading',
-          { name: 'Ошибка загрузки' },
+          { name: 'Loading error' },
         ),
       ).toBeVisible()
 
       expect(
         within(alert).getByRole(
           'button',
-          { name: 'Повторить' },
+          { name: 'Retry' },
         ),
       ).toBeEnabled()
 
@@ -855,7 +855,7 @@ describe('OverviewPage', () => {
   )
 
   it(
-    'повторяет запрос через «Повторить» и показывает ответ',
+    'повторяет запрос через «Retry» и показывает ответ',
     async () => {
       const retry = deferred<AnalyticsResponse>()
 
@@ -872,7 +872,7 @@ describe('OverviewPage', () => {
       fireEvent.click(
         await screen.findByRole(
           'button',
-          { name: 'Повторить' },
+          { name: 'Retry' },
         ),
       )
 
@@ -900,7 +900,7 @@ describe('OverviewPage', () => {
       })
 
       const table =
-        await chartTable('Питание')
+        await chartTable('Nutrition')
 
       expect(
         table.getByText(
@@ -911,7 +911,7 @@ describe('OverviewPage', () => {
       expect(
         screen.queryByRole(
           'button',
-          { name: 'Повторить' },
+          { name: 'Retry' },
         ),
       ).not.toBeInTheDocument()
     },
@@ -952,14 +952,14 @@ describe('OverviewPage', () => {
       expect(
         screen.queryByRole(
           'button',
-          { name: 'Повторить' },
+          { name: 'Retry' },
         ),
       ).not.toBeInTheDocument()
     },
   )
 
   it(
-    'по refresh загружает новые данные и обновляет индикаторы',
+    'по refresh загружает новые данные',
     async () => {
       const pending = deferred<AnalyticsResponse>()
 
@@ -985,17 +985,11 @@ describe('OverviewPage', () => {
       renderOverview()
 
       const initialTable =
-        await chartTable('Питание')
+        await chartTable('Nutrition')
 
       expect(
         initialTable.getByText(
           formatCalories(930),
-        ),
-      ).toBeVisible()
-
-      expect(
-        screen.getByText(
-          'Обновлений: 0',
         ),
       ).toBeVisible()
 
@@ -1014,36 +1008,12 @@ describe('OverviewPage', () => {
         defaultAnalyticsQuery,
       )
 
-      expect(
-        screen.getByText(
-          'Обновлений: 1',
-        ),
-      ).toBeVisible()
-
-      const time =
-        new Intl.DateTimeFormat(
-          'ru-RU',
-          {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          },
-        ).format(
-          new Date(requestedAt),
-        )
-
-      expect(
-        screen.getByText(
-          `Последнее обновление: ${time}`,
-        ),
-      ).toBeVisible()
-
       await act(async () => {
         pending.resolve(updated)
       })
 
       const updatedTable =
-        await chartTable('Питание')
+        await chartTable('Nutrition')
 
       expect(
         updatedTable.getByText(
@@ -1087,7 +1057,7 @@ describe('OverviewPage', () => {
       renderOverview()
 
       const table =
-        await chartTable('Питание')
+        await chartTable('Nutrition')
 
       fireEvent.click(
         table.getByRole('button', {
@@ -1107,7 +1077,7 @@ describe('OverviewPage', () => {
         pending.resolve(response())
       })
 
-      await chartTable('Питание')
+      await chartTable('Nutrition')
 
       expect(
         navigateMock,
@@ -1117,10 +1087,10 @@ describe('OverviewPage', () => {
 
 
   it.each([
-    ['Питание', 'nutrition'],
-    ['Сон', 'sleep'],
-    ['Шаги', 'steps'],
-    ['Состояние', 'checkin'],
+    ['Nutrition', 'nutrition'],
+    ['Sleep', 'sleep'],
+    ['Steps', 'steps'],
+    ['Wellbeing', 'checkin'],
   ] as const)(
     'passes only the selected point sources: %s',
     async (chartName, kind) => {
@@ -1180,16 +1150,16 @@ describe('OverviewPage', () => {
 
   it.each([
 
-    ['sleep_quality', 'Качество сна'],
-    ['digestion_comfort', 'Комфорт пищеварения'],
-    ['wellbeing', 'Самочувствие'],
-    ['mood', 'Настроение'],
+    ['sleep_quality', 'Sleep quality'],
+    ['digestion_comfort', 'Digestive comfort'],
+    ['wellbeing', 'Wellbeing'],
+    ['mood', 'Mood'],
   ] as const)(
     'switches category to %s, replaces visible data and forwards its source',
     async (category, label) => {
       // Тестовые ответы для проверки поведения UI, не эталоны BE3.
       const initialCategory = category === 'mood' ? 'wellbeing' : 'mood'
-      const initialLabel = initialCategory === 'mood' ? 'Настроение' : 'Самочувствие'
+      const initialLabel = initialCategory === 'mood' ? 'Mood' : 'Wellbeing'
       const initial = response()
       initial.series.checkin = {
         category: initialCategory,
@@ -1217,16 +1187,16 @@ describe('OverviewPage', () => {
         .mockReturnValueOnce(pending.promise)
       renderOverview('/overview?period=days_7&checkin_category=' + initialCategory)
 
-      const initialTable = await chartTable('Состояние')
-      expect(initialTable.getByText('1 из 5')).toBeVisible()
+      const initialTable = await chartTable('Wellbeing')
+      expect(initialTable.getByText('1 out of 5')).toBeVisible()
       expect(screen.getByRole('table', {
-        name: initialLabel + ': оценки по дням',
+        name: initialLabel + ': daily scores',
       })).toBeVisible()
       expect(getAnalyticsMock).toHaveBeenCalledExactlyOnceWith({
         ...defaultAnalyticsQuery, checkin_category: initialCategory,
       })
 
-      fireEvent.change(screen.getByRole('combobox', { name: 'Категория' }), {
+      fireEvent.change(screen.getByRole('combobox', { name: 'Category' }), {
 
         target: { value: category },
       })
@@ -1238,7 +1208,7 @@ describe('OverviewPage', () => {
 
       expectLoading()
       expect(screen.queryByRole('region', {
-        name: 'Состояние',
+        name: 'Wellbeing',
       })).not.toBeInTheDocument()
       expect(navigateMock).not.toHaveBeenCalled()
 
@@ -1246,21 +1216,21 @@ describe('OverviewPage', () => {
         pending.resolve(selected)
       })
 
-      const table = await chartTable('Состояние')
+      const table = await chartTable('Wellbeing')
       expect(screen.getByRole('combobox', {
-        name: 'Категория',
+        name: 'Category',
       })).toHaveValue(category)
-      expect(screen.getByLabelText('Период')).toHaveValue('days_7')
+      expect(screen.getByLabelText('Period')).toHaveValue('days_7')
       expect(screen.getByRole('table', {
-        name: label + ': оценки по дням',
+        name: label + ': daily scores',
       })).toBeVisible()
       expect(screen.queryByRole('table', {
-        name: initialLabel + ': оценки по дням',
+        name: initialLabel + ': daily scores',
       })).not.toBeInTheDocument()
-      expect(table.getByText('4 из 5')).toBeVisible()
-      expect(table.queryByText('1 из 5')).not.toBeInTheDocument()
+      expect(table.getByText('4 out of 5')).toBeVisible()
+      expect(table.queryByText('1 out of 5')).not.toBeInTheDocument()
       expect(screen.queryByRole('heading', {
-        name: 'Загрузка аналитики',
+        name: 'Loading analytics',
       })).not.toBeInTheDocument()
       expect(getAnalyticsMock).toHaveBeenCalledTimes(2)
 
@@ -1293,8 +1263,8 @@ describe('OverviewPage', () => {
       }]
       getAnalyticsMock.mockResolvedValueOnce(initial).mockResolvedValueOnce(selected)
       renderOverview('/overview?period=' + initialPeriod + '&checkin_category=mood')
-      await chartTable('Шаги')
-      fireEvent.change(screen.getByLabelText('Период'), {
+      await chartTable('Steps')
+      fireEvent.change(screen.getByLabelText('Period'), {
         target: { value: period },
       })
       await waitFor(() => {
@@ -1302,7 +1272,7 @@ describe('OverviewPage', () => {
           ...defaultAnalyticsQuery, period,
         })
       })
-      const table = await chartTable('Шаги')
+      const table = await chartTable('Steps')
       fireEvent.click(table.getByRole('button'))
       expectDiaryNavigation({
         kind: 'steps', date: day, sourceIds: [sourceId], hasValue: true,
@@ -1321,7 +1291,7 @@ describe('OverviewPage', () => {
     }]
     getAnalyticsMock.mockResolvedValueOnce(data)
     renderOverview()
-    const table = await chartTable('Питание')
+    const table = await chartTable('Nutrition')
     fireEvent.click(table.getByRole('button'))
     expectDiaryNavigation({
       kind: 'nutrition', date: day, sourceIds: [source.entry_id], hasValue: true,
@@ -1343,7 +1313,7 @@ describe('OverviewPage', () => {
       }]
       getAnalyticsMock.mockResolvedValueOnce(data)
       renderOverview()
-      const table = await chartTable('Шаги')
+      const table = await chartTable('Steps')
       fireEvent.click(table.getByRole('button'))
       expect(navigateMock).not.toHaveBeenCalled()
     },
@@ -1352,10 +1322,10 @@ describe('OverviewPage', () => {
 
 describe('Overview empty-day navigation', () => {
   it.each([
-    ['Питание', 'nutrition'],
-    ['Сон', 'sleep'],
-    ['Шаги', 'steps'],
-    ['Состояние', 'checkin'],
+    ['Nutrition', 'nutrition'],
+    ['Sleep', 'sleep'],
+    ['Steps', 'steps'],
+    ['Wellbeing', 'checkin'],
   ] as const)(
     'opens an empty %s day and preserves overview context',
     async (chartName, kind) => {
@@ -1377,7 +1347,7 @@ describe('Overview empty-day navigation', () => {
       getAnalyticsMock.mockResolvedValueOnce(data)
       renderOverview('/overview?period=days_21&checkin_category=wellbeing')
       const table = await chartTable(chartName)
-      expect(table.getByText('Нет данных')).toBeVisible()
+      expect(table.getByText('No data')).toBeVisible()
       fireEvent.click(table.getByRole('button'))
       expectDiaryNavigation({
         kind, date: day, sourceIds: [], hasValue: false,
@@ -1400,7 +1370,7 @@ describe('Overview empty-day navigation', () => {
     ]
     getAnalyticsMock.mockResolvedValueOnce(data)
     renderOverview()
-    const table = await chartTable('Питание')
+    const table = await chartTable('Nutrition')
     fireEvent.click(table.getByRole('button', { name: /15\.09\.2026/ }))
     expectDiaryNavigation({
       kind: 'nutrition', date: missingDay, sourceIds: [], hasValue: false,
@@ -1410,7 +1380,7 @@ describe('Overview empty-day navigation', () => {
 
 
 describe('Overview refresh: current filters and new data', () => {
-  it('сохраняет выбранные фильтры и обновляет все карточки и графики', async () => {
+  it('сохраняет выбранные фильтры и обновляет все карточки и gрафики', async () => {
     const initial = response()
     initial.period = {
       kind: 'days_21',
@@ -1435,7 +1405,7 @@ describe('Overview refresh: current filters and new data', () => {
       }],
     }
 
-    // Это готовые ответы API: серверные формулы тест не воспроизводит.
+    // Это gотовые ответы API: серверные формулы тест не воспроизводит.
     const updated = structuredClone(initial)
     updated.cards.nutrition = {
       energy_kcal: 1200,
@@ -1497,28 +1467,28 @@ describe('Overview refresh: current filters and new data', () => {
 
     renderOverview('/overview?period=days_21&checkin_category=wellbeing')
 
-    const initialTable = await chartTable('Питание')
+    const initialTable = await chartTable('Nutrition')
     expect(initialTable.getByText(formatCalories(930))).toBeVisible()
 
     const region = (name: string) =>
       within(screen.getByRole('region', { name }))
 
     // Все блоки сначала действительно показывают первый ответ.
-    expect(region('Калории и БЖУ').getByText('930 ккал')).toBeVisible()
-    expect(region('Количество приёмов пищи').getByText('2')).toBeVisible()
-    expect(region('Аналитика сна').getByText('15 ч')).toBeVisible()
-    expect(region('Аналитика шагов').getAllByText(/^5\s?000$/)).toHaveLength(2)
-    expect(region('Аналитика пульса').getByText('72')).toBeVisible()
+    expect(region('Calories & macros').getByText('930 kcal')).toBeVisible()
+    expect(region('Meal count').getByText('2')).toBeVisible()
+    expect(region('Sleep analytics').getByText('15 h')).toBeVisible()
+    expect(region('Step analytics').getAllByText(/^5,000$/)).toHaveLength(2)
+    expect(region('Heart rate analytics').getByText('72')).toBeVisible()
 
     expect(
-  region('Субъективные оценки состояния').getByText('3 из 5'),).toBeVisible()
+  region('Subjective wellbeing scores').getByText('3 out of 5'),).toBeVisible()
 
 
-    const initialSleep = await chartTable('Сон')
-    expect(initialSleep.getByText('7 ч')).toBeVisible()
-    expect(initialSleep.getByText('8 ч')).toBeVisible()
-    expect((await chartTable('Шаги')).getByText(/5\s?000 шагов/)).toBeVisible()
-    expect((await chartTable('Состояние')).getByText('3 из 5')).toBeVisible()
+    const initialSleep = await chartTable('Sleep')
+    expect(initialSleep.getByText('7 h')).toBeVisible()
+    expect(initialSleep.getByText('8 h')).toBeVisible()
+    expect((await chartTable('Steps')).getByText(/5,000 steps/)).toBeVisible()
+    expect((await chartTable('Wellbeing')).getByText('3 out of 5')).toBeVisible()
 
     const query = {
       period: 'days_21',
@@ -1534,9 +1504,9 @@ describe('Overview refresh: current filters and new data', () => {
     })
     expect(getAnalyticsMock).toHaveBeenNthCalledWith(2, query)
 
-    // До завершения запроса предыдущие графики скрыты.
+    // До завершения запроса предыдущие gрафики скрыты.
     expectLoading()
-    for (const name of ['Питание', 'Сон', 'Шаги', 'Состояние']) {
+    for (const name of ['Nutrition', 'Sleep', 'Steps', 'Wellbeing']) {
       expect(screen.queryByRole('region', { name })).not.toBeInTheDocument()
     }
 
@@ -1544,58 +1514,58 @@ describe('Overview refresh: current filters and new data', () => {
       pending.resolve(updated)
     })
 
-    const nutritionTable = await chartTable('Питание')
+    const nutritionTable = await chartTable('Nutrition')
     expect(nutritionTable.getByText(formatCalories(1200))).toBeVisible()
     expect(nutritionTable.queryByText(formatCalories(930))).not.toBeInTheDocument()
 
-    const nutritionCard = region('Калории и БЖУ')
-    expect(nutritionCard.getByText(/1\s?200 ккал/)).toBeVisible()
-    expect(nutritionCard.getByText('60 г')).toBeVisible()
-    expect(nutritionCard.getByText('40 г')).toBeVisible()
-    expect(nutritionCard.getByText('150 г')).toBeVisible()
-    expect(nutritionCard.queryByText('930 ккал')).not.toBeInTheDocument()
+    const nutritionCard = region('Calories & macros')
+    expect(nutritionCard.getByText(/1,200 kcal/)).toBeVisible()
+    expect(nutritionCard.getByText('60 g')).toBeVisible()
+    expect(nutritionCard.getByText('40 g')).toBeVisible()
+    expect(nutritionCard.getByText('150 g')).toBeVisible()
+    expect(nutritionCard.queryByText('930 kcal')).not.toBeInTheDocument()
 
-    const mealCard = region('Количество приёмов пищи')
+    const mealCard = region('Meal count')
     expect(mealCard.getByText('1')).toBeVisible()
     expect(mealCard.queryByText('2')).not.toBeInTheDocument()
 
-    const sleepCard = region('Аналитика сна')
-    expect(sleepCard.getByText('16 ч')).toBeVisible()
-    expect(sleepCard.getByText('8 ч')).toBeVisible()
-    expect(sleepCard.queryByText('15 ч')).not.toBeInTheDocument()
+    const sleepCard = region('Sleep analytics')
+    expect(sleepCard.getByText('16 h')).toBeVisible()
+    expect(sleepCard.getByText('8 h')).toBeVisible()
+    expect(sleepCard.queryByText('15 h')).not.toBeInTheDocument()
 
-    const stepsCard = region('Аналитика шагов')
-    expect(stepsCard.getAllByText(/^6\s?400$/)).toHaveLength(2)
-    expect(stepsCard.queryByText(/^5\s?000$/)).not.toBeInTheDocument()
+    const stepsCard = region('Step analytics')
+    expect(stepsCard.getAllByText(/^6,400$/)).toHaveLength(2)
+    expect(stepsCard.queryByText(/^5,000$/)).not.toBeInTheDocument()
 
-    const heartCard = region('Аналитика пульса')
+    const heartCard = region('Heart rate analytics')
     expect(heartCard.getByText('81')).toBeVisible()
     expect(heartCard.queryByText('72')).not.toBeInTheDocument()
 
-    const checkinCard = region('Субъективные оценки состояния')
+    const checkinCard = region('Subjective wellbeing scores')
 
-    expect(checkinCard.getAllByText('2 из 5')).toHaveLength(4)
-    expect(checkinCard.queryByText('3 из 5')).not.toBeInTheDocument()
-    expect(checkinCard.queryByText('4 из 5')).not.toBeInTheDocument()
-    expect(checkinCard.queryByText('5 из 5')).not.toBeInTheDocument()
+    expect(checkinCard.getAllByText('2 out of 5')).toHaveLength(4)
+    expect(checkinCard.queryByText('3 out of 5')).not.toBeInTheDocument()
+    expect(checkinCard.queryByText('4 out of 5')).not.toBeInTheDocument()
+    expect(checkinCard.queryByText('5 out of 5')).not.toBeInTheDocument()
 
 
-    const sleepTable = await chartTable('Сон')
-    expect(sleepTable.getByText('7 ч 30 мин')).toBeVisible()
-    expect(sleepTable.getByText('8 ч 30 мин')).toBeVisible()
-    expect(sleepTable.queryByText('7 ч')).not.toBeInTheDocument()
-    expect(sleepTable.queryByText('8 ч')).not.toBeInTheDocument()
+    const sleepTable = await chartTable('Sleep')
+    expect(sleepTable.getByText('7 h 30 min')).toBeVisible()
+    expect(sleepTable.getByText('8 h 30 min')).toBeVisible()
+    expect(sleepTable.queryByText('7 h')).not.toBeInTheDocument()
+    expect(sleepTable.queryByText('8 h')).not.toBeInTheDocument()
 
-    const stepsTable = await chartTable('Шаги')
-    expect(stepsTable.getByText(/6\s?400 шагов/)).toBeVisible()
-    expect(stepsTable.queryByText(/5\s?000 шагов/)).not.toBeInTheDocument()
+    const stepsTable = await chartTable('Steps')
+    expect(stepsTable.getByText(/6,400 steps/)).toBeVisible()
+    expect(stepsTable.queryByText(/5,000 steps/)).not.toBeInTheDocument()
 
-    const checkinTable = await chartTable('Состояние')
-    expect(checkinTable.getByText('2 из 5')).toBeVisible()
-    expect(checkinTable.queryByText('3 из 5')).not.toBeInTheDocument()
+    const checkinTable = await chartTable('Wellbeing')
+    expect(checkinTable.getByText('2 out of 5')).toBeVisible()
+    expect(checkinTable.queryByText('3 out of 5')).not.toBeInTheDocument()
 
-    expect(screen.getByLabelText('Период')).toHaveValue('days_21')
-    expect(screen.getByLabelText('Категория')).toHaveValue('wellbeing')
+    expect(screen.getByLabelText('Period')).toHaveValue('days_21')
+    expect(screen.getByLabelText('Category')).toHaveValue('wellbeing')
     expect(getAnalyticsMock).toHaveBeenCalledTimes(2)
   })
 })

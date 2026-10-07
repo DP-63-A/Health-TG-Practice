@@ -168,12 +168,6 @@ function OverviewPage() {
     navigate(buildDiaryUrl(date, kind), { state }) 
   } 
 
-  const [refreshCount, setRefreshCount] =
-    useState(0)
-
-  const [lastRefreshLabel, setLastRefreshLabel] =
-    useState('еще не было')
-
   const [reloadKey, setReloadKey] =
     useState(0)
 
@@ -216,13 +210,7 @@ function updateCategory(value: CheckinCategory) {
 
   // Общий механизм обновления FE1.
 
-  useRefreshSubscription(({ requestedAt }) => {
-    setRefreshCount((count) => count + 1)
-
-    setLastRefreshLabel(
-      formatRefreshTime(requestedAt),
-    )
-
+  useRefreshSubscription(() => {
     setReloadKey((key) => key + 1)
   })
 
@@ -302,11 +290,19 @@ function updateCategory(value: CheckinCategory) {
 
   return (
     <Card
-      title="Обзор"
-      subtitle="Аналитика за выбранный период"
+      className="stats-page"
+      aria-label="Statistics"
     >
-      <div className="overview-filters">
-        <label htmlFor="overview-period">Период</label>
+      <div className="overview-filters paper-note">
+        <div className="overview-filters__header">
+          <label htmlFor="overview-period">Period</label>
+          <span className="overview-filters__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" focusable="false">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+          </span>
+        </div>
         <select
   id="overview-period"
   value={period}
@@ -314,34 +310,34 @@ function updateCategory(value: CheckinCategory) {
     updatePeriod(event.target.value as AnalyticsPeriod)
   }}
 >
-          <option value="today">Сегодня</option>
-          <option value="days_7">7 дней</option>
-          <option value="days_21">21 день</option>
+          <option value="today">Today</option>
+          <option value="days_7">7 days</option>
+          <option value="days_21">21 days</option>
         </select>
       </div>
 
       {analyticsState.status === 'loading' && (
         <StateView
-          title="Загрузка аналитики"
-          message="Получаем данные за выбранный период."
+          title="Loading analytics"
+          message="Fetching data for the selected period."
           variant="loading"
         />
       )}
 
       {analyticsState.status === 'empty' && (
         <StateView
-          title="Нет данных"
-          message="За выбранный период нет записей для аналитики."
+          title="No data"
+          message="No entries for the selected period."
           variant="empty"
         />
       )}
 
       {analyticsState.status === 'error' && (
         <StateView
-          title="Ошибка загрузки"
-          message="Не удалось получить аналитику. Попробуйте ещё раз."
+          title="Loading error"
+          message="Could not load analytics. Please try again."
           variant="error"
-          actionLabel="Повторить"
+          actionLabel="Retry"
           onAction={retryAnalytics}
         />
       )}
@@ -377,7 +373,7 @@ function updateCategory(value: CheckinCategory) {
 </div>
 
 
-      {/* Питание */}
+      {/* Nutrition */}
 
  {(
     analyticsState.status === 'success' ||
@@ -412,25 +408,8 @@ function updateCategory(value: CheckinCategory) {
     </>
   )}
   
-      {/* Отладочная информация FE1 */}
-
-      <p className="refresh-status">
-        Обновлений: {refreshCount}
-      </p>
-
-      <p className="refresh-status">
-        Последнее обновление: {lastRefreshLabel}
-      </p>
     </Card>
   )
-}
-
-function formatRefreshTime(timestamp: number) {
-  return new Intl.DateTimeFormat('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).format(new Date(timestamp))
 }
 
 export default OverviewPage

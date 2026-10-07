@@ -37,27 +37,27 @@ interface HoverOracle {
 const cases: HoverOracle[] = [
   {
     kind: 'nutrition',
-    region: 'Питание',
-    points: [['19.09.2026', '930 ккал']],
+    region: 'Nutrition',
+    points: [['19.09.2026', '930 kcal']],
   },
   {
     kind: 'sleep',
-    region: 'Сон',
+    region: 'Sleep',
     points: [
-      ['14.09.2026', '7 ч'],
-      ['16.09.2026', '8 ч'],
+      ['14.09.2026', '7 h'],
+      ['16.09.2026', '8 h'],
     ],
   },
   {
     kind: 'steps',
-    region: 'Шаги',
-    points: [['19.09.2026', '5 000 шагов']],
+    region: 'Steps',
+    points: [['19.09.2026', '5,000 steps']],
   },
   {
     kind: 'checkin',
-    region: 'Состояние',
-    points: [['19.09.2026', '4 из 5']],
-    category: 'Настроение',
+    region: 'Wellbeing',
+    points: [['19.09.2026', '4 out of 5']],
+    category: 'Mood',
   },
 ]
 
@@ -142,7 +142,7 @@ async function flushFrames() {
       iterations += 1
 
       if (iterations > 50) {
-        throw new Error('Отрисовка графика не завершилась')
+        throw new Error('Отрисовка gрафика не завершилась')
       }
 
       const callbacks = [...frames.values()]
@@ -310,7 +310,7 @@ describe('FE2-06: наведение мышью на столбики', () => {
           }
         })
 
-        // Уводим мышь за пределы графика.
+        // Уводим мышь за пределы gрафика.
         await act(async () => {
           fireEvent.mouseLeave(wrapper, {
             clientX: 700,

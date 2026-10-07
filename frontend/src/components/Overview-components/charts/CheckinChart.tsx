@@ -28,19 +28,19 @@ const categories: {
 }[] = [
   {
     value: 'sleep_quality',
-    label: 'Качество сна',
+    label: 'Sleep quality',
   },
   {
     value: 'digestion_comfort',
-    label: 'Комфорт пищеварения',
+    label: 'Digestive comfort',
   },
   {
     value: 'wellbeing',
-    label: 'Самочувствие',
+    label: 'Wellbeing',
   },
   {
     value: 'mood',
-    label: 'Настроение',
+    label: 'Mood',
   },
 ]
 
@@ -50,10 +50,10 @@ const categoryLabels: Record<
   string
 > = {
 
-  sleep_quality: 'Качество сна',
-  digestion_comfort: 'Комфорт пищеварения',
-  wellbeing: 'Самочувствие',
-  mood: 'Настроение',
+  sleep_quality: 'Sleep quality',
+  digestion_comfort: 'Digestive comfort',
+  wellbeing: 'Wellbeing',
+  mood: 'Mood',
 }
 
 interface CheckinChartProps {
@@ -76,8 +76,8 @@ function formatScore(
   value: number | null,
 ): string {
   return value === null
-    ? 'Нет данных'
-    : `${value} из 5`
+    ? 'No data'
+    : `${value} out of 5`
 
 }
 
@@ -125,7 +125,7 @@ export function CheckinChart({
 
   return (
     <section
-      className="checkin-chart"
+      className="checkin-chart paper-note"
       aria-labelledby={titleId}
       aria-describedby={scaleId}
       aria-busy={isLoading}
@@ -134,11 +134,11 @@ export function CheckinChart({
       <div className="checkin-chart__header">
         <div>
           <h2 id={titleId}>
-            Состояние
+            Wellbeing
           </h2>
 
           <p className="checkin-chart__description">
-            Субъективные оценки по дням
+            Subjective scores by day
           </p>
         </div>
 
@@ -180,7 +180,7 @@ export function CheckinChart({
       {onCategoryChange ? (
         <div className="checkin-chart__control">
           <label htmlFor={selectId}>
-            Категория
+            Category
           </label>
 
 
@@ -251,8 +251,8 @@ export function CheckinChart({
   id={scaleId}
   className="checkin-chart__scale"
 >
-  1 — очень плохо / очень низкий комфорт.
-  5 — очень хорошо / высокий комфорт.
+  1 — very poor / very low comfort.
+  5 — very good / high comfort.
 </p>
 </div>
 
@@ -268,7 +268,7 @@ export function CheckinChart({
             …
           </span>
 
-          <p>Загрузка оценок…</p>
+          <p>Loading scores…</p>
         </div>
       ) : !matchesCategory ? (
         <div
@@ -283,8 +283,7 @@ export function CheckinChart({
           </span>
 
           <p>
-            Данные выбранной категории ещё
-            не получены.
+            Data for the selected category has not arrived yet.
           </p>
         </div>
       ) : !hasValues ? (
@@ -300,8 +299,8 @@ export function CheckinChart({
           </span>
 
           <p>
-            Нет оценок «{categoryLabel}» за
-            выбранный период.
+            No scores for “{categoryLabel}” for
+            the selected period.
           </p>
         </div>
 
@@ -459,8 +458,7 @@ export function CheckinChart({
 
           {onSelectDay && (
             <p className="checkin-chart__hint">
-              Нажмите на столбец, чтобы
-              открыть запись за выбранный день
+              Tap a bar to open the entry for the selected day
             </p>
           )}
         </>
@@ -472,25 +470,24 @@ export function CheckinChart({
           <details className="checkin-chart__details">
 
             <summary>
-              Значения по дням
+              Daily values
             </summary>
 
 
             <div className="checkin-chart__table-wrapper">
               <table>
                 <caption>
-                  {categoryLabel}: оценки по
-                  дням
+                  {categoryLabel}: daily scores
                 </caption>
 
                 <thead>
                   <tr>
                     <th scope="col">
-                      Дата
+                      Date
                     </th>
 
                     <th scope="col">
-                      Оценка
+                      Score
                     </th>
                   </tr>
                 </thead>
@@ -511,7 +508,7 @@ export function CheckinChart({
                                 )
                               }
                               aria-label={[
-                                'Выбрать день',
+                                'Select day',
                                 formatTooltipDate(
                                   point.date,
                                 ),
