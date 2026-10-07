@@ -2,20 +2,16 @@ package org.healthtg.bot;
 
 import org.healthtg.bot.checkin.CheckinSelector;
 import org.healthtg.bot.text.TextInputParser;
-import org.healthtg.bot.text.TextParseResult;
 import org.healthtg.core.dialog.DialogState;
 import org.healthtg.core.dialog.DialogStateService;
 import org.healthtg.core.dialog.SaveDialogStateCommand;
 import org.healthtg.core.entry.CreateCheckinCommand;
-import org.healthtg.core.entry.CreateDraftCommand;
 import org.healthtg.core.entry.EntryCoreService;
 import org.healthtg.core.entry.Entry;
 import org.healthtg.core.entry.EntryNotFoundException;
 import org.healthtg.core.entry.EntryStatusConflictException;
 import org.healthtg.core.entry.EntryVersionConflictException;
-import org.healthtg.core.entry.EntryType;
 import org.healthtg.core.entry.OwnerContext;
-import org.healthtg.core.entry.SourceKind;
 import org.healthtg.core.entry.TelegramUpdateKey;
 import org.healthtg.user.UserAccount;
 import org.healthtg.user.UserService;
@@ -23,13 +19,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,11 +32,11 @@ public final class CoreBotFlow implements BotFlow {
     private final UserService users;
     private final EntryCoreService entries;
     private final DialogStateService dialogs;
-    private final TextInputParser parser;
     private final CheckinSelector selector;
     private final Clock clock;
     private final org.healthtg.bot.draft.DraftReviewFlow drafts;
     private final CheckinReceiptFlow checkinReceipts;
+    private final org.healthtg.bot.text.TextDialogFlow textDialog;
 
     public CoreBotFlow(UserService users, EntryCoreService entries, DialogStateService dialogs, Clock clock) {
         this(users, entries, dialogs, new TextInputParser(), new CheckinSelector(), clock, null);
@@ -67,9 +58,9 @@ public final class CoreBotFlow implements BotFlow {
         this.users = users;
         this.entries = entries;
         this.dialogs = dialogs;
-        this.parser = parser;
         this.selector = selector;
         this.clock = clock;
+        this.textDialog = new org.healthtg.bot.text.TextDialogFlow(entries, dialogs, parser, drafts, clock);
     }
 
     @Override
@@ -78,10 +69,8 @@ public final class CoreBotFlow implements BotFlow {
         OwnerContext owner = new OwnerContext(user.id());
         var active = entries.findActiveDraft(owner);
         if (active.isPresent()) return drafts.card(update, active.get(), user.timezone(), "Завершите текущий черновик.");
-        if (dialogs.find(owner).filter(state -> "text_clarification".equals(state.step())).isPresent()) {
-            return List.of(new BotAction.SendInlineMessage(update.chatId(),
-                    "Сначала завершите уточнение текстовой записи. Ваши данные сохранены.", List.of()));
-        }
+        var pendingText = textDialog.guard(update, owner);
+        if (pendingText.isPresent()) return pendingText.get();
         CheckinSelector proposed = new CheckinSelector();
         CheckinSelector.Outcome outcome = proposed.begin(update.senderId(), update.chatId(), update.updateId());
         if (outcome.status() == CheckinSelector.Status.REJECTED) return List.of(inline(update.chatId(), outcome.view()));
@@ -110,7 +99,6 @@ public final class CoreBotFlow implements BotFlow {
         OwnerContext owner = new OwnerContext(user.id());
         var correction = drafts.message(update, owner, user.timezone());
         if (correction.isPresent()) return correction.get();
-        if (update.text().isBlank()) return List.of();
         var active = entries.findActiveDraft(owner);
         if (active.isPresent()) {
             var draft = active.get();
@@ -121,43 +109,7 @@ public final class CoreBotFlow implements BotFlow {
             return drafts.card(update, draft, user.timezone(), "Завершите текущий черновик.");
         }
 
-        Optional<ClarificationContext> clarification = readClarification(owner, update.updateId());
-        String input = clarification.map(value -> value.originalText() + " " + update.text())
-                .orElse(update.text());
-        TextParseResult parsed = parser.parse(input);
-        if (clarification.isPresent()) parsed = mergeClarification(clarification.get(), parsed);
-        Instant messageSentAt = clarification.isPresent()
-                ? clarification.get().messageSentAt() : update.messageSentAt();
-        if (parsed.data() != null && "metrics".equals(parsed.data().type())
-                && messageSentAt == null) {
-            save(owner, null, "idle", Map.of("schema_version", DIALOG_SCHEMA_VERSION), update.updateId());
-            return List.of(new BotAction.SendInlineMessage(update.chatId(),
-                    "Не удалось восстановить время исходного сообщения. Отправьте показатель заново с датой.",
-                    List.of()));
-        }
-        if (parsed.outcome() == TextParseResult.Outcome.NEEDS_CLARIFICATION && parsed.data() != null) {
-            saveClarification(owner, parsed, update.updateId(), messageSentAt);
-            return List.of(new BotAction.SendInlineMessage(update.chatId(),
-                    "Нужно уточнить данные перед сохранением.", List.of()));
-        }
-        if (parsed.outcome() != TextParseResult.Outcome.PARSED || parsed.data() == null) {
-            String text = parsed.outcome() == TextParseResult.Outcome.REJECTED && !parsed.issues().isEmpty()
-                    ? parsed.issues().getFirst().message()
-                    : parsed.outcome() == TextParseResult.Outcome.NOTE_SUGGESTED
-                    ? "Не удалось выделить показатели. Отправьте более точную формулировку."
-                    : "Нужно уточнить данные перед сохранением.";
-            return List.of(new BotAction.SendInlineMessage(update.chatId(), text, List.of()));
-        }
-        var data = parsed.data();
-        Instant occurredAt = "metrics".equals(data.type()) ? messageSentAt
-                : occurredAt(data.date(), data.time(), user.timezone());
-        var result = entries.createDraft(new CreateDraftCommand(owner,
-                EntryType.valueOf(data.type().toUpperCase()), SourceKind.TEXT,
-                Map.of("telegram_update_id", update.updateId()), occurredAt,
-                data.payload(), data.fieldOrigins(), key(update.updateId())));
-        save(owner, result.entry().id(), "draft_review", Map.of("entry_revision", result.entry().revision()),
-                update.updateId());
-        return drafts.card(update, result.entry(), user.timezone(), "Проверьте черновик.");
+        return textDialog.message(update, owner, user.timezone());
     }
 
     @Override
@@ -165,6 +117,7 @@ public final class CoreBotFlow implements BotFlow {
         if (update.callbackId() == null || update.callbackData() == null) return List.of();
         UserAccount user = users.findOrCreate(update.senderId());
         OwnerContext owner = new OwnerContext(user.id());
+        if (update.callbackData().startsWith("tx:")) return textDialog.callback(update, owner, user.timezone());
         if (update.callbackData().startsWith("dr:")) return drafts.callback(update, owner, user.timezone());
         if (update.callbackData().startsWith("cancel:")) return cancel(update, owner);
         if (update.callbackData().startsWith("qc:")) return checkinReceipts.cancel(update, owner);
@@ -307,103 +260,6 @@ public final class CoreBotFlow implements BotFlow {
 
     private DialogState save(OwnerContext owner, UUID entryId, String step, Map<String, Object> context, long updateId) {
         return dialogs.save(new SaveDialogStateCommand(owner, entryId, step, context, key(updateId)));
-    }
-
-    private void saveClarification(OwnerContext owner, TextParseResult parsed, long updateId, Instant messageSentAt) {
-        var data = parsed.data();
-        Map<String, Object> context = new LinkedHashMap<>();
-        context.put("schema_version", DIALOG_SCHEMA_VERSION);
-        context.put("type", data.type());
-        context.put("payload", data.payload());
-        context.put("field_origins", data.fieldOrigins());
-        context.put("original_text", parsed.originalText());
-        if (messageSentAt != null) context.put("message_sent_at", messageSentAt.toString());
-        if (data.date() != null) context.put("date", data.date().toString());
-        if (data.time() != null) context.put("time", data.time().toString());
-        save(owner, null, "text_clarification", context, updateId);
-    }
-
-    private Optional<ClarificationContext> readClarification(OwnerContext owner, long updateId) {
-        Optional<DialogState> previous = dialogs.find(owner)
-                .filter(state -> "text_clarification".equals(state.step()));
-        if (previous.isEmpty()) return Optional.empty();
-        try {
-            Map<String, Object> context = previous.get().context();
-            Object version = context.get("schema_version");
-            Object original = context.get("original_text");
-            Object type = context.get("type");
-            if (!(version instanceof Number schema) || schema.intValue() != DIALOG_SCHEMA_VERSION
-                    || !(original instanceof String text) || text.isBlank()
-                    || !(type instanceof String entryType) || entryType.isBlank()) {
-                throw new IllegalArgumentException("Incomplete clarification state");
-            }
-            Map<String, Object> payload = objectMap(context.get("payload"));
-            for (String numeric : List.of("value", "mass_g")) {
-                Object value = payload.get(numeric);
-                if (value instanceof String textValue) payload.put(numeric, new java.math.BigDecimal(textValue));
-            }
-            Map<String, String> origins = stringMap(context.get("field_origins"));
-            LocalDate date = context.get("date") instanceof String value ? LocalDate.parse(value) : null;
-            LocalTime time = context.get("time") instanceof String value ? LocalTime.parse(value) : null;
-            Instant messageSentAt = null;
-            if (context.get("message_sent_at") instanceof String value) {
-                try {
-                    messageSentAt = Instant.parse(value);
-                } catch (java.time.DateTimeException invalidTimestamp) {
-                    // Keep the clarification: a reply must not become the original report.
-                    LOG.warn("Stored clarification has an invalid original message timestamp");
-                }
-            }
-            return Optional.of(new ClarificationContext(entryType, payload, origins, date, time, text, messageSentAt));
-        } catch (IllegalArgumentException | java.time.DateTimeException invalid) {
-            LOG.warn("Stored text clarification state is invalid; resetting it without personal data");
-            save(owner, null, "idle", Map.of("schema_version", DIALOG_SCHEMA_VERSION), updateId);
-            return Optional.empty();
-        }
-    }
-
-    private static TextParseResult mergeClarification(ClarificationContext previous, TextParseResult parsed) {
-        if (parsed.data() == null || !previous.type().equals(parsed.data().type())) return parsed;
-        Map<String, Object> payload = new LinkedHashMap<>(previous.payload());
-        payload.putAll(parsed.data().payload());
-        Map<String, String> origins = new LinkedHashMap<>(previous.fieldOrigins());
-        origins.putAll(parsed.data().fieldOrigins());
-        var merged = new TextParseResult.ParsedData(previous.type(), payload, origins,
-                parsed.data().date() == null ? previous.date() : parsed.data().date(),
-                parsed.data().time() == null ? previous.time() : parsed.data().time());
-        return new TextParseResult(parsed.outcome(), parsed.originalText(), merged, parsed.issues());
-    }
-
-    private static Map<String, Object> objectMap(Object value) {
-        if (!(value instanceof Map<?, ?> map)) throw new IllegalArgumentException("Invalid payload state");
-        Map<String, Object> result = new LinkedHashMap<>();
-        map.forEach((key, item) -> {
-            if (!(key instanceof String field)) throw new IllegalArgumentException("Invalid payload key");
-            result.put(field, item);
-        });
-        return result;
-    }
-
-    private static Map<String, String> stringMap(Object value) {
-        if (!(value instanceof Map<?, ?> map)) throw new IllegalArgumentException("Invalid origins state");
-        Map<String, String> result = new LinkedHashMap<>();
-        map.forEach((key, item) -> {
-            if (!(key instanceof String field) || !(item instanceof String origin)) {
-                throw new IllegalArgumentException("Invalid origin state");
-            }
-            result.put(field, origin);
-        });
-        return result;
-    }
-
-    private record ClarificationContext(String type, Map<String, Object> payload,
-                                        Map<String, String> fieldOrigins, LocalDate date,
-                                        LocalTime time, String originalText, Instant messageSentAt) {}
-
-    private Instant occurredAt(LocalDate date, LocalTime time, ZoneId zone) {
-        ZonedDateTime now = ZonedDateTime.ofInstant(clock.instant(), zone);
-        return ZonedDateTime.of(date == null ? now.toLocalDate() : date,
-                time == null ? now.toLocalTime() : time, zone).toInstant();
     }
 
     private static TelegramUpdateKey key(long updateId) { return new TelegramUpdateKey(BOT_KEY, updateId); }

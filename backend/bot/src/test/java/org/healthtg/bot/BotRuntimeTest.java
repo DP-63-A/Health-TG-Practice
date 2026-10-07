@@ -201,7 +201,8 @@ class BotRuntimeTest {
             assertEquals(List.of(0, 0, 0, 12), offsets);
             var notifications = ArgumentCaptor.forClass(SendMessage.class);
             verify(client, times(1)).execute(notifications.capture());
-            assertTrue(notifications.getValue().getText().contains("Хранилище временно недоступно"));
+            assertEquals("Хранилище временно недоступно. Повторяю обработку; повторно отправлять сообщение не нужно.",
+                    notifications.getValue().getText());
         }
     }
 

@@ -151,10 +151,40 @@ class QuickCheckinAcceptanceTest {
         assertTrue(facts(1).isEmpty());
     }
     @Test void stateCommandPreservesPendingTextClarification() {
-        var existing = dialogs.save(new SaveDialogStateCommand(owner(1), null, "text_clarification",
-                Map.of("original_text", "Прошёл 8000 шагов 🙂"), new TelegramUpdateKey("main", 10)));
-        assertTrue(card(flow().beginCheckin(message(1, 11))).rows().isEmpty());
+        parser = spy(new TextInputParser());
+        EntryCoreService observed = mock(EntryCoreService.class, delegatesTo(entries));
+        CoreBotFlow f = flow(observed, NOW);
+        String input = "Прошёл за день 8000 шагов";
+        f.handleMessage(Pr76StateRegressionTest.msg(1, 10, input));
+        var existing = dialogs.find(owner(1)).orElseThrow();
+        assertEquals("text_clarification", existing.step());
+        assertEquals(input, existing.context().get("original_text"));
+        verify(parser).parse(input);
+        clearInvocations(parser);
+
+        var reply = card(f.beginCheckin(message(1, 11)));
+        assertTrue(reply.text().contains("Сначала завершите или отмените текстовый ввод."));
+        assertTrue(reply.text().contains("Введите календарную дату"));
+        assertEquals(List.of("Ввести заново", "Отменить ввод"), reply.rows().stream()
+                .flatMap(List::stream).map(BotAction.InlineButton::text).toList());
         assertEquals(existing, dialogs.find(owner(1)).orElseThrow());
+        assertTrue(entries.findActiveDraft(owner(1)).isEmpty());
+        assertTrue(facts(1).isEmpty());
+        verify(observed, never()).createCheckin(any());
+        verifyNoInteractions(parser);
+    }
+
+    @Test void stateCommandSafelyResetsDamagedTextClarificationWithoutCreatingCheckin() {
+        dialogs.save(new SaveDialogStateCommand(owner(1), null, "text_clarification",
+                Map.of("original_text", "Прошёл 8000 шагов 🙂"), new TelegramUpdateKey("main", 10)));
+        EntryCoreService observed = mock(EntryCoreService.class, delegatesTo(entries));
+        var reply = card(flow(observed, NOW).beginCheckin(message(1, 11)));
+        assertEquals("Не удалось восстановить текстовый ввод. Запись не подтверждена. Отправьте сообщение заново.", reply.text());
+        assertTrue(reply.rows().isEmpty());
+        assertEquals("idle", dialogs.find(owner(1)).orElseThrow().step());
+        assertTrue(entries.findActiveDraft(owner(1)).isEmpty());
+        assertTrue(facts(1).isEmpty());
+        verify(observed, never()).createCheckin(any());
         verifyNoInteractions(parser);
     }
 
