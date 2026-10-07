@@ -43,6 +43,8 @@ class AnalyticsFunctionsIndependentOracleTest {
     );
 
     private static final BigDecimal ZERO = new BigDecimal("0");
+    private static final LocalDate METRIC_DATE = LocalDate.of(2026, 9, 19);
+    private static final Instant MEAL_OCCURRED_AT = Instant.parse("2026-09-19T10:00:00Z");
 
     private static BigDecimal decimal(String value) {
         return new BigDecimal(value);
@@ -67,7 +69,7 @@ class AnalyticsFunctionsIndependentOracleTest {
         Entry firstMeal = Entry.meal(
                 "meal-serving",
                 Status.CONFIRMED,
-                LocalDate.of(2026, 9, 19),
+                MEAL_OCCURRED_AT,
                 null,
                 serving,
                 Basis.PER_SERVING
@@ -76,7 +78,7 @@ class AnalyticsFunctionsIndependentOracleTest {
         Entry secondMeal = Entry.meal(
                 "meal-200g",
                 Status.CONFIRMED,
-                LocalDate.of(2026, 9, 19),
+                MEAL_OCCURRED_AT,
                 decimal("200"),
                 per100g,
                 Basis.PER_100G
@@ -114,7 +116,7 @@ class AnalyticsFunctionsIndependentOracleTest {
         Entry firstMeal = Entry.meal(
                 "meal-serving",
                 Status.CONFIRMED,
-                LocalDate.of(2026, 9, 19),
+                MEAL_OCCURRED_AT,
                 null,
                 serving,
                 Basis.PER_SERVING
@@ -123,7 +125,7 @@ class AnalyticsFunctionsIndependentOracleTest {
         Entry changedMeal = Entry.meal(
                 "meal-150g",
                 Status.CONFIRMED,
-                LocalDate.of(2026, 9, 19),
+                MEAL_OCCURRED_AT,
                 decimal("150"),
                 per100g,
                 Basis.PER_100G
@@ -154,7 +156,7 @@ class AnalyticsFunctionsIndependentOracleTest {
         Entry remainingMeal = Entry.meal(
                 "meal-serving",
                 Status.CONFIRMED,
-                LocalDate.of(2026, 9, 19),
+                MEAL_OCCURRED_AT,
                 null,
                 serving,
                 Basis.PER_SERVING
@@ -185,7 +187,7 @@ class AnalyticsFunctionsIndependentOracleTest {
         Entry meal = Entry.meal(
                 "200g-meal",
                 Status.CONFIRMED,
-                LocalDate.of(2026, 9, 19),
+                MEAL_OCCURRED_AT,
                 decimal("200"),
                 nutrients,
                 Basis.PER_100G
@@ -214,7 +216,7 @@ class AnalyticsFunctionsIndependentOracleTest {
         Entry meal = Entry.meal(
                 "serving",
                 Status.CONFIRMED,
-                LocalDate.of(2026, 9, 19),
+                MEAL_OCCURRED_AT,
                 decimal("500"),
                 nutrients,
                 Basis.PER_SERVING
@@ -245,7 +247,7 @@ class AnalyticsFunctionsIndependentOracleTest {
         Entry meal = Entry.meal(
                 "unknown-basis",
                 Status.CONFIRMED,
-                LocalDate.of(2026, 9, 19),
+                MEAL_OCCURRED_AT,
                 decimal("100"),
                 nutrients,
                 Basis.UNKNOWN
@@ -269,7 +271,7 @@ class AnalyticsFunctionsIndependentOracleTest {
         Entry meal = Entry.meal(
                 "missing-nutrients",
                 Status.CONFIRMED,
-                LocalDate.of(2026, 9, 19),
+                MEAL_OCCURRED_AT,
                 decimal("100"),
                 null,
                 Basis.PER_100G
@@ -300,7 +302,7 @@ class AnalyticsFunctionsIndependentOracleTest {
         Entry meal = Entry.meal(
                 "missing-protein",
                 Status.CONFIRMED,
-                LocalDate.of(2026, 9, 19),
+                MEAL_OCCURRED_AT,
                 decimal("100"),
                 nutrients,
                 Basis.PER_100G
@@ -337,7 +339,7 @@ class AnalyticsFunctionsIndependentOracleTest {
         Entry confirmed = Entry.meal(
                 "confirmed",
                 Status.CONFIRMED,
-                LocalDate.of(2026, 9, 19),
+                MEAL_OCCURRED_AT,
                 null,
                 valid,
                 Basis.PER_SERVING
@@ -346,7 +348,7 @@ class AnalyticsFunctionsIndependentOracleTest {
         Entry draft = Entry.meal(
                 "draft",
                 Status.DRAFT,
-                LocalDate.of(2026, 9, 19),
+                MEAL_OCCURRED_AT,
                 null,
                 invalid,
                 Basis.PER_SERVING
@@ -355,7 +357,7 @@ class AnalyticsFunctionsIndependentOracleTest {
         Entry cancelled = Entry.meal(
                 "cancelled",
                 Status.CANCELLED,
-                LocalDate.of(2026, 9, 19),
+                MEAL_OCCURRED_AT,
                 null,
                 invalid,
                 Basis.PER_SERVING
@@ -364,7 +366,7 @@ class AnalyticsFunctionsIndependentOracleTest {
         Entry deleted = Entry.meal(
                 "deleted",
                 Status.DELETED,
-                LocalDate.of(2026, 9, 19),
+                MEAL_OCCURRED_AT,
                 null,
                 invalid,
                 Basis.PER_SERVING
@@ -473,7 +475,7 @@ class AnalyticsFunctionsIndependentOracleTest {
                 occurredAt,
                 updatedAt,
                 1L,
-                null,
+                METRIC_DATE,
                 null,
                 Metric.STEPS,
                 decimal("3000"),
@@ -492,7 +494,7 @@ class AnalyticsFunctionsIndependentOracleTest {
                 occurredAt,
                 updatedAt,
                 2L,
-                null,
+                METRIC_DATE,
                 null,
                 Metric.STEPS,
                 decimal("5000"),
@@ -701,7 +703,7 @@ class AnalyticsFunctionsIndependentOracleTest {
                 Instant.parse("2026-09-19T10:15:00Z"),
                 null,
                 1L,
-                null,
+                METRIC_DATE,
                 null,
                 Metric.HEART_RATE,
                 decimal("72"),
@@ -736,7 +738,7 @@ class AnalyticsFunctionsIndependentOracleTest {
                 Instant.parse("2026-09-19T09:00:00Z"),
                 null,
                 1L,
-                null,
+                METRIC_DATE,
                 null,
                 Metric.HEART_RATE,
                 decimal("65"),
@@ -755,7 +757,7 @@ class AnalyticsFunctionsIndependentOracleTest {
                 Instant.parse("2026-09-19T10:00:00Z"),
                 null,
                 1L,
-                null,
+                METRIC_DATE,
                 null,
                 Metric.HEART_RATE,
                 decimal("72"),
@@ -977,7 +979,7 @@ class AnalyticsFunctionsIndependentOracleTest {
                 Instant.parse(occurredAt),
                 Instant.parse(updatedAt),
                 1L,
-                null,
+                Instant.parse(occurredAt).atZone(WARSAW).toLocalDate(),
                 null,
                 Metric.STEPS,
                 decimal(value),

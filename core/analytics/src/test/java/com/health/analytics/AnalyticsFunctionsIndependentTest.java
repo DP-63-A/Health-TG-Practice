@@ -36,11 +36,15 @@ class AnalyticsFunctionsIndependentTest {
         String carbs
     ) {
         return new Nutrients(
-            d(kcal),
-            d(protein),
-            d(fat),
-            d(carbs)
+            nullableDecimal(kcal),
+            nullableDecimal(protein),
+            nullableDecimal(fat),
+            nullableDecimal(carbs)
         );
+    }
+
+    private static BigDecimal nullableDecimal(String value) {
+        return value == null ? null : d(value);
     }
 
     @Test
@@ -306,7 +310,7 @@ class AnalyticsFunctionsIndependentTest {
             firstOccurred,
             Instant.parse("2026-09-19T08:01:00Z"),
             1L,
-            null,
+            TEST_DATE,
             null,
             Metric.STEPS,
             d("3000"),
@@ -325,7 +329,7 @@ class AnalyticsFunctionsIndependentTest {
             secondOccurred,
             Instant.parse("2026-09-19T18:01:00Z"),
             2L,
-            null,
+            TEST_DATE,
             null,
             Metric.STEPS,
             d("5000"),
@@ -361,7 +365,7 @@ class AnalyticsFunctionsIndependentTest {
             occurred,
             Instant.parse("2026-09-19T10:01:00Z"),
             1L,
-            null,
+            TEST_DATE,
             null,
             Metric.STEPS,
             d("3000"),
@@ -380,7 +384,7 @@ class AnalyticsFunctionsIndependentTest {
             occurred,
             Instant.parse("2026-09-19T10:02:00Z"),
             2L,
-            null,
+            TEST_DATE,
             null,
             Metric.STEPS,
             d("5000"),
@@ -416,7 +420,7 @@ class AnalyticsFunctionsIndependentTest {
             occurred,
             updated,
             1L,
-            null,
+            TEST_DATE,
             null,
             Metric.STEPS,
             d("3000"),
@@ -435,7 +439,7 @@ class AnalyticsFunctionsIndependentTest {
             occurred,
             updated,
             2L,
-            null,
+            TEST_DATE,
             null,
             Metric.STEPS,
             d("5000"),
@@ -593,7 +597,7 @@ class AnalyticsFunctionsIndependentTest {
             Instant.parse("2026-09-19T09:00:00Z"),
             Instant.parse("2026-09-19T09:01:00Z"),
             1L,
-            null,
+            TEST_DATE,
             null,
             Metric.HEART_RATE,
             d("68"),
@@ -612,7 +616,7 @@ class AnalyticsFunctionsIndependentTest {
             Instant.parse("2026-09-19T12:00:00Z"),
             Instant.parse("2026-09-19T12:01:00Z"),
             2L,
-            null,
+            TEST_DATE,
             null,
             Metric.HEART_RATE,
             d("72"),
@@ -647,7 +651,7 @@ class AnalyticsFunctionsIndependentTest {
             Instant.parse("2026-09-19T12:00:00Z"),
             null,
             1L,
-            null,
+            TEST_DATE,
             null,
             Metric.HEART_RATE,
             d("72"),
@@ -797,7 +801,7 @@ class AnalyticsFunctionsIndependentTest {
             Instant.parse("2026-09-19T08:00:00Z"),
             Instant.parse("2026-09-19T08:01:00Z"),
             1L,
-            null,
+            TEST_DATE,
             null,
             Metric.STEPS,
             d("3000"),
@@ -816,7 +820,7 @@ class AnalyticsFunctionsIndependentTest {
             Instant.parse("2026-09-19T18:00:00Z"),
             Instant.parse("2026-09-19T18:01:00Z"),
             2L,
-            null,
+            TEST_DATE,
             null,
             Metric.STEPS,
             d("5000"),
@@ -869,8 +873,7 @@ class AnalyticsFunctionsIndependentTest {
             null
         );
     }
-    
-    ```java
+
     @Test
     void negativeMassIsRejected() {
         assertThrows(
