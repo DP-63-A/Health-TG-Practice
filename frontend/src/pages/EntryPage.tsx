@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../api/client'
 import { entriesApi } from '../api/entries'
 import type {
@@ -13,7 +13,7 @@ import type {
   NotePayload,
 } from '../api/types'
 import { useAuth } from '../auth/AuthProvider'
-import { Badge, Button, Card, ErrorState, FormField, LoadingState } from '../components/ui'
+import { Button, Card, ErrorState, FormField, LoadingState } from '../components/ui'
 import { useRefresh } from '../refresh/RefreshProvider'
 
 type BusyAction = 'save' | 'confirm' | 'cancel' | 'delete'
@@ -39,12 +39,12 @@ interface EntryFormState {
   note_text: string
 }
 
-const typeLabels: Record<EntryType, string> = {
-  meal: 'Питание',
-  metrics: 'Метрика',
-  checkin: 'Оценка',
-  note: 'Заметка',
-}
+// const typeLabels: Record<EntryType, string> = {
+//   meal: 'Питание',
+//   metrics: 'Метрика',
+//   checkin: 'Оценка',
+//   note: 'Заметка',
+// }
 
 const originLabels: Record<FieldOrigin, string> = {
   reported: 'сообщено пользователем',
@@ -278,7 +278,10 @@ export default function EntryPage() {
     if (!entry || (entry.status !== 'draft' && entry.status !== 'confirmed') || conflictActive || busyAction || mutationLockRef.current) return null
     mutationLockRef.current = true
     try {
-      return await saveCurrentEntry(entry, false)
+      const saved = await saveCurrentEntry(entry, false)
+     
+    if (saved) navigate('/diary')
+      return saved
     } finally {
       mutationLockRef.current = false
     }
@@ -499,26 +502,26 @@ export default function EntryPage() {
 
   return (
     <Card className="entry-detail">
-      <Link className="back-link" to="/diary">← К дневнику</Link>
-      <div className="section-heading">
-        <h2>Проверка записи</h2>
+      {/* <Link className="back-link" to="/diary">← К дневнику</Link> */}
+      {/* <div className="section-heading"> */}
+        {/* <h2>Проверка записи</h2>
         <Badge tone={entry.status === 'confirmed' ? 'success' : entry.status === 'draft' ? 'warning' : 'danger'}>
           Статус: {entry.status}
         </Badge>
-      </div>
+      </div> */}
 
-      <dl className="entry-meta">
+      {/* <dl className="entry-meta">
         <div><dt>Тип</dt><dd>{typeLabels[entry.type]}</dd></div>
         <div><dt>Источник</dt><dd>{entry.source_kind}</dd></div>
         <div><dt>Ревизия</dt><dd>{entry.revision}</dd></div>
         <div><dt>Обновлена</dt><dd>{formatDate(entry.updated_at, timezone)}</dd></div>
-      </dl>
+      </dl> */}
 
-      <section className="source-card" aria-label="Источник записи">
-        <h3>Источник</h3>
-        <p>{entry.source_ref.label ?? entry.source_kind}</p>
-        <p>{isMetricEntry(entry) ? 'Время сообщения итога' : 'Дата записи'}: {formatNullableDate(entry.occurred_at, timezone)}</p>
-        {isMetricEntry(entry) && <p>{metricDateLabel(entry)}: {(entry.payload as MetricsPayload).local_date || 'неизвестно'}</p>}
+      {/* <section className="source-card" aria-label="Источник записи"> */}
+        {/* <h3>Источник</h3> */}
+        {/* <p>{entry.source_ref.label ?? entry.source_kind}</p>
+        <p>{isMetricEntry(entry) ? 'Время сообщения итога' : 'Дата записи'}: {formatNullableDate(entry.occurred_at, timezone)}</p> */}
+        {/* {isMetricEntry(entry) && <p>{metricDateLabel(entry)}: {(entry.payload as MetricsPayload).local_date || 'неизвестно'}</p>}
         {entry.source_ref.telegram_message_id && <p>Telegram message: {entry.source_ref.telegram_message_id}</p>}
         {entry.source_ref.file_id && (sourceFile.fileId !== entry.source_ref.file_id || (!sourceFile.url && !sourceFile.error)) && (
           <p role="status">Загружаем исходный файл через защищённый API...</p>
@@ -527,13 +530,13 @@ export default function EntryPage() {
           <a className="source-link" href={sourceFile.url} target="_blank" rel="noreferrer">
             Открыть исходное изображение
           </a>
-        )}
-        {entry.source_ref.file_id && sourceFile.fileId === entry.source_ref.file_id && sourceFile.error && (
+        )} */}
+        {/* {entry.source_ref.file_id && sourceFile.fileId === entry.source_ref.file_id && sourceFile.error && (
           <p role="alert">{sourceFile.error}</p>
         )}
-      </section>
+      </section> */}
 
-      <section className="source-card" aria-label="Происхождение полей">
+      {/* <section className="source-card" aria-label="Происхождение полей">
         <h3>Происхождение полей</h3>
         {Object.keys(entry.field_origins).length === 0 ? (
           <p>Происхождение полей не указано.</p>
@@ -544,7 +547,7 @@ export default function EntryPage() {
             ))}
           </ul>
         )}
-      </section>
+      </section> */}
 
       {conflictActive && (
         <section className="source-card conflict-panel" aria-label="Свежая серверная версия">
@@ -573,7 +576,7 @@ export default function EntryPage() {
 
       <form ref={formRef} className="entry-form" aria-label="Редактирование записи" onSubmit={(event) => void save(event)} noValidate>
         <fieldset className="entry-edit-fields" disabled={isBusy || !canEdit}>
-        <FormField label={isMetricEntry(entry) ? 'Время сообщения итога' : 'Дата и время'} hint={isMetricEntry(entry) ? `Часовой пояс: ${timezone}. Сохраняется исходное время сообщения. ` : `Timezone: ${timezone}. Пустое поле не заменяется текущим временем.`} error={errorFor(fieldErrors, 'occurred_at')}>
+        <FormField label={isMetricEntry(entry) ? 'Время сообщения итога' : 'Дата и время'} hint={isMetricEntry(entry) ? `Часовой пояс: ${timezone}. Сохраняется исходное время сообщения.` : undefined} error={errorFor(fieldErrors, 'occurred_at')}>
           <input
             readOnly={isMetricEntry(entry)}
             ref={dateInputRef}
@@ -675,16 +678,17 @@ function renderPayloadForm(
           </select>
         </FormField>
         <NumberField entry={entry} errors={errors} field="value" label="Значение" unit={form.metric_unit || 'ед.'} nullable={false} value={form.metric_value} onChange={(value) => updateForm({ metric_value: value })} />
-        <FormField label="Единица" hint={`${originHint(entry, 'unit')} Пустое поле = unknown для draft.`} error={errorFor(errors, 'payload.unit')}>
+        <FormField label="Единица" hint={originHint(entry, 'unit')} error={errorFor(errors, 'payload.unit')}>
           <input maxLength={32} value={form.metric_unit} onChange={(event) => updateForm({ metric_unit: event.target.value })} />
           <UnknownMark value={form.metric_unit} />
         </FormField>
         <div className="entry-form-grid">
-          <FormField label={isMetricEntry(entry) ? metricDateLabel(entry) : 'Локальная дата'} hint={`${originHint(entry, 'local_date')} Пустое поле = unknown для draft.`} error={errorFor(errors, 'payload.local_date')}>
+          <FormField label={isMetricEntry(entry) ? metricDateLabel(entry) : 'Локальная дата'} hint={originHint(entry, 'local_date')} error={errorFor(errors, 'payload.local_date')}>
             <input ref={metricDateInputRef} type="date" value={form.metric_local_date} onChange={(event) => updateForm({ metric_local_date: event.target.value })} />
             <UnknownMark value={form.metric_local_date} />
           </FormField>
-          {(entry.payload as MetricsPayload).code !== 'steps' && <FormField label="Локальное время" hint={`${originHint(entry, 'local_time')} Пустое поле = unknown.`} error={errorFor(errors, 'payload.local_time')}>
+          {(entry.payload as MetricsPayload).code !== 'steps' && <FormField label="Локальное время" 
+hint={originHint(entry, 'local_time')}  error={errorFor(errors, 'payload.local_time')}>
             <input type="time" value={form.metric_local_time} onChange={(event) => updateForm({ metric_local_time: event.target.value })} />
             <UnknownMark value={form.metric_local_time} />
           </FormField>}
@@ -728,13 +732,11 @@ function renderPayloadForm(
 }
 
 function NumberField({
-  entry,
   errors,
   field,
   label,
   nullable = true,
   onChange,
-  unit,
   value,
 }: {
   entry: Entry
@@ -748,7 +750,7 @@ function NumberField({
 }) {
   const path = `payload.${field}`
   return (
-    <FormField label={label} hint={`${unit}. ${originHint(entry, field)}${nullable ? ' Пустое поле = unknown.' : ''}`} error={errorFor(errors, path)}>
+    <FormField label={label} error={errorFor(errors, path)}>
       <input
         inputMode="decimal"
         value={value}
@@ -1009,7 +1011,7 @@ function errorFor(errors: FieldErrors, field: string) {
 
 function originHint(entry: Entry, field: string) {
   const origin = entry.field_origins[field] ?? entry.field_origins[`payload.${field}`]
-  return origin ? `Происхождение: ${originLabels[origin]}.` : 'Происхождение не указано.'
+  return origin ? `Происхождение: ${originLabels[origin]}.` : ''
 }
 
 function toInputValue(value: number | string | null | undefined) {
@@ -1075,16 +1077,6 @@ function getZonedParts(date: Date, timezone: string) {
   return Object.fromEntries(parts.map((part) => [part.type, part.value])) as Record<'year' | 'month' | 'day' | 'hour' | 'minute' | 'second', string>
 }
 
-function formatNullableDate(value: string | null | undefined, timezone: string) {
-  if (!value) return 'неизвестно'
-  return formatDate(value, timezone)
-}
-
-function formatDate(value: string, timezone: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'неизвестно'
-  return new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short', timeZone: timezone }).format(date)
-}
 
 function isSameInstant(left: string, right: string | null | undefined) {
   if (!right) return false

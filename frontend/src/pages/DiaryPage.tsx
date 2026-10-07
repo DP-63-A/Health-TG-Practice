@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useOutletContext } from 'react-router-dom'
 import { ApiError } from '../api/client'
 import { entriesApi } from '../api/entries'
-import type { Entry, EntryFilters, EntryPayload, EntryStatus, EntryType, SourceKind } from '../api/types'
+import type { Entry, EntryFilters, EntryPayload, EntryStatus, EntryType} from '../api/types'
 import { useAuth } from '../auth/AuthProvider'
 import { HandDrawnOutline } from '../components/HandDrawnOutline'
 import { Button, Card, EmptyState, ErrorState, FormField, LoadingState } from '../components/ui'
@@ -12,7 +12,6 @@ const PAGE_SIZE = 2
 const typeLabels: Record<EntryType, string> = { meal: 'Meal', metrics: 'Measurement', checkin: 'Check-in', note: 'Note' }
 const categoryLabels = { sleep_quality: 'Sleep quality', digestion_comfort: 'Digestive comfort', wellbeing: 'Wellbeing', mood: 'Mood' }
 const metricLabels = { steps: 'Steps', sleep_duration_min: 'Sleep duration', heart_rate: 'Heart rate' }
-const sourceLabels: Record<SourceKind, string> = { text: 'Text message', food_photo: 'Food photo', health_screenshot: 'Health screenshot', watch_photo: 'Watch photo', quick_checkin: 'Quick check-in', seed: 'Seed data' }
 const overviewTypes = ['meal', 'metrics', 'checkin'] as const satisfies readonly EntryType[]
 
 function isOverviewType(value: string | null): value is (typeof overviewTypes)[number] {
@@ -44,6 +43,8 @@ function DiaryPage() {
 }
 
 function DiaryContent({ search }: { search: string }) {
+
+  const location = useLocation()
   const { filtersOpen } = useOutletContext<{ filtersOpen: boolean }>()
   const [filters, setFilters] = useState<EntryFilters>(() => initialFilters(search))
   const [entries, setEntries] = useState<Entry[]>([])
@@ -98,6 +99,9 @@ function DiaryContent({ search }: { search: string }) {
   }
 
   return <Card className="diary-page" aria-label="Diary">
+    {location.state?.notice && (
+  <p role="status">{location.state.notice}</p>
+      )}
     <div id="diary-filters" className="diary-sorting" hidden={!filtersOpen}>
       <form className="filters" aria-label="Diary filters" onSubmit={(event) => event.preventDefault()}>
       <FormField label="Mode"><select value={filters.status ?? 'confirmed'} onChange={(e) => updateFilters({ status: e.target.value as EntryStatus })}><option value="confirmed">History</option><option value="draft">Review</option></select></FormField>
@@ -121,9 +125,6 @@ function DiaryContent({ search }: { search: string }) {
             ? <span>{entry.payload.code === 'steps' ? 'Step total date' : entry.payload.code === 'sleep_duration_min' ? 'Wake date' : 'Measurement date'}: {entry.payload.local_date || 'unknown'}</span>
             : <time dateTime={entry.occurred_at}>{formatDateTime(entry.occurred_at)}</time>}
           {entry.type !== 'checkin' && <span>{payloadSummary(entry.payload)}</span>}
-        </div>
-        <div>
-          <span>Source: {sourceLabel(entry)}</span>
         </div>
       </Link></li>)}</ul>
       <div className="pagination-actions" aria-label="Diary pagination">
@@ -153,9 +154,6 @@ function payloadSummary(payload: EntryPayload) {
   return `Score: ${formatValue(payload.score)} out of 5`
 }
 
-function sourceLabel(entry: Entry) {
-  return entry.source_ref.label ?? sourceLabels[entry.source_kind]
-}
 
 function formatUnit(unit: string | null | undefined) {
   if (!unit) return ''
