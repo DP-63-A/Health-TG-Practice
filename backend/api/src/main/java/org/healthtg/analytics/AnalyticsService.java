@@ -1,16 +1,29 @@
 package org.healthtg.analytics;
 
 import com.health.analytics.AnalyticsFunctions;
+import com.health.analytics.AnalyticsFunctions.Basis;
+import com.health.analytics.AnalyticsFunctions.CheckinCategory;
+import com.health.analytics.AnalyticsFunctions.DailyResult;
+import com.health.analytics.AnalyticsFunctions.Metric;
+import com.health.analytics.AnalyticsFunctions.Nutrients;
+import com.health.analytics.AnalyticsFunctions.Period;
+import com.health.analytics.AnalyticsFunctions.Qualifier;
+import com.health.analytics.AnalyticsFunctions.RatingPoint;
+import com.health.analytics.AnalyticsFunctions.Status;
 import org.healthtg.core.entry.Entry;
 import org.healthtg.core.entry.EntryCoreService;
+import org.healthtg.core.entry.EntryStatus;
 import org.healthtg.core.entry.EntryType;
-import org.healthtg.core.entry.ListConfirmedEntriesQuery;
+import org.healthtg.core.entry.ListEntriesQuery;
 import org.healthtg.core.entry.OwnerContext;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
+import java.time.DateTimeException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -21,6 +34,15 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.UUID;
+import java.util.stream.Stream;
 
 @Service
 @ConditionalOnProperty(name = "health-tg.core.storage.enabled", matchIfMissing = true)

@@ -183,8 +183,10 @@ class AuthHttpIntegrationTest {
 
         var missing = http.exchange("/api/v1/not-a-route", HttpMethod.GET, request, String.class);
         org.junit.jupiter.api.Assertions.assertEquals(404, missing.getStatusCode().value());
+        
         var me = http.exchange("/api/v1/me", HttpMethod.GET, request, String.class);
         org.junit.jupiter.api.Assertions.assertEquals(200, me.getStatusCode().value());
+        
         var anonymous = http.getForEntity("/api/v1/me", String.class);
         org.junit.jupiter.api.Assertions.assertEquals(401, anonymous.getStatusCode().value());
     }
