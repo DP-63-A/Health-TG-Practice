@@ -87,6 +87,14 @@ public final class DraftReviewFlow {
         if (value instanceof BigDecimal decimal && decimal.signum() < 0) {
             return Optional.of(List.of(message(update, "Значение не может быть отрицательным.", backRows(entry))));
         }
+        if ("v".equals(field) && entry.type()==EntryType.METRICS && value instanceof BigDecimal decimal) {
+            try { org.healthtg.bot.recognition.MetricCandidate.validateValue((String)entry.payload().get("code"),decimal); }
+            catch (IllegalArgumentException invalid) {
+                return Optional.of(List.of(message(update, "steps".equals(entry.payload().get("code"))
+                        ? "Введите целое количество шагов от 0 до 1000000000."
+                        : "Введите значение от 0 до 1000000000.", backRows(entry))));
+            }
+        }
         Map<String, Object> context = base(entry, ZoneId.of(String.valueOf(state.context().get("timezone"))));
         context.put("operation", "patch");
         context.put("field", field);
@@ -141,7 +149,7 @@ public final class DraftReviewFlow {
             if (!accepted.context().equals(context)) return card(update, entry, zone, "Диалог уже изменён.");
             return withAnswer(update, message(update, "d".equals(action)
                     ? "Введите дату: ДД.ММ.ГГГГ или ГГГГ-ММ-ДД."
-                    : "Введите одно число для поля «" + FIELDS.get(action) + "», например 12,5.", backRows(entry)));
+                    : correctionQuestion(entry,action), backRows(entry)));
         }
         if ("n".equals(action)) {
             save(owner, entry, "draft_choose", context, update);
@@ -180,9 +188,19 @@ public final class DraftReviewFlow {
             entry = entries.requireEntry(owner, entry.id());
             notice = "Запись изменилась. Старое действие не применено повторно; проверьте текущую версию.";
         } catch (EntryValidationException | DateTimeException invalid) {
+            // The caller owns this update's transition. Consuming its key here would
+            // prevent the same callback from selecting a corrected field below.
             notice = "Не удалось применить значение. Проверьте поле и выберите исправление заново.";
         }
         return card(update, entry, zone, notice);
+    }
+
+    private static String correctionQuestion(Entry entry,String field) {
+        if ("v".equals(field) && entry.type()==EntryType.METRICS) {
+            if ("steps".equals(entry.payload().get("code"))) return "Введите целое количество шагов от 0 до 1000000000.";
+            if ("sleep_duration_min".equals(entry.payload().get("code"))) return "Введите длительность сна в минутах, например 450.";
+        }
+        return "Введите одно число для поля «"+FIELDS.get(field)+"», например 12,5.";
     }
 
     /** Validate persisted intent before any mutation; a partial/corrupt intent is never guessed. */
@@ -307,6 +325,9 @@ public final class DraftReviewFlow {
         if (entry.status() == EntryStatus.DRAFT) {
             rows.add(List.of(button("Сохранить", "s", entry), button("Изменить", "n", entry)));
             rows.add(List.of(button("Не сохранять", "x", entry), button("Обновить", "r", entry)));
+            if(dialogs!=null) dialogs.find(new OwnerContext(entry.ownerId())).filter(s -> entry.id().equals(s.activeEntryId())
+                    && s.context().containsKey("photo_queue")).ifPresent(s -> rows.add(List.of(
+                    new BotAction.InlineButton("Отменить оставшиеся показатели","pq:x:"+entry.id()+":"+s.revision()))));
         }
         if (miniAppUrl != null && entry.status() != EntryStatus.CANCELLED && entry.status() != EntryStatus.DELETED) {
             rows.add(List.of(new BotAction.InlineButton("Открыть в Mini App", null,
@@ -342,15 +363,22 @@ public final class DraftReviewFlow {
             default -> List.of();
         };
     }
-    private static Map<String, Object> base(Entry entry, ZoneId zone) {
+    private Map<String, Object> base(Entry entry, ZoneId zone) {
         Map<String, Object> context = new LinkedHashMap<>();
         context.put("schema_version", 1);
         context.put("entry_revision", entry.revision());
         context.put("timezone", zone.getId());
+        dialogs.find(new OwnerContext(entry.ownerId())).filter(s -> entry.id().equals(s.activeEntryId()))
+                .map(s -> s.context().get("photo_queue")).filter(q -> q instanceof Map<?,?>)
+                .ifPresent(q -> context.put("photo_queue",q));
         return context;
     }
     private DialogState save(OwnerContext owner, Entry entry, String step, Map<String, Object> context, BotUpdate update) {
-        return dialogs.save(new SaveDialogStateCommand(owner, entry.id(), step, context,
+        var preserved=new LinkedHashMap<String,Object>(context);
+        dialogs.find(owner).filter(s -> entry.id().equals(s.activeEntryId()))
+                .map(s -> s.context().get("photo_queue")).filter(q -> q instanceof Map<?,?>)
+                .ifPresent(q -> preserved.put("photo_queue",q));
+        return dialogs.save(new SaveDialogStateCommand(owner, entry.id(), step, preserved,
                 new TelegramUpdateKey("main", update.updateId())));
     }
     private static long number(Map<String, Object> context, String name) {

@@ -5,6 +5,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface EntryStore {
+    /** Includes every owner and status to protect legacy or inconsistent references. */
+    boolean hasFileReference(UUID fileId);
     Entry save(Entry entry);
 
     Optional<Entry> findById(UUID id);

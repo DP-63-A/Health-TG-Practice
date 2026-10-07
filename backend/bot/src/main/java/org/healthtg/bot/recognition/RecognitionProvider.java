@@ -6,4 +6,7 @@ public interface RecognitionProvider {
     record Response(String json, String requestId, Usage usage) { }
     Mode mode();
     Response recognize(ImageValidator.ValidatedImage image) throws RecognitionException;
+    default Response recognize(ImageValidator.ValidatedImage image, String imageClass) throws RecognitionException {
+        return recognize(image);
+    }
 }

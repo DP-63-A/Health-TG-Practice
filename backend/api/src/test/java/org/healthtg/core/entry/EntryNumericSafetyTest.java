@@ -54,8 +54,9 @@ class EntryNumericSafetyTest {
                 Map.of("category", "mood", "score", new BigDecimal("3.0"))));
     }
 
-    @Test void acceptsFractionalStepAndSleepValuesWithoutRounding() {
-        for (String code : List.of("steps", "sleep_duration_min")) {
+    @Test void rejectsFractionalStepsButPreservesFractionalSleepAndPulse() {
+        assertThrows(EntryValidationException.class, () -> EntryPayloadValidator.validateDraft(EntryType.METRICS, Map.of("code", "steps", "value", new BigDecimal("123.456789"))));
+        for (String code : List.of("heart_rate", "sleep_duration_min")) {
             assertDoesNotThrow(() -> EntryPayloadValidator.validateDraft(EntryType.METRICS,
                     Map.of("code", code, "value", new BigDecimal("123.456789"))), code);
         }

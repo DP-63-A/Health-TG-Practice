@@ -849,8 +849,8 @@ class CoreStorageIntegrationTest {
         Entry createdMax = entries.createDraft(validMaxCmd).entry();
         assertNotNull(createdMax.id());
 
-        // 3. Дробное значение (10.5) для steps и heart_rate успешно принимается
-        var validFractionalSteps = new CreateDraftCommand(
+        // 3. Дробные steps запрещены, дробный heart_rate остаётся допустимым.
+        var invalidFractionalSteps = new CreateDraftCommand(
                 owner3,
                 EntryType.METRICS,
                 SourceKind.TEXT,
@@ -860,8 +860,8 @@ class CoreStorageIntegrationTest {
                 Map.of(),
                 new TelegramUpdateKey("main", 103L)
         );
-        Entry createdSteps = entries.createDraft(validFractionalSteps).entry();
-        assertNotNull(createdSteps.id());
+        assertThrows(EntryValidationException.class, () -> entries.createDraft(invalidFractionalSteps));
+
 
         var validFractionalHeartRate = new CreateDraftCommand(
                 owner4,

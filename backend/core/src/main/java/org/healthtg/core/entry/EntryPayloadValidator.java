@@ -23,7 +23,7 @@ final class EntryPayloadValidator {
     private static final Set<String> NUTRIENT_BASES = Set.of("per_100g", "per_serving", "unknown");
     private static final Set<String> HEART_RATE_QUALIFIERS = Set.of("instant", "resting");
     private static final Set<String> FIELD_ORIGINS = Set.of("reported", "extracted", "estimated", "computed");
-    /** Steps and sleep minutes are whole numbers; the bound keeps multi-day sums inside long. */
+    /** The bound keeps multi-day sums inside long; only steps must be whole numbers. */
     private static final BigDecimal MAX_WHOLE_METRIC = BigDecimal.valueOf(1_000_000_000L);
 
     private EntryPayloadValidator() {
@@ -100,6 +100,9 @@ final class EntryPayloadValidator {
         }
         if (decimal.compareTo(MAX_WHOLE_METRIC) > 0) {
             throw invalid("value must not be greater than 1000000000 for " + code);
+        }
+        if ("steps".equals(code) && decimal.stripTrailingZeros().scale() > 0) {
+            throw invalid("value must be a whole number for steps");
         }
     }
 

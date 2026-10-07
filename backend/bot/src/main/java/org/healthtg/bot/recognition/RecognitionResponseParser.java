@@ -18,6 +18,8 @@ import static org.healthtg.bot.recognition.RecognitionException.Code.*;
 public final class RecognitionResponseParser {
     private final JsonSchema schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012)
             .getSchema(RecognitionJson.resource("response-schema.json"));
+    private final JsonSchema metricsSchema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012)
+            .getSchema(RecognitionJson.resource("metrics-response-schema.json"));
 
     public RecognitionResult parse(String json) throws RecognitionException {
         if (json == null || json.isBlank()) throw new RecognitionException(EMPTY_RESPONSE);
@@ -25,6 +27,7 @@ public final class RecognitionResponseParser {
             throw new RecognitionException(RESPONSE_TOO_LARGE);
         try {
             JsonNode node = RecognitionJson.MAPPER.readTree(json);
+            if (node.has("image_class")) return parseMetrics(node);
             if (!schema.validate(node).isEmpty()) throw new RecognitionException(INVALID_RESPONSE);
             if (!node.get("is_food").booleanValue()) throw new RecognitionException(REFUSED);
             var origins = new LinkedHashMap<String, String>();
@@ -70,6 +73,48 @@ public final class RecognitionResponseParser {
                     new RecognitionResult.Nutrients(number(n,"energy_kcal"),number(n,"protein_g"),number(n,"fat_g"),number(n,"carbs_g")),
                     basis, occurred, date, time, origins, missing);
         } catch (IOException | DateTimeParseException e) { throw new RecognitionException(INVALID_RESPONSE); }
+    }
+    private RecognitionResult parseMetrics(JsonNode node) throws RecognitionException {
+        if (!metricsSchema.validate(node).isEmpty()) throw new RecognitionException(INVALID_RESPONSE);
+        String kind = node.get("image_class").textValue();
+        if (kind.equals("unknown")) throw new RecognitionException(REFUSED);
+        var metrics = new ArrayList<MetricCandidate>();
+        var seen = new java.util.HashSet<String>();
+        for (var m : node.get("metrics")) {
+            String code = text(m,"code");
+            if (!seen.add(code)) throw new RecognitionException(INVALID_RESPONSE);
+            var origins = new LinkedHashMap<String,String>();
+            for (String field : List.of("code","value","unit","local_date","local_time","qualifier")) {
+                JsonNode value = m.get(field), origin = m.get("field_origins").get(field);
+                if (value.isNull() != origin.isNull()) throw new RecognitionException(INVALID_RESPONSE);
+                if (!value.isNull()) {
+                    if (value.isTextual() && value.textValue().isBlank()) throw new RecognitionException(INVALID_RESPONSE);
+                    origins.put(field,"extracted");
+                }
+            }
+            String date=text(m,"local_date"), time=text(m,"local_time"), qualifier=text(m,"qualifier");
+            try {
+                if (date!=null) LocalDate.parse(date);
+                if (time!=null) LocalTime.parse(time);
+                if (!code.equals("heart_rate") && qualifier!=null) throw new IllegalArgumentException();
+                if (code.equals("steps") && time!=null) throw new IllegalArgumentException();
+                java.math.BigDecimal minutes=m.hasNonNull("minutes_component")?m.get("minutes_component").decimalValue():null;
+                var minuteOrigin=m.get("field_origins").get("minutes_component");
+                if(minutes!=null) {
+                    if(minuteOrigin==null || !minuteOrigin.asText().equals("extracted")) throw new IllegalArgumentException();
+                } else if(minuteOrigin!=null && !minuteOrigin.isNull()) throw new IllegalArgumentException();
+                var candidate = new MetricCandidate(code,number(m,"value"),text(m,"unit"),date,time,qualifier,origins,minutes);
+                candidate.context();
+                metrics.add(candidate);
+            } catch (IllegalArgumentException | java.time.DateTimeException invalid) {
+                throw new RecognitionException(INVALID_RESPONSE);
+            }
+        }
+        if (metrics.isEmpty()) throw new RecognitionException(REFUSED);
+        var ignored = new ArrayList<String>(); node.get("ignored_labels").forEach(n -> ignored.add(n.textValue()));
+        return new RecognitionResult(null,null,null,null,null,null,null,java.util.Map.of(),
+                metrics.stream().anyMatch(m -> m.value()==null || m.localDate()==null || MetricCandidate.normalize(m.code(),m.value(),m.unit()).unit()==null)
+                        ? List.of("metrics") : List.of(),kind,metrics,ignored);
     }
     private static String text(JsonNode node, String key) { return node.get(key).isNull() ? null : node.get(key).textValue(); }
     private static java.math.BigDecimal number(JsonNode node, String key) { return node.get(key).isNull() ? null : node.get(key).decimalValue(); }

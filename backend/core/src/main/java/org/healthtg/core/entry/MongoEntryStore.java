@@ -29,6 +29,12 @@ class MongoEntryStore implements EntryStore {
     }
 
     @Override
+    public boolean hasFileReference(UUID fileId) {
+        return mongoTemplate.exists(Query.query(Criteria.where("sourceRef.file_id")
+                .regex("^"+java.util.regex.Pattern.quote(fileId.toString())+"$","i")),MongoEntryDocument.class);
+    }
+
+    @Override
     public Entry save(Entry entry) {
         return toDomain(repository.save(toDocument(entry)));
     }
