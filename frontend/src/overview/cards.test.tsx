@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { ReactElement } from 'react'
 
-import { analyticsFixture } from './fixtures/analytics.fixture'
+import type { AnalyticsResponse } from './analytics.types'
 
 import { NutritionCard } from '../components/Overview-components/NutritionCard'
 import { MealCountCard } from '../components/Overview-components/MealCountCard'
@@ -20,19 +20,80 @@ function renderText(component: ReactElement): string {
     .trim()
 }
 
+const examplePeriod: AnalyticsResponse['period'] = {
+  kind: 'days_7',
+  from: '2026-09-13',
+  to: '2026-09-19',
+  timezone: 'Europe/Warsaw',
+}
+
+const exampleNutrition: AnalyticsResponse['cards']['nutrition'] = {
+  energy_kcal: 930,
+  protein_g: 50,
+  fat_g: 30,
+  carbs_g: 110,
+  incomplete: false,
+  meals_with_energy: 2,
+}
+
+const exampleMealCount: AnalyticsResponse['cards']['meal_count'] = {
+  count: 2,
+}
+
+const exampleSleep: AnalyticsResponse['cards']['sleep'] = {
+  total_minutes: 900,
+  average_minutes: 450,
+  days_with_data: 2,
+}
+
+const exampleSteps: AnalyticsResponse['cards']['steps'] = {
+  total: 5000,
+  average: 5000,
+  days_with_data: 1,
+}
+
+const exampleHeartRate: AnalyticsResponse['cards']['heart_rate'] = {
+  value_bpm: 72,
+  occurred_at: '2026-09-19T10:15:00Z',
+  local_date: '2026-09-19',
+  local_time: null,
+  qualifier: 'resting',
+  entry_id: '22222222-2222-4222-8222-222222222221',
+}
+
+const exampleCheckins: AnalyticsResponse['cards']['checkins'] = {
+  sleep_quality: {
+    score: 4,
+    date: '2026-09-19',
+    entry_id: '22222222-2222-4222-8222-222222222222',
+  },
+  digestion_comfort: {
+    score: 5,
+    date: '2026-09-19',
+    entry_id: '22222222-2222-4222-8222-222222222223',
+  },
+  wellbeing: {
+    score: 3,
+    date: '2026-09-19',
+    entry_id: '22222222-2222-4222-8222-222222222224',
+  },
+  mood: {
+    score: 4,
+    date: '2026-09-19',
+    entry_id: '22222222-2222-4222-8222-222222222225',
+  },
+}
+
 describe('NutritionCard', () => {
   it('отображает калории и БЖУ из ответа BE3', () => {
     const text = renderText(
-      <NutritionCard
-        nutrition={analyticsFixture.cards.nutrition}
-      />,
+      <NutritionCard nutrition={exampleNutrition} />,
     )
 
-    
-  expect(text).toContain('930 ккал')
-  expect(text).toContain('Белки 50 г')
-  expect(text).toContain('Жиры 30 г')
-  expect(text).toContain('Углеводы 110 г')
+    expect(text).toContain('930 ккал')
+    expect(text).toContain('Белки 50 г')
+    expect(text).toContain('Жиры 30 г')
+    expect(text).toContain('Углеводы 110 г')
   })
 
   it('показывает прочерки при отсутствии данных', () => {
@@ -50,7 +111,7 @@ describe('NutritionCard', () => {
     const text = renderText(
       <NutritionCard
         nutrition={{
-          ...analyticsFixture.cards.nutrition,
+          ...exampleNutrition,
           protein_g: 0,
         }}
       />,
@@ -63,7 +124,7 @@ describe('NutritionCard', () => {
     const text = renderText(
       <NutritionCard
         nutrition={{
-          ...analyticsFixture.cards.nutrition,
+          ...exampleNutrition,
           incomplete: true,
         }}
       />,
@@ -74,9 +135,7 @@ describe('NutritionCard', () => {
 
   it('не показывает предупреждение при полном рационе', () => {
     const text = renderText(
-      <NutritionCard
-        nutrition={analyticsFixture.cards.nutrition}
-      />,
+      <NutritionCard nutrition={exampleNutrition} />,
     )
 
     expect(text).not.toContain('Данные о рационе неполные')
@@ -86,12 +145,12 @@ describe('NutritionCard', () => {
 describe('MealCountCard', () => {
   it('отображает количество приёмов пищи', () => {
     const text = renderText(
-      <MealCountCard
-        mealCount={analyticsFixture.cards.meal_count}
-      />,
+      <MealCountCard mealCount={exampleMealCount} />,
     )
 
-    expect(text).toContain('За выбранный период 2 приёма пищи')
+    expect(text).toContain(
+      'За выбранный период 2 приёма пищи',
+    )
   })
 
   it('показывает прочерк при отсутствии данных', () => {
@@ -99,7 +158,9 @@ describe('MealCountCard', () => {
       <MealCountCard mealCount={null} />,
     )
 
-    expect(text).toContain('За выбранный период —')
+    expect(text).toContain(
+      'За выбранный период —',
+    )
   })
 
   it('показывает ноль при нулевом количестве', () => {
@@ -107,7 +168,9 @@ describe('MealCountCard', () => {
       <MealCountCard mealCount={{ count: 0 }} />,
     )
 
-    expect(text).toContain('За выбранный период 0 приёмов пищи')
+    expect(text).toContain(
+      'За выбранный период 0 приёмов пищи',
+    )
   })
 })
 
@@ -115,12 +178,15 @@ describe('SleepCard', () => {
   it('отображает общую и среднюю продолжительность сна', () => {
     const text = renderText(
       <SleepCard
-        sleep={analyticsFixture.cards.sleep}
-        period={analyticsFixture.period}
+        sleep={exampleSleep}
+        period={examplePeriod}
       />,
     )
 
-    expect(text).toContain('7 ч 30 мин')
+    expect(text).toContain('Всего за период 15 ч')
+    expect(text).toContain(
+      'Среднее 7 ч 30 мин за день с данными',
+    )
     expect(text).toContain('Дней с данными 2')
     expect(text).toContain('13.09.2026')
     expect(text).toContain('19.09.2026')
@@ -135,7 +201,9 @@ describe('SleepCard', () => {
     )
 
     expect(text).toContain('Всего за период —')
-    expect(text).toContain('Среднее — за день с данными')
+    expect(text).toContain(
+      'Среднее — за день с данными',
+    )
     expect(text).toContain('Дней с данными —')
     expect(text).toMatch(/—$/)
   })
@@ -148,7 +216,7 @@ describe('SleepCard', () => {
           average_minutes: 0,
           days_with_data: 0,
         }}
-        period={analyticsFixture.period}
+        period={examplePeriod}
       />,
     )
 
@@ -161,12 +229,12 @@ describe('StepsCard', () => {
   it('отображает шаги из ответа BE3', () => {
     const text = renderText(
       <StepsCard
-        steps={analyticsFixture.cards.steps}
-        period={analyticsFixture.period}
+        steps={exampleSteps}
+        period={examplePeriod}
       />,
     )
 
-    expect(text).toContain('5 000')
+    expect(text).toContain('Всего за период 5 000')
     expect(text).toContain('Дней с данными 1')
   })
 
@@ -178,8 +246,7 @@ describe('StepsCard', () => {
       />,
     )
 
-    expect(text).toContain('Всего за период — шагов')
-    expect(text).toContain('Среднее — шагов в день')
+    expect(text).toContain('Всего за период —')
     expect(text).toContain('Дней с данными —')
     expect(text).toMatch(/—$/)
   })
@@ -192,7 +259,7 @@ describe('StepsCard', () => {
           average: 0,
           days_with_data: 0,
         }}
-        period={analyticsFixture.period}
+        period={examplePeriod}
       />,
     )
 
@@ -202,20 +269,11 @@ describe('StepsCard', () => {
 })
 
 describe('HeartRateCard', () => {
-  it('отделяет неизвестное время измерения от известного времени сообщения', () => {
-    const text = renderText(<HeartRateCard heartRate={{ value_bpm: 72,
-      occurred_at: '2026-10-07T23:50:00Z', local_date: '2026-10-05', local_time: null, qualifier: null, entry_id: null }}
-      period={analyticsFixture.period} />)
-    expect(text).toContain('2026-10-05 · время неизвестно')
-    expect(text).toContain('Сообщено')
-    expect(text).toContain('Последний сообщённый пульс')
-  })
-
-  it('отображает последнее измерение пульса', () => {
+  it('отображает последний сообщённый пульс из BE3', () => {
     const text = renderText(
       <HeartRateCard
-        heartRate={analyticsFixture.cards.heart_rate}
-        period={analyticsFixture.period}
+        heartRate={exampleHeartRate}
+        period={examplePeriod}
       />,
     )
 
@@ -223,51 +281,86 @@ describe('HeartRateCard', () => {
     expect(text).toContain('уд/мин')
     expect(text).toContain('19.09.2026')
     expect(text).toContain('12:15')
-    expect(text).toContain('2026-09-19 · 12:10')
-    expect(text).toContain('Сообщено')
     expect(text).toContain('В покое')
   })
 
-  it('показывает прочерки при отсутствии пульса', () => {
+  it('разделяет дату и время измерения и исходного сообщения', () => {
     const text = renderText(
       <HeartRateCard
-        heartRate={null}
-        period={null}
+        heartRate={{
+          ...exampleHeartRate,
+          local_date: '2026-09-15',
+          local_time: '08:30',
+        }}
+        period={examplePeriod}
+      />,
+    )
+
+    expect(text).toContain('Последний сообщённый пульс')
+    expect(text).toContain('Время измерения 2026-09-15 · 08:30')
+    expect(text).toContain('Сообщено 19.09.2026, 12:15')
+    expect(text).not.toContain('Время измерения 2026-09-19')
+  })
+
+  it('не подставляет время сообщения вместо неизвестного времени измерения', () => {
+    const text = renderText(
+      <HeartRateCard
+        heartRate={{
+          ...exampleHeartRate,
+          local_date: '2026-09-15',
+          local_time: null,
+        }}
+        period={examplePeriod}
+      />,
+    )
+
+    expect(text).toContain('Время измерения 2026-09-15 · время неизвестно')
+    expect(text).toContain('Сообщено 19.09.2026, 12:15')
+    expect(text).not.toContain('2026-09-15 · 12:15')
+  })
+
+  it('показывает прочерки при отсутствии измерения', () => {
+    const text = renderText(
+      <HeartRateCard
+        heartRate={{
+          value_bpm: null,
+          occurred_at: null,
+          local_date: null,
+          local_time: null,
+          qualifier: null,
+          entry_id: null,
+        }}
+        period={examplePeriod}
       />,
     )
 
     expect(text).toContain('— уд/мин')
-    expect(text).toContain('Время измерения неизвестно')
+    expect(text).toContain('Время измерения неизвестно · время неизвестно')
     expect(text).not.toContain('В покое')
+    expect(text).not.toContain('Разовое измерение')
   })
 
- 
-it('не придумывает контекст отсутствующего измерения', () => {
-  const text = renderText(
-    <HeartRateCard
-      heartRate={{
-        value_bpm: 62,
-        occurred_at: '2026-09-16T06:05:00Z',
-        local_date: '2026-09-16',
-        local_time: null,
-        qualifier: null,
-        entry_id: null,
-      }}
-      period={analyticsFixture.period}
-    />,
-  )
+  it('не придумывает контекст отсутствующего измерения', () => {
+    const text = renderText(
+      <HeartRateCard
+        heartRate={{
+          ...exampleHeartRate,
+          qualifier: null,
+        }}
+        period={examplePeriod}
+      />,
+    )
 
-  expect(text).toContain('62')
-  expect(text).not.toContain('В покое')
-  expect(text).not.toContain('Разовое измерение')
+    expect(text).toContain('72')
+    expect(text).not.toContain('В покое')
+    expect(text).not.toContain('Разовое измерение')
+  })
 })
 
 describe('CheckinCard', () => {
   it('отображает четыре оценки независимо друг от друга', () => {
     const text = renderText(
-      <CheckinCard
-        checkins={analyticsFixture.cards.checkins}
-      />,
+      <CheckinCard checkins={exampleCheckins} />,
     )
 
     expect(text).toContain('Качество сна 4')
@@ -287,20 +380,24 @@ describe('CheckinCard', () => {
     expect(text).toContain('Настроение —')
   })
 
-  it('отображает ноль как число', () => {
+  it('показывает прочерк для отсутствующей категории', () => {
     const text = renderText(
       <CheckinCard
         checkins={{
-          ...analyticsFixture.cards.checkins,
+          ...exampleCheckins,
           mood: {
-            ...analyticsFixture.cards.checkins.mood,
-            score: 0,
+            score: null,
+            date: null,
+            entry_id: null,
           },
         }}
       />,
     )
 
-    expect(text).toContain('Настроение 0')
+    expect(text).toContain('Качество сна 4')
+    expect(text).toContain('Комфорт пищеварения 5')
+    expect(text).toContain('Самочувствие 3')
+    expect(text).toContain('Настроение —')
+    expect(text).not.toContain('[object Object]')
   })
-})
 })
