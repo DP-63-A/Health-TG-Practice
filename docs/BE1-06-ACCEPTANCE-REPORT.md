@@ -30,7 +30,7 @@ be identified by the `testcontainers` label before removing them manually.
 | AC2 atomicity on isolated MongoDB | Implemented, locally verified | Concurrent HTTP PATCH plus confirm/cancel/deduplication tests passed against Testcontainers MongoDB |
 | AC3 reproducible locally and in CI, protected from production data | Implemented, locally verified | Testcontainers-only configuration, successful local run and explicit CI step |
 | AC4 defect regressions | Partial | The full backend/contract regression command passed locally; final reviewed commit and linked defect decisions remain to be recorded |
-| AC5 matrix, commit report and independent review | Follow-up verification pending | The original 85-test suite was independently reproduced; the analytics ownership follow-up must be tied to its corrected commit and rerun independently |
+| AC5 matrix, commit report and independent review | Implemented, independently verified | The original suite and the corrected analytics ownership follow-up were independently reviewed; the tested follow-up commit is recorded below |
 
 ## Follow-up coverage
 
@@ -50,4 +50,4 @@ that owner's entry.
 - full backend/contract command: passed locally;
 - GitHub Actions: [successful checks for the tested commit](https://github.com/DP-63-A/Health-TG-Practice/commit/365d5173527f1fb527877ac080817ab3db1efc43/checks);
 - independent review of the original suite: 85 tests passed, 0 failed and 0 skipped; this result predates the analytics ownership follow-up;
-- independent rerun of the corrected analytics ownership follow-up: pending.
+- independent review of the corrected analytics ownership follow-up: accepted.
