@@ -161,8 +161,14 @@ public final class FoodPhotoFlow {
             s=save(owner,null,"food_commit",data,u,"commit");
             data=new LinkedHashMap<>(s.context());
             if(!data.containsKey("file_id")) {
+                if (!data.containsKey("reserved_file_id")) {
+                    data.put("reserved_file_id",UUID.randomUUID().toString());
+                    s=save(owner,null,"food_commit",data,u,"file-reserved");
+                    data=new LinkedHashMap<>(s.context());
+                }
+                UUID reservedId=UUID.fromString((String)data.get("reserved_file_id"));
                 byte[] bytes=loader.load((String)data.get("telegram_file")); new ImageValidator().validate(bytes);
-                var file=files.store(owner,new ByteArrayInputStream(bytes),bytes.length);
+                var file=files.store(owner,reservedId,new ByteArrayInputStream(bytes),bytes.length);
                 data.put("file_id",file.id().toString());
                 s=save(owner,null,"food_commit",data,u,"stored"); data=new LinkedHashMap<>(s.context());
             }
@@ -270,6 +276,7 @@ public final class FoodPhotoFlow {
                 if (!(d.get("payload") instanceof Map<?,?>) || !(d.get("origins") instanceof Map<?,?>)) return false;
                 numericPayload(d); origins(d).values().forEach(v -> { if (!(v instanceof String)) throw new IllegalArgumentException(); });
             }
+            if(d.containsKey("reserved_file_id")) UUID.fromString((String)d.get("reserved_file_id"));
             if(d.containsKey("file_id")) UUID.fromString((String)d.get("file_id"));
             if(d.containsKey("entry_id")) UUID.fromString((String)d.get("entry_id"));
             if(d.containsKey("date")) LocalDate.parse((String)d.get("date"));

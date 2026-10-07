@@ -179,12 +179,13 @@ class FoodPhotoStorageTest {
         assertEquals(0,new java.math.BigDecimal("250.5").compareTo(new java.math.BigDecimal(active().payload().get("mass_g").toString())));
         assertEquals("reported",active().fieldOrigins().get("mass_g"));
     }
-    @Test void storeThenLostStateMayLeaveOnlyInaccessibleOrphanAndOneDraft(){
+    @Test void storeThenLostStateReusesReservedFileAfterRestartAndCreatesOneDraft(){
         var ready=ready();DialogStateService failing=mock(DialogStateService.class,delegatesTo(dialogs));
         doAnswer(i->{SaveDialogStateCommand c=i.getArgument(0);if(c.updateKey().botKey().equals("main-food-stored"))throw new IllegalStateException("lost");return dialogs.save(c);}).when(failing).save(any());
         var error=flow(entries,failing,files).handleCallback(cb(14,button(ready,"Создать черновик")));
         assertEquals(1,fileCount());assertTrue(entries.findActiveDraft(owner()).isEmpty());
-        flow().handleCallback(cb(15,button(error,"Продолжить")));assertEquals(2,fileCount());assertEquals(EntryStatus.DRAFT,active().status());
+        context.close();reopen();
+        flow().handleCallback(cb(15,button(error,"Продолжить")));assertEquals(1,fileCount());assertEquals(EntryStatus.DRAFT,active().status());
         assertEquals(1,entries.listEntries(new ListEntriesQuery(owner(),EntryStatus.DRAFT,null,null,null,ZoneOffset.UTC)).size());
     }
     @Test void persistedFileIdWithLostSaveResponseDoesNotStoreAgain(){
@@ -265,5 +266,42 @@ class FoodPhotoStorageTest {
         var state=dialogs.find(owner()).orElseThrow();flow().handleCallback(cb(200,cancel));flow().handleMessage(photo(200));flow().handleMessage(photo(100));
         assertEquals(state,dialogs.find(owner()).orElseThrow());assertEquals(1,calls.get());
         flow().handleMessage(photo(201));assertEquals(2,calls.get());assertEquals("food_clarify",dialogs.find(owner()).orElseThrow().step());
+    }
+    @Test void failedReservationStateSaveDoesNotLoadOrStoreFile(){
+        var ready=ready();DialogStateService failing=mock(DialogStateService.class,delegatesTo(dialogs));
+        doAnswer(i->{SaveDialogStateCommand c=i.getArgument(0);if(c.updateKey().botKey().equals("main-food-file-reserved"))throw new IllegalStateException("lost before reserve save");return dialogs.save(c);}).when(failing).save(any());
+        var loads=new AtomicInteger();loader=id->{loads.incrementAndGet();return png;};
+        var error=flow(entries,failing,files).handleCallback(cb(14,button(ready,"Создать черновик")));
+        assertEquals(0,loads.get());assertEquals(0,fileCount());assertTrue(entries.findActiveDraft(owner()).isEmpty());
+        flow().handleCallback(cb(15,button(error,"Продолжить")));assertEquals(1,fileCount());assertEquals(1,loads.get());
+    }
+    @Test void completedStoreWithLostResponseUsesSameIdAfterRestart(){
+        var ready=ready();FileStorageService failing=mock(FileStorageService.class,delegatesTo(files));
+        doAnswer(i->{files.store(i.getArgument(0),i.getArgument(1),i.getArgument(2),i.getArgument(3));throw new IllegalStateException("lost store response");})
+            .when(failing).store(any(OwnerContext.class),any(UUID.class),any(java.io.InputStream.class),anyLong());
+        var error=flow(entries,dialogs,failing).handleCallback(cb(14,button(ready,"Создать черновик")));
+        assertEquals(1,fileCount());var reserved=dialogs.find(owner()).orElseThrow().context().get("reserved_file_id");assertNotNull(reserved);
+        context.close();reopen();flow().handleCallback(cb(15,button(error,"Продолжить")));
+        assertEquals(reserved,active().sourceRef().get("file_id"));assertEquals(1,fileCount());
+        assertEquals(1,entries.listEntries(new ListEntriesQuery(owner(),EntryStatus.DRAFT,null,null,null,ZoneOffset.UTC)).size());
+    }
+    @Test void legacyPersistedFileIdWithoutReservationStillRecoversWithoutNewStore(){
+        ready();var old=dialogs.find(owner()).orElseThrow();
+        var file=files.store(owner(),new java.io.ByteArrayInputStream(png),png.length);
+        var data=new LinkedHashMap<>(old.context());data.put("file_id",file.id().toString());data.put("last_update",14L);data.remove("reserved_file_id");
+        var state=dialogs.save(new SaveDialogStateCommand(owner(),null,"food_commit",data,new TelegramUpdateKey("main-food-stored",14)));
+        var counting=mock(FileStorageService.class,delegatesTo(files));
+        flow(entries,dialogs,counting).handleCallback(cb(15,"fp:c:10:"+state.revision()));
+        assertEquals(file.id().toString(),active().sourceRef().get("file_id"));assertEquals(1,fileCount());
+        verify(counting,never()).store(any(OwnerContext.class),any(UUID.class),any(java.io.InputStream.class),anyLong());
+        verify(counting,never()).store(any(OwnerContext.class),any(java.io.InputStream.class),anyLong());
+    }
+    @Test void lostReservationSaveAcknowledgementKeepsIdForRetry(){
+        var ready=ready();DialogStateService failing=mock(DialogStateService.class,delegatesTo(dialogs));
+        doAnswer(i->{SaveDialogStateCommand c=i.getArgument(0);var saved=dialogs.save(c);if(c.updateKey().botKey().equals("main-food-file-reserved"))throw new IllegalStateException("lost reserve acknowledgement");return saved;}).when(failing).save(any());
+        var error=flow(entries,failing,files).handleCallback(cb(14,button(ready,"Создать черновик")));
+        var reserved=dialogs.find(owner()).orElseThrow().context().get("reserved_file_id");assertNotNull(reserved);assertEquals(0,fileCount());
+        context.close();reopen();flow().handleCallback(cb(15,button(error,"Продолжить")));
+        assertEquals(reserved,active().sourceRef().get("file_id"));assertEquals(1,fileCount());
     }
 }
