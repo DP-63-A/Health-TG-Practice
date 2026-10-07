@@ -79,7 +79,7 @@ public class AnalyticsService {
         Period period = new Period(from, to, zone);
 
         // Fetch confirmed entries within a safety margin around [from, to] so time zone shifts
-        // and payload.local_date overrides are safely captured without loading full history.
+        // and payload.local_date overrides are safely captured.
         LocalDate queryFrom = from.minusDays(3);
         LocalDate queryTo = to.plusDays(3);
 
