@@ -48,14 +48,18 @@ public final class GeminiRecognitionProvider implements RecognitionProvider {
     @Override public Mode mode() { return Mode.LIVE; }
 
     @Override public Response recognize(ImageValidator.ValidatedImage image) throws RecognitionException {
+        return recognize(image,null);
+    }
+    @Override public Response recognize(ImageValidator.ValidatedImage image,String imageClass) throws RecognitionException {
         final byte[] body;
         try {
             body = RecognitionJson.MAPPER.writeValueAsBytes(Map.of(
-                    "systemInstruction", Map.of("parts", List.of(Map.of("text", RecognitionJson.resource("prompt.txt")))),
+                    "systemInstruction", Map.of("parts", List.of(Map.of("text", RecognitionJson.resource("prompt.txt")
+                            +(imageClass==null?"":"\nThe user explicitly selected "+imageClass+". Process only that class; ignore other objects. If that class is absent or unreadable, return unknown.")))),
                     "contents", List.of(Map.of("role", "user", "parts", List.of(Map.of("inlineData", Map.of(
                             "mimeType", image.mimeType(), "data", Base64.getEncoder().encodeToString(image.bytes())))))),
                     "generationConfig", Map.of("responseMimeType", "application/json", "responseJsonSchema",
-                            RecognitionJson.MAPPER.readTree(RecognitionJson.resource("response-schema.json")), "maxOutputTokens", 4096)));
+                            RecognitionJson.MAPPER.readTree(RecognitionJson.resource(imageClass==null?"response-schema.json":"visual-response-schema.json")), "maxOutputTokens", 4096)));
         } catch (IOException e) { throw new IllegalStateException("Invalid bundled recognition configuration", e); }
         var request = HttpRequest.newBuilder(endpoint).timeout(timeout).header("Content-Type", "application/json")
                 .header("x-goog-api-key", apiKey).POST(HttpRequest.BodyPublishers.ofByteArray(body)).build();

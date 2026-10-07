@@ -307,6 +307,9 @@ public final class DraftReviewFlow {
         if (entry.status() == EntryStatus.DRAFT) {
             rows.add(List.of(button("Сохранить", "s", entry), button("Изменить", "n", entry)));
             rows.add(List.of(button("Не сохранять", "x", entry), button("Обновить", "r", entry)));
+            if(dialogs!=null) dialogs.find(new OwnerContext(entry.ownerId())).filter(s -> entry.id().equals(s.activeEntryId())
+                    && s.context().containsKey("photo_queue")).ifPresent(s -> rows.add(List.of(
+                    new BotAction.InlineButton("Отменить оставшиеся показатели","pq:x:"+entry.id()+":"+s.revision()))));
         }
         if (miniAppUrl != null && entry.status() != EntryStatus.CANCELLED && entry.status() != EntryStatus.DELETED) {
             rows.add(List.of(new BotAction.InlineButton("Открыть в Mini App", null,
@@ -342,15 +345,22 @@ public final class DraftReviewFlow {
             default -> List.of();
         };
     }
-    private static Map<String, Object> base(Entry entry, ZoneId zone) {
+    private Map<String, Object> base(Entry entry, ZoneId zone) {
         Map<String, Object> context = new LinkedHashMap<>();
         context.put("schema_version", 1);
         context.put("entry_revision", entry.revision());
         context.put("timezone", zone.getId());
+        dialogs.find(new OwnerContext(entry.ownerId())).filter(s -> entry.id().equals(s.activeEntryId()))
+                .map(s -> s.context().get("photo_queue")).filter(q -> q instanceof Map<?,?>)
+                .ifPresent(q -> context.put("photo_queue",q));
         return context;
     }
     private DialogState save(OwnerContext owner, Entry entry, String step, Map<String, Object> context, BotUpdate update) {
-        return dialogs.save(new SaveDialogStateCommand(owner, entry.id(), step, context,
+        var preserved=new LinkedHashMap<String,Object>(context);
+        dialogs.find(owner).filter(s -> entry.id().equals(s.activeEntryId()))
+                .map(s -> s.context().get("photo_queue")).filter(q -> q instanceof Map<?,?>)
+                .ifPresent(q -> preserved.put("photo_queue",q));
+        return dialogs.save(new SaveDialogStateCommand(owner, entry.id(), step, preserved,
                 new TelegramUpdateKey("main", update.updateId())));
     }
     private static long number(Map<String, Object> context, String name) {

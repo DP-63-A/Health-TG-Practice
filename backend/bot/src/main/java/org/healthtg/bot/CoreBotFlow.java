@@ -67,6 +67,7 @@ public final class CoreBotFlow implements BotFlow {
         UserAccount user = users.findOrCreate(update.senderId());
         OwnerContext owner = new OwnerContext(user.id());
         if (isStale(update, owner)) return staleResponse(update);
+        if (photos != null) { var resumed=photos.resume(update,owner,user.timezone()); if(resumed.isPresent()) return resumed.get(); }
         var active = entries.findActiveDraft(owner);
         if (active.isPresent()) return drafts.card(update, active.get(), user.timezone(), "Завершите текущий черновик.");
         if (photos != null) { var pendingPhoto = photos.guard(update, owner); if (pendingPhoto.isPresent()) return pendingPhoto.get(); }
@@ -99,6 +100,7 @@ public final class CoreBotFlow implements BotFlow {
         UserAccount user = users.findOrCreate(update.senderId());
         OwnerContext owner = new OwnerContext(user.id());
         if (isStale(update, owner)) return staleResponse(update);
+        if (photos != null) { var resumed=photos.resume(update,owner,user.timezone()); if(resumed.isPresent()) return resumed.get(); }
         if (photos != null && photos.hasPending(owner)) return photos.message(update, owner, user.timezone());
         if (update.image() != null) {
             var current = entries.findActiveDraft(owner);
@@ -110,6 +112,7 @@ public final class CoreBotFlow implements BotFlow {
             return photos == null ? List.of(new BotAction.SendInlineMessage(update.chatId(), "Распознавание фото не настроено.", List.of())) : photos.message(update, owner, user.timezone());
         }
         var correction = drafts.message(update, owner, user.timezone());
+        if (photos != null) { var resumed=photos.resume(update,owner,user.timezone()); if(resumed.isPresent()) return resumed.get(); }
         if (correction.isPresent()) return correction.get();
         var active = entries.findActiveDraft(owner);
         if (active.isPresent()) {
@@ -130,14 +133,31 @@ public final class CoreBotFlow implements BotFlow {
         UserAccount user = users.findOrCreate(update.senderId());
         OwnerContext owner = new OwnerContext(user.id());
         if (isStale(update, owner)) return staleResponse(update);
+        if(photos!=null && update.callbackData().startsWith("pq:")) return photos.callback(update,owner,user.timezone());
+        if (photos != null) { var resumed=photos.resume(update,owner,user.timezone()); if(resumed.isPresent()) return resumed.get(); }
         if (photos != null) {
-            if (update.callbackData().startsWith("fp:")) return photos.callback(update, owner, user.timezone());
+            if (update.callbackData().startsWith("fp:") || update.callbackData().startsWith("pq:")) return photos.callback(update, owner, user.timezone());
             var pendingPhoto = photos.guard(update, owner);
             if (pendingPhoto.isPresent()) return pendingPhoto.get();
         }
         if (update.callbackData().startsWith("tx:")) return textDialog.callback(update, owner, user.timezone());
-        if (update.callbackData().startsWith("dr:")) return drafts.callback(update, owner, user.timezone());
-        if (update.callbackData().startsWith("cancel:")) return cancel(update, owner);
+        if (update.callbackData().startsWith("dr:")) {
+            var result=drafts.callback(update, owner, user.timezone());
+            if(photos!=null) {
+                var resumed=photos.resume(update,owner,user.timezone());
+                if(resumed.isPresent()) {
+                    var combined=new java.util.ArrayList<BotAction>(result);
+                    resumed.get().stream().filter(a -> !(a instanceof BotAction.AnswerCallback)).forEach(combined::add);
+                    return List.copyOf(combined);
+                }
+            }
+            return result;
+        }
+        if (update.callbackData().startsWith("cancel:")) {
+            if(dialogs.find(owner).filter(s -> s.context().containsKey("photo_queue")).isPresent())
+                return List.of(new BotAction.AnswerCallback(update.callbackId(),"Используйте актуальную карточку показателя"));
+            return cancel(update, owner);
+        }
         Optional<List<BotAction>> completed = completedCheckin(update, owner);
         if (completed.isPresent()) return completed.get();
 
