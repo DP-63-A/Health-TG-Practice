@@ -45,11 +45,12 @@ and creates an in-memory blob URL. The bearer token is never placed in the URL.
 
 `FILE_STORAGE_ROOT` selects the private root. Without an override, both applications
 use `${user.home}/.health-tg/files`, which is independent of the Gradle module working
-directory. The repository `.env.example` selects `./data/files` for a shared local
-run. Files are placed below UUID-derived shard directories and use a `.bin` physical
-suffix. BE1-07 must mount `/var/lib/health-tg/files` as the same persistent
-`file-data` volume for API and bot without publishing the directory; that Compose
-configuration is a dependency and is not part of this branch.
+directory. `.env.example` leaves the override disabled; a custom local value must be
+the same absolute path for every API and bot process. Files are placed below
+UUID-derived shard directories and use a `.bin` physical suffix. BE1-07 must mount
+`/var/lib/health-tg/files` as the same persistent `file-data` volume for API and bot
+without publishing the directory; that Compose configuration is a dependency and is
+not part of this branch.
 
 Logical cancellation/deletion of an Entry does not remove its original. No expiry
 or background cleanup is implemented because the retention period is an open
