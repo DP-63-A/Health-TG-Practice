@@ -291,7 +291,7 @@ class Pr76StateRegressionTest {
         List<BotAction> replay = flow().handleCallback(cb(1114, 12, score));
 
         assertEquals("Уже сохранено", ((BotAction.AnswerCallback) replay.getFirst()).text());
-        assertEquals("Отметка уже сохранена.", ((BotAction.SendInlineMessage) replay.get(1)).text());
+        assertTrue(((BotAction.SendInlineMessage) replay.get(1)).text().startsWith("Отметка уже сохранена.\n"));
         assertEquals(1, entries.listConfirmedEntries(new ListConfirmedEntriesQuery(owner(1114),
                 java.time.LocalDate.of(2026,1,1), java.time.LocalDate.of(2030,1,1),
                 java.time.ZoneId.of("UTC"), Set.of())).size());

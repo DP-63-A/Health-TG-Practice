@@ -7,6 +7,7 @@ import org.healthtg.core.dialog.DialogStateService;
 import org.healthtg.core.dialog.SaveDialogStateCommand;
 import org.healthtg.core.entry.CreateCheckinCommand;
 import org.healthtg.core.entry.EntryCoreService;
+import org.healthtg.core.entry.Entry;
 import org.healthtg.core.entry.EntryNotFoundException;
 import org.healthtg.core.entry.EntryStatusConflictException;
 import org.healthtg.core.entry.EntryVersionConflictException;
@@ -18,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,6 +35,7 @@ public final class CoreBotFlow implements BotFlow {
     private final CheckinSelector selector;
     private final Clock clock;
     private final org.healthtg.bot.draft.DraftReviewFlow drafts;
+    private final CheckinReceiptFlow checkinReceipts;
     private final org.healthtg.bot.text.TextDialogFlow textDialog;
 
     public CoreBotFlow(UserService users, EntryCoreService entries, DialogStateService dialogs, Clock clock) {
@@ -51,6 +54,7 @@ public final class CoreBotFlow implements BotFlow {
     private CoreBotFlow(UserService users, EntryCoreService entries, DialogStateService dialogs,
                         TextInputParser parser, CheckinSelector selector, Clock clock, java.net.URI miniAppUrl) {
         this.drafts = new org.healthtg.bot.draft.DraftReviewFlow(entries, dialogs, miniAppUrl);
+        this.checkinReceipts = new CheckinReceiptFlow(entries);
         this.users = users;
         this.entries = entries;
         this.dialogs = dialogs;
@@ -116,15 +120,16 @@ public final class CoreBotFlow implements BotFlow {
         if (update.callbackData().startsWith("tx:")) return textDialog.callback(update, owner, user.timezone());
         if (update.callbackData().startsWith("dr:")) return drafts.callback(update, owner, user.timezone());
         if (update.callbackData().startsWith("cancel:")) return cancel(update, owner);
-        Optional<List<BotAction>> completed = completedCheckin(update, owner);
+        if (update.callbackData().startsWith("qc:")) return checkinReceipts.cancel(update, owner);
+        Optional<List<BotAction>> completed = completedCheckin(update, owner, user.timezone());
         if (completed.isPresent()) return completed.get();
 
         synchronized (selector) {
-            return handleCheckinCallback(update, owner);
+            return handleCheckinCallback(update, owner, user.timezone());
         }
     }
 
-    private List<BotAction> handleCheckinCallback(BotUpdate update, OwnerContext owner) {
+    private List<BotAction> handleCheckinCallback(BotUpdate update, OwnerContext owner, ZoneId zone) {
         if (!restoreSelector(update.senderId(), owner, update.updateId())) {
             return List.of(new BotAction.AnswerCallback(update.callbackId(), "Кнопка устарела"));
         }
@@ -134,14 +139,12 @@ public final class CoreBotFlow implements BotFlow {
             return List.of(new BotAction.AnswerCallback(update.callbackId(), "Кнопка устарела"));
         }
         if (outcome.status() == CheckinSelector.Status.SELECTED) {
-            persistCompletedCheckin(update, owner, outcome.view().selection());
-            return List.of(new BotAction.AnswerCallback(update.callbackId(), "Сохранено"),
-                    new BotAction.SendInlineMessage(update.chatId(), "Отметка сохранена.", List.of()));
+            Entry entry = persistCompletedCheckin(update, owner, outcome.view().selection());
+            return checkinReceipts.receipt(update, entry, zone, false);
         }
         if (outcome.view().stage() == CheckinSelector.Stage.COMPLETE) {
-            persistCompletedCheckin(update, owner, outcome.view().selection());
-            return List.of(new BotAction.AnswerCallback(update.callbackId(), "Уже сохранено"),
-                    new BotAction.SendInlineMessage(update.chatId(), "Отметка уже сохранена.", List.of()));
+            Entry entry = persistCompletedCheckin(update, owner, outcome.view().selection());
+            return checkinReceipts.receipt(update, entry, zone, true);
         }
         Map<String, Object> context = Map.of("schema_version", DIALOG_SCHEMA_VERSION,
                 "selector_id", selector.selectionId(update.senderId()).toString(),
@@ -185,16 +188,14 @@ public final class CoreBotFlow implements BotFlow {
 
     private record CancelParameters(UUID entryId, long revision) {}
 
-    private Optional<List<BotAction>> completedCheckin(BotUpdate update, OwnerContext owner) {
+    private Optional<List<BotAction>> completedCheckin(BotUpdate update, OwnerContext owner, ZoneId zone) {
         return dialogs.find(owner)
                 .filter(state -> "checkin_complete".equals(state.step()))
                 .filter(state -> update.callbackData().equals(state.context().get("completed_callback")))
-                .map(state -> List.<BotAction>of(
-                        new BotAction.AnswerCallback(update.callbackId(), "Уже сохранено"),
-                        new BotAction.SendInlineMessage(update.chatId(), "Отметка уже сохранена.", List.of())));
+                .map(state -> checkinReceipts.replay(update, owner, state.context().get("entry_id"), zone));
     }
 
-    private void persistCompletedCheckin(BotUpdate update, OwnerContext owner,
+    private Entry persistCompletedCheckin(BotUpdate update, OwnerContext owner,
                                          org.healthtg.bot.checkin.CheckinSelection selection) {
         var category = org.healthtg.core.entry.CheckinCategory.fromCode(selection.category().code());
         var entry = entries.createCheckin(new CreateCheckinCommand(owner, category, selection.score(),
@@ -210,6 +211,7 @@ public final class CoreBotFlow implements BotFlow {
                 "score", selection.score(),
                 "completed_callback", update.callbackData(),
                 "entry_id", entry.id().toString()), update.updateId());
+        return entry;
     }
 
     private boolean restoreSelector(long telegramId, OwnerContext owner, long currentUpdateId) {
