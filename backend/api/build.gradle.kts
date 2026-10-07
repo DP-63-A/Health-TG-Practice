@@ -19,6 +19,7 @@ repositories {
 
 dependencies {
     implementation(project(":backend:core"))
+    implementation(project(":analytics"))
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
@@ -34,6 +35,23 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+tasks.named<Test>("test") {
+    exclude("**/Be1AcceptanceIntegrationTest.class")
+}
+
+tasks.register<Test>("be1Acceptance") {
+    description = "Runs BE1 HTTP and MongoDB acceptance scenarios"
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform()
+    include("**/Be1AcceptanceIntegrationTest.class")
+    include("**/AuthHttpIntegrationTest.class")
+    include("**/CoreStorageIntegrationTest.class")
+    include("**/FilesHttpIntegrationTest.class")
+    shouldRunAfter(tasks.named("test"))
 }
 
 tasks.withType<JavaCompile>().configureEach {

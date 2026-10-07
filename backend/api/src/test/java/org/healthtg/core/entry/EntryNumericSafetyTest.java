@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -53,6 +54,14 @@ class EntryNumericSafetyTest {
                 Map.of("category", "mood", "score", new BigDecimal("3.0"))));
     }
 
+    @Test void rejectsFractionalStepsButPreservesFractionalSleepAndPulse() {
+        assertThrows(EntryValidationException.class, () -> EntryPayloadValidator.validateDraft(EntryType.METRICS, Map.of("code", "steps", "value", new BigDecimal("123.456789"))));
+        for (String code : List.of("heart_rate", "sleep_duration_min")) {
+            assertDoesNotThrow(() -> EntryPayloadValidator.validateDraft(EntryType.METRICS,
+                    Map.of("code", code, "value", new BigDecimal("123.456789"))), code);
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"1E+100000000", "1E-100000000", "125.7500"})
     void storeUsesCompactExactEncodingEvenForLegacyNumbersAndHistory(String text) {
@@ -80,9 +89,47 @@ class EntryNumericSafetyTest {
         assertEquals(value.toString(), ((Map<?, ?>) snapshot.get("payload")).get("mass_g"));
     }
 
+    @Test void fieldOriginsEncodingPreservesCollidingKeysAndOrdinaryDottedKeys() {
+        MongoEntryRepository repository = mock(MongoEntryRepository.class);
+        MongoTemplate mongo = mock(MongoTemplate.class);
+        MongoEntryStore store = new MongoEntryStore(repository, mongo);
+        Map<String, String> origins = new LinkedHashMap<>();
+        origins.put(".．", "reported");
+        origins.put("．.", "computed");
+        origins.put("payload.mass_g", "estimated");
+        Entry original = entry(Map.of("description", "meal"), origins);
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertEquals(original, store.save(original));
+
+        ArgumentCaptor<MongoEntryDocument> document = ArgumentCaptor.forClass(MongoEntryDocument.class);
+        verify(repository).save(document.capture());
+        assertEquals(2, document.getValue().fieldOriginsEncodingVersion());
+        assertTrue(document.getValue().fieldOrigins().keySet().stream().noneMatch(key -> key.contains(".")));
+    }
+
+    @Test void readsLegacyFieldOriginsEncoding() {
+        MongoEntryRepository repository = mock(MongoEntryRepository.class);
+        MongoEntryStore store = new MongoEntryStore(repository, mock(MongoTemplate.class));
+        Entry original = entry(Map.of("description", "meal"));
+        MongoEntryDocument legacy = new MongoEntryDocument(original.id().toString(), original.ownerId().toString(),
+                original.type().code(), original.status().code(), original.sourceKind().code(), original.sourceRef(),
+                original.occurredAt(), original.createdAt(), original.updatedAt(), original.revision(),
+                original.payload(), Map.of("payload\uFF0Emass_g", "reported", "literal\uFF0E\uFF0Edot", "computed"),
+                null, null, original.telegramUpdateKey(), List.of());
+        when(repository.findById(original.id().toString())).thenReturn(Optional.of(legacy));
+
+        assertEquals(Map.of("payload.mass_g", "reported", "literal．dot", "computed"),
+                store.findById(original.id()).orElseThrow().fieldOrigins());
+    }
+
     private static Entry entry(Map<String, Object> payload) {
+        return entry(payload, Map.of());
+    }
+
+    private static Entry entry(Map<String, Object> payload, Map<String, String> fieldOrigins) {
         Instant now = Instant.parse("2026-10-07T00:00:00Z");
         return new Entry(UUID.randomUUID(), UUID.randomUUID(), EntryType.MEAL, EntryStatus.DRAFT,
-                SourceKind.TEXT, Map.of(), now, now, now, 1, payload, Map.of(), null, "numeric:test");
+                SourceKind.TEXT, Map.of(), now, now, now, 1, payload, fieldOrigins, null, "numeric:test");
     }
 }

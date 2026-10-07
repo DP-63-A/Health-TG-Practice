@@ -1,0 +1,56 @@
+{
+  "image_class": "health_screenshot",
+  "metrics": [
+    {
+      "code": "steps",
+      "unit": "count",
+      "local_time": null,
+      "qualifier": null,
+      "field_origins": {
+        "code": "extracted",
+        "unit": "extracted",
+        "local_time": null,
+        "qualifier": null,
+        "local_date": "extracted",
+        "value": "extracted"
+      },
+      "local_date": "2026-09-15",
+      "value": 4200
+    },
+    {
+      "code": "sleep_duration_min",
+      "unit": "h",
+      "local_time": null,
+      "qualifier": null,
+      "field_origins": {
+        "code": "extracted",
+        "unit": "extracted",
+        "local_time": null,
+        "qualifier": null,
+        "local_date": "extracted",
+        "value": "extracted"
+      },
+      "local_date": "2026-09-15",
+      "value": 7.5
+    },
+    {
+      "code": "heart_rate",
+      "unit": "bpm",
+      "local_time": null,
+      "qualifier": null,
+      "field_origins": {
+        "code": "extracted",
+        "unit": "extracted",
+        "local_time": null,
+        "qualifier": null,
+        "local_date": "extracted",
+        "value": "extracted"
+      },
+      "local_date": "2026-09-15",
+      "value": 62
+    }
+  ],
+  "ignored_labels": [
+    "Distance"
+  ]
+}

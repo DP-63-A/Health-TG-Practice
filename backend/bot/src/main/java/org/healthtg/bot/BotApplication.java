@@ -48,7 +48,7 @@ public class BotApplication {
                     provider, new org.healthtg.bot.recognition.RecognitionResponseParser());
             return flow.withPhotos(new org.healthtg.bot.visual.FoodPhotoFlow(entries, dialogs, files, recognition,
                     new org.healthtg.bot.visual.TelegramImageLoader(transport.client(), settings.token()),
-                    new org.healthtg.bot.draft.DraftReviewFlow(entries, dialogs, settings.miniAppUrl()), provider.mode().name()));
+                    new org.healthtg.bot.draft.DraftReviewFlow(entries, dialogs, settings.miniAppUrl()), provider.mode().name()).withImageClassSelection());
         } catch (org.healthtg.bot.recognition.RecognitionException invalid) {
             throw new IllegalArgumentException("Invalid food recognition configuration");
         }

@@ -12,7 +12,6 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.test.util.TestPropertyValues;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.repository.support.MongoRepositoryFactory;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.utility.DockerImageName;
@@ -51,10 +50,10 @@ class FoodPhotoStorageTest {
     }
     void reopen(){
         context=new AnnotationConfigApplicationContext();
-        TestPropertyValues.of("test.mongo.uri="+MONGO.getReplicaSetUrl(),"test.mongo.database="+database).applyTo(context);
+        TestPropertyValues.of("test.mongo.uri="+MONGO.getReplicaSetUrl(),"test.mongo.database="+database,"health-tg.files.root="+root).applyTo(context);
         context.register(BotCoreStorageTestConfiguration.class); context.refresh();
         entries=context.getBean(EntryCoreService.class); dialogs=context.getBean(DialogStateService.class); users=context.getBean(UserService.class);
-        files=FoodPhotoFileTestSupport.create(context.getBean(MongoTemplate.class),entries,root.toString());
+        files=FoodPhotoFileTestSupport.create(context.getBean(MongoTemplate.class),entries,root.toString(),context.getBean(EntryStore.class));
     }
     @AfterEach void close(){context.getBean(MongoTemplate.class).getDb().drop(); context.close();}
     OwnerContext owner(){return new OwnerContext(users.findOrCreate(1001).id());}
@@ -83,7 +82,7 @@ class FoodPhotoStorageTest {
         assertNull(entry.payload().get("mass_g")); assertEquals("estimated",entry.fieldOrigins().get("description"));
         assertEquals(LocalDateTime.of(2026,10,6,14,30),entry.occurredAt().atZone(users.findOrCreate(1001).timezone()).toLocalDateTime());
         UUID file=UUID.fromString((String)entry.sourceRef().get("file_id"));
-        var separate=FoodPhotoFileTestSupport.create(context.getBean(MongoTemplate.class),entries,root.toString());
+        var separate=FoodPhotoFileTestSupport.create(context.getBean(MongoTemplate.class),entries,root.toString(),context.getBean(EntryStore.class));
         try(var content=separate.open(owner(),file)){assertArrayEquals(png,content.content().readAllBytes());}
         assertThrows(StoredFileNotFoundException.class,()->separate.open(new OwnerContext(users.findOrCreate(2002).id()),file));
         assertTrue(entries.listEntries(new ListEntriesQuery(owner(),EntryStatus.CONFIRMED,null,null,null,ZoneOffset.UTC)).isEmpty());

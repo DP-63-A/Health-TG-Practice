@@ -175,16 +175,18 @@ class AuthHttpIntegrationTest {
     }
 
     @Test
-    void missingAnalyticsReturns404WithoutInvalidatingAnAuthenticatedSession() throws Exception {
+    void missingProtectedRouteReturns404WithoutInvalidatingAnAuthenticatedSession() throws Exception {
         String token = loginAndReadToken();
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
         HttpEntity<Void> request = new HttpEntity<>(headers);
 
-        var missing = http.exchange("/api/v1/analytics", HttpMethod.GET, request, String.class);
+        var missing = http.exchange("/api/v1/analytics/non-existent-resource", HttpMethod.GET, request, String.class);
         org.junit.jupiter.api.Assertions.assertEquals(404, missing.getStatusCode().value());
+
         var me = http.exchange("/api/v1/me", HttpMethod.GET, request, String.class);
         org.junit.jupiter.api.Assertions.assertEquals(200, me.getStatusCode().value());
+
         var anonymous = http.getForEntity("/api/v1/me", String.class);
         org.junit.jupiter.api.Assertions.assertEquals(401, anonymous.getStatusCode().value());
     }

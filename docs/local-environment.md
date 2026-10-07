@@ -1,58 +1,66 @@
 # Local environment
 
-This is the early BE1-07 MongoDB foundation used by BE1-02 and BE1-03. The final
-Compose stack will also include the API, bot, frontend, and private file storage.
+BE1-07 provides one Compose project for MongoDB, API, Telegram bot, frontend and
+private persistent file storage. API and bot share the same MongoDB database.
 
 ## Prerequisites
 
 - Docker Desktop with the engine running.
-- Java 21 for running the API from Gradle.
+- Docker Compose v2.
+- A dedicated training Telegram bot token and an allowed Telegram user ID.
+- Java 21 and Node.js 22 only for running checks outside containers.
 
 ## Configuration
 
-Copy `.env.example` to `.env` and keep real secrets only in `.env`. Git ignores
-`.env` and local variants. MongoDB requires no secret for this loopback-only local
-development setup.
+Copy `.env.example` to `.env` and replace every placeholder. Keep real secrets only
+in `.env`; Git ignores it. `MINI_APP_URL` must be the agreed public HTTPS URL for a
+real Telegram launch. Compose fails during configuration when required values are
+missing and does not print their contents.
 
-## Start MongoDB
+Photo recognition is disabled by default. Set `FOOD_RECOGNITION_MODE=fixture` for
+the bundled synthetic response, which makes no external model call. The `live`
+mode requires `GEMINI_API_KEY`, uses `GEMINI_MODEL`, sends the image to an external
+Gemini API, and may incur charges. Never use `live` in CI or commit a real key.
+
+## Build and start
 
 ```powershell
-docker-compose up -d mongo
-docker-compose ps
+docker compose config --quiet
+docker compose up --build -d
+docker compose ps
 ```
 
-The database is bound to `127.0.0.1` and is not exposed on other host interfaces.
+Only frontend is published, on loopback port `FRONTEND_PORT` (8088 by default).
+MongoDB, API and the file volume have no host port or bind mount. Nginx forwards
+`/api/` to the private API service. The `file-data` volume is the private BE1-05
+storage shared by API and bot; it is not a public file server.
 
-## Run the API
+## Host-side API or bot development
 
-The API does not read `.env` by itself. Use the repository script to load
-the file into the API process without printing its values:
+The main Compose file deliberately keeps MongoDB private. To run API or bot from
+IDEA, `bootRun`, or `scripts/run-backend.ps1`, start MongoDB with the explicit
+development override:
 
 ```powershell
-# Create once; keep an existing local .env.
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d mongo
 .\scripts\run-backend.ps1
 ```
 
-Edit `.env` before starting live Telegram authentication. The script fails with
-a clear error when the file is missing or contains a malformed `NAME=VALUE` line.
-Run it from the repository root; it starts Gradle from that root regardless of
-the caller's current directory.
+The override publishes MongoDB only on `127.0.0.1` at `MONGODB_PORT` (27017 by
+default). Host-side applications use `MONGODB_URI=mongodb://localhost:27017/health_tg`
+from `.env.example`. Its comma-separated `CORS_ALLOWED_ORIGINS` permits both the
+Compose frontend on port 8088 and the Vite development server on port 5173.
+Keep the `health_tg_demo` URI only for the protected BE3-05 host workflow. Stop
+the development MongoDB without deleting its data using:
 
-The script runs only `:backend:api:bootRun`. It loads the root `.env` by default;
-use `-EnvFile <path>` to select another file. These values become environment
-variables in the PowerShell process and are inherited by the API. Plain Gradle,
-`java -jar`, and IDEA launches do not load `.env` automatically.
-
-The Telegram bot runs separately with `:backend:bot:bootRun` or its IDEA
-configuration. This API launcher does not start bot polling. See the
-[bot instructions](../backend/bot/README.md) for its settings and manual checks.
-Compose currently starts only MongoDB; it does not start either Java application.
+```powershell
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env down
+```
 
 Readiness check (API and MongoDB only):
 
 ```powershell
-Invoke-RestMethod http://localhost:8080/api/v1/healthz
+Invoke-RestMethod http://localhost:8088/api/v1/healthz
 ```
 
 Expected ready response:
@@ -71,23 +79,27 @@ connection details:
 ## Restart without losing data
 
 ```powershell
-docker-compose restart mongo
+docker compose restart
 ```
 
-The named `health-tg-mongo-data` volume survives ordinary stop, start, restart,
-and container recreation. Do not remove the volume during a normal restart.
+The `mongo-data` and `file-data` named volumes survive stop, start, restart and
+container recreation. Do not pass `--volumes` during an ordinary restart.
 
 ## Stop
 
 ```powershell
-docker-compose stop mongo
+docker compose stop
 ```
 
 Removing containers without removing persistent data:
 
 ```powershell
-docker-compose down
+docker compose down
 ```
+
+`docker compose down --volumes` is destructive and is not the product seed/reset
+operation. Do not use it on the training stand. Use the protected BE3-05 reset
+command below for demo entries.
 
 ## BE3-05 synthetic demo dataset
 
@@ -101,20 +113,21 @@ status, `seed` source, and field origins. Existing entry APIs expose confirmed
 records to the authenticated owner; drafts and cancelled entries remain subject
 to the normal API status rules.
 
-Use a dedicated local database. In `.env`, set `MONGODB_URI` to
-`mongodb://localhost:27017/health_tg_demo`, set `HEALTH_TG_DEMO=true`, and provide
+Use a dedicated local database. For the private Compose workflow, set
+`MONGODB_DATABASE=health_tg_demo` and provide
 the existing internal user UUIDs in `BE3_05_REGULAR_USER_ID`,
 `BE3_05_IRREGULAR_USER_ID`, and `BE3_05_INCOMPLETE_USER_ID`. These values are
 user document IDs, not Telegram IDs. Keep actual Telegram authentication and
 allow-list configuration unchanged; the seed tool does not create accounts or
 replace live Telegram verification. Use three test accounts with access to the
-demo database.
+demo database. The Compose tool sets its protected demo flags internally; do not
+add them to the long-running API or bot services.
 
 From PowerShell at the repository root:
 
 ```powershell
-.\scripts\demo-data.ps1 -Command seed
-.\scripts\demo-data.ps1 -Command seed -StartDate 2026-09-01 -Seed 20260505
+.\scripts\demo-data.ps1 -Command seed -Compose
+.\scripts\demo-data.ps1 -Command seed -StartDate 2026-09-01 -Seed 20260505 -Compose
 ```
 
 The default seed is `20260505` and the default start date is `2026-09-01`.
@@ -126,7 +139,10 @@ accounts must exist and resolve to distinct user UUIDs before any records are
 generated or written. Different parameters intentionally identify a different
 dataset and can add records; reset first if replacing a dataset. Run the API against the same
 `health_tg_demo` URI and authenticate normally to read entries through
-`GET /api/v1/entries` (`from`, `to`, `limit=100`, and normal cursor pagination).
+`GET /api/v1/entries` (`from`, `to`, `limit=100`, and normal cursor pagination) or
+the analytics endpoint, `GET /api/v1/analytics?period=days_21&timezone=Europe%2FWarsaw`.
+The analytics endpoint uses the authenticated account as owner and supports
+`today`, `days_7`, and `days_21`; `checkin_category` selects the check-in series.
 There is no HTTP seed route or profile-switching option.
 
 For the default seed, the independent BE3-04/07 entry-count controls are:
@@ -144,20 +160,55 @@ the eleventh local date of the selected start date (2026-09-11 by default).
 Reset only the BE3-05-tagged entries in the fixed local demo database:
 
 ```powershell
-.\scripts\demo-data.ps1 -Command reset
+.\scripts\demo-data.ps1 -Command reset -Compose
 ```
 
-Both commands refuse to run unless `HEALTH_TG_DEMO=true` and `MONGODB_URI`
-targets the fixed `health_tg_demo` database on a loopback host. Reset never drops
+Both commands run as an isolated one-shot container on the private Compose
+network and refuse any database except `health_tg_demo` at the exact `mongo`
+service host. MongoDB remains unpublished. The original host mode remains
+available for a dedicated loopback MongoDB and still requires
+`HEALTH_TG_DEMO=true` with a matching `MONGODB_URI`. Reset never drops
 a database or collection; it removes only `seed` entries bearing the BE3-05
 dataset marker and one of the three fixed profile names. It does not remove
-users, sessions, other seed data, or files. No educational file-storage
-implementation or BE1-05 cleanup rule is present in this checkout, so file
-cleanup is deliberately not attempted. Never point this command at the ordinary
-`health_tg` database.
+users, sessions, other seed data, file metadata or physical files. BE1-05
+originals belong to ordinary user entries and the retention policy does not
+permit this dataset-only reset to delete them. Never point this command at the
+ordinary `health_tg` database.
 
-The seed service is covered by a Testcontainers integration scenario against
-MongoDB. It verifies first-seed count and content, repeat-seed idempotency,
-reset behavior, and preservation of unrelated records. Run it with
+The seed service and analytics read path are covered by Testcontainers integration
+scenarios against MongoDB. They verify first-seed count and content, repeat-seed
+idempotency, reset behavior (including a repeated reset), preservation of unrelated
+records, and analytics over a seeded profile. Run them with
 `sh ./gradlew :backend:api:test --tests org.healthtg.seed.DemoDatasetMongoIntegrationTest`;
 Docker must be available.
+
+## Checks
+
+```powershell
+.\gradlew.bat check :backend:api:bootJar :backend:bot:bootJar validateContracts :contract-validator:validate --no-daemon --console=plain
+Set-Location frontend
+npm ci
+npm run lint
+npm run typecheck
+npm test -- --run
+npm run build
+Set-Location ..
+docker compose --env-file .env.example config --quiet
+docker compose --env-file .env.example build
+```
+
+CI uses synthetic fixtures, Testcontainers and placeholder configuration. It does
+not use the training database, real Telegram credentials or paid model calls.
+
+## Diagnostics
+
+Use `docker compose ps` and `docker compose logs <service>`. Do not enable debug
+logging for Telegram or HTTP clients: request URLs may contain the bot token.
+Application logs must not include message text, images or health values. The API
+returns `X-Request-ID`; readiness reports MongoDB failure as HTTP 503.
+
+## External acceptance still required
+
+- publish frontend through the agreed HTTPS host and set `MINI_APP_URL`;
+- verify BE1-05 upload/download persistence through the Compose file volume;
+- have another participant reproduce these instructions in a clean environment.

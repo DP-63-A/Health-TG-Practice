@@ -1,21 +1,24 @@
-# BE1-07 early MongoDB foundation
+# BE1-07 environment implementation report
 
 ## Scope
 
-This is an early integration result of BE1-07 required by BE1-03, BE2-02, and
-BE2-05. It does not complete Issue #5.
+This report started as the early MongoDB foundation and now tracks the complete
+BE1-07 infrastructure implementation. Issue #5 remains open until the external
+acceptance items listed below are completed.
 
 Implemented:
 
-- MongoDB 8 Compose service bound only to `127.0.0.1`;
-- persistent named volume `health-tg-mongo-data`;
-- container healthcheck;
-- safe `.env.example` without credentials;
-- PowerShell launcher that loads root `.env` values into the backend process;
-- local environment run/restart/stop documentation;
-- real `/api/v1/healthz` MongoDB readiness check;
-- OpenAPI-compatible HTTP 503 error when MongoDB is unavailable;
-- automated HTTP ready/unavailable tests.
+- Compose services for MongoDB 8, API, Telegram bot and frontend;
+- private shared network with only the frontend loopback port published;
+- persistent `mongo-data` and private `file-data` named volumes;
+- API and container healthchecks plus dependency ordering;
+- safe `.env.example` and required-variable diagnostics;
+- separate non-root API and bot runtime images;
+- frontend live build served by Nginx with an API reverse proxy;
+- GitHub Actions jobs for backend, frontend, contracts, Compose images, API
+  readiness and private file-volume recreation;
+- Java Checkstyle, frontend lint/typecheck/tests/build and contract validation;
+- full build, run, restart, stop and diagnostic instructions.
 
 ## Automated verification
 
@@ -64,24 +67,23 @@ Verified on 2026-09-23:
    `code`, `message`, and `request_id`.
 6. After `docker-compose start mongo`, readiness returned HTTP 200 again.
 
-## Acceptance status for the early slice
+## Current acceptance status
 
 | BE1-07 criterion | Status | Evidence |
 |---|---|---|
-| AC1 Compose starts agreed components | Partial | MongoDB is implemented; API, bot, frontend, and file storage remain |
-| AC2 persistent private storage | Partial | MongoDB persistence and loopback binding verified; file storage remains |
-| AC3 safe environment configuration | Partial | MongoDB/backend variables documented; complete stack validation remains |
-| AC4 CI | Not implemented | Full backend/frontend/contracts workflow remains |
-| AC5 explicit modes and no paid calls | Partial | Local Mongo mode is explicit; full live/fixture stack remains |
-| AC6 clean reproduction and seed/reset | Not implemented | Requires BE3-05 and another participant |
-| AC7 configuration/log audit | Partial | This slice exposes no secrets; full-stack audit remains |
+| AC1 Compose starts agreed components | Partial | Compose defines MongoDB, API, bot and frontend using one database; CI starts MongoDB, API and frontend, but the bot has not been started in CI or accepted with real Telegram credentials |
+| AC2 persistent private storage | Implemented | Named MongoDB/file volumes; neither is published to the host; CI recreates API and verifies the file probe survives |
+| AC3 safe environment configuration | Implemented | Required substitutions, ignored `.env`, safe example and diagnostics |
+| AC4 CI | Partial | Backend style/tests/JARs, frontend checks, contracts, image builds, readiness and volume smoke checks are configured; evidence of a controlled failing run followed by a passing fix is still required |
+| AC5 explicit modes and no paid calls | Implemented | CI uses fixtures/placeholders; Compose frontend is explicitly `live` |
+| AC6 clean reproduction and seed/reset | Partial | BE3-05 one-shot commands and local instructions are present; another participant must reproduce and record the clean run |
+| AC7 configuration/log audit | Partial | Secret-safe defaults are configured; human log audit still required |
 
-## Remaining BE1-07 work
+## External acceptance work
 
-- API and Telegram bot containers using the shared backend;
-- private persistent file storage;
-- frontend build/serving and agreed HTTPS configuration;
-- `/healthz` checks for all required processes;
-- GitHub Actions for backend, frontend, and contracts;
-- BE3-05 seed/reset commands;
-- full environment documentation and clean reproduction by another participant.
+- run the full Compose stack with authorized credentials and agreed HTTPS;
+- verify an actual authorized BE1-05 upload/download after an ordinary restart;
+- execute the protected BE3-05 one-shot seed/reset commands in the training environment;
+- reproduce the README from a clean environment by another participant;
+- record green GitHub Actions evidence for the final reviewed commit;
+- inspect runtime logs for absence of secrets and user health content.

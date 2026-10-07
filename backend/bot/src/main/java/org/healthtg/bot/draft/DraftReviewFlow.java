@@ -2,6 +2,7 @@ package org.healthtg.bot.draft;
 
 import org.healthtg.bot.BotAction;
 import org.healthtg.bot.BotUpdate;
+import org.healthtg.bot.datetime.DateTimePicker;
 import org.healthtg.bot.correction.CorrectionInputParser;
 import org.healthtg.bot.correction.CorrectionResult;
 import org.healthtg.core.dialog.DialogState;
@@ -87,6 +88,14 @@ public final class DraftReviewFlow {
         if (value instanceof BigDecimal decimal && decimal.signum() < 0) {
             return Optional.of(List.of(message(update, "Значение не может быть отрицательным.", backRows(entry))));
         }
+        if ("v".equals(field) && entry.type()==EntryType.METRICS && value instanceof BigDecimal decimal) {
+            try { org.healthtg.bot.recognition.MetricCandidate.validateValue((String)entry.payload().get("code"),decimal); }
+            catch (IllegalArgumentException invalid) {
+                return Optional.of(List.of(message(update, "steps".equals(entry.payload().get("code"))
+                        ? "Введите целое количество шагов от 0 до 1000000000."
+                        : "Введите значение от 0 до 1000000000.", backRows(entry))));
+            }
+        }
         Map<String, Object> context = base(entry, ZoneId.of(String.valueOf(state.context().get("timezone"))));
         context.put("operation", "patch");
         context.put("field", field);
@@ -138,10 +147,11 @@ public final class DraftReviewFlow {
         if (fields(entry).contains(action)) {
             context.put("field", action);
             DialogState accepted = save(owner, entry, "draft_await", context, update);
-            if (!accepted.context().equals(context)) return card(update, entry, zone, "Диалог уже изменён.");
+            if (!"draft_await".equals(accepted.step()) || !Objects.equals(accepted.context().get("field"), action)
+                    || number(accepted.context(), "entry_revision") != entry.revision()) return card(update, entry, zone, "Диалог уже изменён.");
             return withAnswer(update, message(update, "d".equals(action)
                     ? "Введите дату: ДД.ММ.ГГГГ или ГГГГ-ММ-ДД."
-                    : "Введите одно число для поля «" + FIELDS.get(action) + "», например 12,5.", backRows(entry)));
+                    : correctionQuestion(entry,action), backRows(entry)));
         }
         if ("n".equals(action)) {
             save(owner, entry, "draft_choose", context, update);
@@ -180,9 +190,19 @@ public final class DraftReviewFlow {
             entry = entries.requireEntry(owner, entry.id());
             notice = "Запись изменилась. Старое действие не применено повторно; проверьте текущую версию.";
         } catch (EntryValidationException | DateTimeException invalid) {
+            // The caller owns this update's transition. Consuming its key here would
+            // prevent the same callback from selecting a corrected field below.
             notice = "Не удалось применить значение. Проверьте поле и выберите исправление заново.";
         }
         return card(update, entry, zone, notice);
+    }
+
+    private static String correctionQuestion(Entry entry,String field) {
+        if ("v".equals(field) && entry.type()==EntryType.METRICS) {
+            if ("steps".equals(entry.payload().get("code"))) return "Введите целое количество шагов от 0 до 1000000000.";
+            if ("sleep_duration_min".equals(entry.payload().get("code"))) return "Введите длительность сна в минутах, например 450.";
+        }
+        return "Введите одно число для поля «"+FIELDS.get(field)+"», например 12,5.";
     }
 
     /** Validate persisted intent before any mutation; a partial/corrupt intent is never guessed. */
@@ -207,6 +227,10 @@ public final class DraftReviewFlow {
                     || value.isBlank() || value.length() > 2010) return false;
             if ("d".equals(field)) {
                 var parsed = parser.parseDate(value);
+                if (context.containsKey("picker_time")) {
+                    if (entry.type() == EntryType.METRICS || !(context.get("picker_time") instanceof String time)) return false;
+                    LocalTime.parse(time);
+                }
                 return parsed instanceof CorrectionResult.Success<?> date && date.value().toString().equals(value);
             }
             // BigDecimal.toString() can use an exponent even though user input never does.
@@ -240,7 +264,8 @@ public final class DraftReviewFlow {
                 payload = Map.of("local_date", date.toString());
                 origin = "local_date";
             } else {
-                LocalDateTime local = date.atTime(entry.occurredAt().atZone(zone).toLocalTime());
+                LocalDateTime local = date.atTime(context.get("picker_time") instanceof String time
+                        ? LocalTime.parse(time) : entry.occurredAt().atZone(zone).toLocalTime());
                 var offsets = zone.getRules().getValidOffsets(local);
                 if (offsets.size() != 1) throw new EntryValidationException("Ambiguous local time");
                 occurredAt = local.toInstant(offsets.getFirst());
@@ -307,6 +332,9 @@ public final class DraftReviewFlow {
         if (entry.status() == EntryStatus.DRAFT) {
             rows.add(List.of(button("Сохранить", "s", entry), button("Изменить", "n", entry)));
             rows.add(List.of(button("Не сохранять", "x", entry), button("Обновить", "r", entry)));
+            if(dialogs!=null) dialogs.find(new OwnerContext(entry.ownerId())).filter(s -> entry.id().equals(s.activeEntryId())
+                    && s.context().containsKey("photo_queue")).ifPresent(s -> rows.add(List.of(
+                    new BotAction.InlineButton("Отменить оставшиеся показатели","pq:x:"+entry.id()+":"+s.revision()))));
         }
         if (miniAppUrl != null && entry.status() != EntryStatus.CANCELLED && entry.status() != EntryStatus.DELETED) {
             rows.add(List.of(new BotAction.InlineButton("Открыть в Mini App", null,
@@ -342,16 +370,48 @@ public final class DraftReviewFlow {
             default -> List.of();
         };
     }
-    private static Map<String, Object> base(Entry entry, ZoneId zone) {
+    private Map<String, Object> base(Entry entry, ZoneId zone) {
         Map<String, Object> context = new LinkedHashMap<>();
         context.put("schema_version", 1);
         context.put("entry_revision", entry.revision());
         context.put("timezone", zone.getId());
+        dialogs.find(new OwnerContext(entry.ownerId())).filter(s -> entry.id().equals(s.activeEntryId()))
+                .map(s -> s.context().get("photo_queue")).filter(q -> q instanceof Map<?,?>)
+                .ifPresent(q -> context.put("photo_queue",q));
         return context;
     }
     private DialogState save(OwnerContext owner, Entry entry, String step, Map<String, Object> context, BotUpdate update) {
-        return dialogs.save(new SaveDialogStateCommand(owner, entry.id(), step, context,
+        var preserved=new LinkedHashMap<String,Object>(context);
+        dialogs.find(owner).filter(s -> entry.id().equals(s.activeEntryId()))
+                .map(s -> s.context().get("photo_queue")).filter(q -> q instanceof Map<?,?>)
+                .ifPresent(q -> preserved.put("photo_queue",q));
+        return dialogs.save(new SaveDialogStateCommand(owner, entry.id(), step, DateTimePicker.rotate(preserved),
                 new TelegramUpdateKey("main", update.updateId())));
+    }
+
+    public Optional<DateTimePicker.Form> pickerForm(DialogState state, OwnerContext owner, ZoneId zone) {
+        if (!state.step().equals("draft_await") || !"d".equals(state.context().get("field")) || state.activeEntryId() == null)
+            return Optional.empty();
+        var entry = entries.requireEntry(owner, state.activeEntryId());
+        if (!validContext(state, entry) || entry.status() != EntryStatus.DRAFT
+                || entry.revision() != number(state.context(), "entry_revision")
+                || !zone.getId().equals(state.context().get("timezone"))) return Optional.empty();
+        if (entry.type() == EntryType.METRICS) return Optional.of(new DateTimePicker.Form(
+                entry.payload().get("local_date") instanceof String date ? date : null, null, false, false, false, "Дата показателя"));
+        var local = entry.occurredAt().atZone(zone);
+        return Optional.of(new DateTimePicker.Form(local.toLocalDate().toString(), local.toLocalTime().toString(),
+                true, false, false, "Дата и время события"));
+    }
+
+    public List<BotAction> applyPicker(BotUpdate update, OwnerContext owner, ZoneId zone, DialogState state,
+                                      DateTimePicker.Selection selection) {
+        var entry = entries.requireEntry(owner, state.activeEntryId());
+        if (update.updateId() <= savedUpdate(state) || entry.revision() != number(state.context(), "entry_revision")
+                || entry.status() != EntryStatus.DRAFT) return card(update, entry, zone, "Запись изменилась. Выберите исправление заново.");
+        var context = base(entry, zone);
+        context.put("field", "d"); context.put("operation", "patch"); context.put("value", selection.date().toString());
+        if (selection.time() != null) context.put("picker_time", selection.time().toString());
+        return recover(update, owner, save(owner, entry, "draft_pending", context, update), zone);
     }
     private static long number(Map<String, Object> context, String name) {
         if (!(context.get(name) instanceof Number value)) throw new IllegalArgumentException("Missing integer context field");
