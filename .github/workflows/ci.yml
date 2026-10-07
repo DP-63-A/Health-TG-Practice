@@ -22,6 +22,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Backend style, tests and executable jars
         run: ./gradlew check :backend:api:bootJar :backend:bot:bootJar --no-daemon --console=plain
+      - name: BE1 acceptance with isolated MongoDB
+        run: |
+          docker info > /dev/null
+          ./gradlew be1Acceptance --no-daemon --console=plain
 
   frontend:
     runs-on: ubuntu-latest

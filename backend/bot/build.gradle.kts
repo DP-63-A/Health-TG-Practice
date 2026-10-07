@@ -32,6 +32,18 @@ tasks.test {
     useJUnitPlatform()
     systemProperty("contracts.root", rootProject.projectDir.resolve("contracts").absolutePath)
 }
+tasks.register<Test>("be1Acceptance") {
+    description = "Runs BE1 bot-to-core acceptance scenarios"
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform()
+    systemProperty("contracts.root", rootProject.projectDir.resolve("contracts").absolutePath)
+    include("**/BotCoreStorageIntegrationTest.class")
+    include("**/QuickCheckinAcceptanceTest.class")
+    include("**/TextDialogStorageTest.class")
+    shouldRunAfter(tasks.named("test"))
+}
 springBoot { mainClass.set("org.healthtg.bot.BotApplication") }
 
 tasks.register<JavaExec>("recognizeFood") {
