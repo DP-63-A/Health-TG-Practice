@@ -1,6 +1,7 @@
 package org.healthtg.seed;
 
 import org.bson.Document;
+import org.healthtg.analytics.AnalyticsService;
 import org.healthtg.core.entry.ConfirmEntryCommand;
 import org.healthtg.core.entry.CreateDraftCommand;
 import org.healthtg.core.entry.EntryCoreService;
@@ -56,6 +57,7 @@ class DemoDatasetMongoIntegrationTest {
     }
 
     @Autowired DemoDatasetService dataset;
+    @Autowired AnalyticsService analytics;
     @Autowired EntryCoreService entries;
     @Autowired UserStore users;
     @Autowired MongoTemplate mongoTemplate;
@@ -113,6 +115,22 @@ class DemoDatasetMongoIntegrationTest {
                 new Document("_id", unrelatedEntry.toString())));
         assertEquals(1, mongoTemplate.getCollection("entries").countDocuments(
                 new Document("_id", "unrelated-seed-entry")));
+        assertEquals(0, dataset.reset("true", DEMO_URI));
+    }
+
+    @Test
+    void seededProfileIsAvailableThroughAnalyticsReadService() {
+        LocalDate recentStart = LocalDate.now(ZoneId.of("Europe/Warsaw")).minusDays(20);
+        dataset.seed("true", DEMO_URI, owners(), SEED, recentStart);
+
+        var response = analytics.calculate(new OwnerContext(REGULAR_ID), "days_21", "Europe/Warsaw", "wellbeing");
+
+        assertEquals(21, response.observations().daysInPeriod());
+        assertEquals(42, response.cards().mealCount().count());
+        assertEquals(21, response.cards().steps().daysWithData());
+        assertEquals("wellbeing", response.series().checkin().category());
+        assertEquals(21, response.series().checkin().points().size());
+        assertTrue(response.sources().stream().allMatch(source -> source.entryId() != null));
     }
 
     private UUID createUnrelatedEntry() {

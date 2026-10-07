@@ -40,7 +40,8 @@ validation: confirmed metrics require non-null `unit` and `local_date`.
 For a meal with `nutrients_basis=per_100g`, changing `mass_g` does not rewrite the nutrient reference
 values. BE3-02 calculates the portion total from those values and the current mass. With
 `per_serving`, the stored nutrient values also remain unchanged. The end-to-end G-06 assertion through
-`/analytics` remains dependent on the BE3-03 HTTP route.
+`/api/v1/analytics` is implemented in the API module; its calculation/read-path integration tests are
+in `AnalyticsServiceTest`, `AnalyticsHttpIntegrationTest`, and `DemoDatasetMongoIntegrationTest`.
 
 ## Examples
 

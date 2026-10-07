@@ -37,6 +37,23 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
+tasks.named<Test>("test") {
+    exclude("**/Be1AcceptanceIntegrationTest.class")
+}
+
+tasks.register<Test>("be1Acceptance") {
+    description = "Runs BE1 HTTP and MongoDB acceptance scenarios"
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform()
+    include("**/Be1AcceptanceIntegrationTest.class")
+    include("**/AuthHttpIntegrationTest.class")
+    include("**/CoreStorageIntegrationTest.class")
+    include("**/FilesHttpIntegrationTest.class")
+    shouldRunAfter(tasks.named("test"))
+}
+
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
     options.release.set(21)
