@@ -83,9 +83,7 @@ final class EntryPayloadValidator {
         if (new BigDecimal(value.toString()).signum() < 0) {
             throw invalid("value must be non-negative for " + code);
         }
-        if (code.equals("steps") || code.equals("sleep_duration_min")) {
-            requireBoundedMetric(code, value);
-        }
+        requireBoundedMetric(code, value);
 
         validateOptionalText(payload, "unit", 32);
         validateLocalDate(payload.get("local_date"));
