@@ -71,12 +71,12 @@ Verified on 2026-09-23:
 
 | BE1-07 criterion | Status | Evidence |
 |---|---|---|
-| AC1 Compose starts agreed components | Implemented | Compose defines MongoDB, API, bot and frontend using one database; CI starts MongoDB, API and frontend without external Telegram calls |
+| AC1 Compose starts agreed components | Partial | Compose defines MongoDB, API, bot and frontend using one database; CI starts MongoDB, API and frontend, but the bot has not been started in CI or accepted with real Telegram credentials |
 | AC2 persistent private storage | Implemented | Named MongoDB/file volumes; neither is published to the host; CI recreates API and verifies the file probe survives |
 | AC3 safe environment configuration | Implemented | Required substitutions, ignored `.env`, safe example and diagnostics |
-| AC4 CI | Implemented | Backend style/tests/JARs, frontend checks, contracts, image builds, readiness and volume smoke checks |
+| AC4 CI | Partial | Backend style/tests/JARs, frontend checks, contracts, image builds, readiness and volume smoke checks are configured; evidence of a controlled failing run followed by a passing fix is still required |
 | AC5 explicit modes and no paid calls | Implemented | CI uses fixtures/placeholders; Compose frontend is explicitly `live` |
-| AC6 clean reproduction and seed/reset | Implemented, external reproduction pending | BE3-05 one-shot commands and complete local instructions are present; another participant must record the clean run |
+| AC6 clean reproduction and seed/reset | Partial | BE3-05 one-shot commands and local instructions are present; another participant must reproduce and record the clean run |
 | AC7 configuration/log audit | Partial | Secret-safe defaults are configured; human log audit still required |
 
 ## External acceptance work

@@ -30,6 +30,26 @@ MongoDB, API and the file volume have no host port or bind mount. Nginx forwards
 `/api/` to the private API service. The `file-data` volume is the private BE1-05
 storage shared by API and bot; it is not a public file server.
 
+## Host-side API or bot development
+
+The main Compose file deliberately keeps MongoDB private. To run API or bot from
+IDEA, `bootRun`, or `scripts/run-backend.ps1`, start MongoDB with the explicit
+development override:
+
+```powershell
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d mongo
+.\scripts\run-backend.ps1
+```
+
+The override publishes MongoDB only on `127.0.0.1` at `MONGODB_PORT` (27017 by
+default). Host-side applications use `MONGODB_URI=mongodb://localhost:27017/health_tg`
+from `.env.example`. Keep the `health_tg_demo` URI only for the protected BE3-05
+host workflow. Stop the development MongoDB without deleting its data using:
+
+```powershell
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env down
+```
+
 Readiness check (API and MongoDB only):
 
 ```powershell
