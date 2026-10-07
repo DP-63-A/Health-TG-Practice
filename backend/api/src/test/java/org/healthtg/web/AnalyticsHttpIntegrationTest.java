@@ -100,8 +100,8 @@ class AnalyticsHttpIntegrationTest {
         mockMvc.perform(get("/api/v1/analytics").queryParam("period", "today")
                         .header("Authorization", "Bearer " + "test-session"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.cards.sleep.total_minutes").value(nullValue()))
-                .andExpect(jsonPath("$.cards.sleep.days_with_data").value(0))
+                .andExpect(jsonPath("$.cards.sleep.total_minutes").value(421))
+                .andExpect(jsonPath("$.cards.sleep.days_with_data").value(1))
                 .andExpect(jsonPath("$.cards.steps.total").value(nullValue()))
                 .andExpect(jsonPath("$.cards.steps.days_with_data").value(0));
     }
