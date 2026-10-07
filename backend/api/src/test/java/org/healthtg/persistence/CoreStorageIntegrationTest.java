@@ -115,6 +115,17 @@ class CoreStorageIntegrationTest {
         assertEquals(zero, entries.requireEntry(owner, zero.id()));
     }
 
+    @Test void fieldOriginsKeepDistinctDotAndFullwidthDotKeysInMongo() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Map<String, String> origins = Map.of(".．", "reported", "．.", "computed",
+                "payload.value", "estimated");
+        Entry saved = entries.createDraft(new CreateDraftCommand(owner, EntryType.METRICS, SourceKind.TEXT,
+                Map.of(), Instant.parse("2026-10-06T12:00:00Z"),
+                Map.of("code", "steps", "value", 1), origins, new TelegramUpdateKey("main", 913))).entry();
+
+        assertEquals(origins, entries.requireEntry(owner, saved.id()).fieldOrigins());
+    }
+
     @Container
     static final MongoDBContainer MONGO = new MongoDBContainer(
             DockerImageName.parse("mongodb/mongodb-community-server:8.0-ubi9-slim")

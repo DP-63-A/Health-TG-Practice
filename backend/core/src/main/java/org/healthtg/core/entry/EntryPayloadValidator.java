@@ -84,7 +84,7 @@ final class EntryPayloadValidator {
             throw invalid("value must be non-negative for " + code);
         }
         if (code.equals("steps") || code.equals("sleep_duration_min")) {
-            requireWholeMetric(code, value);
+            requireBoundedMetric(code, value);
         }
 
         validateOptionalText(payload, "unit", 32);
@@ -93,15 +93,15 @@ final class EntryPayloadValidator {
         validateEnum(payload, "qualifier", HEART_RATE_QUALIFIERS, true);
     }
 
-    private static void requireWholeMetric(String code, Number value) {
+    private static void requireBoundedMetric(String code, Number value) {
         BigDecimal decimal;
         try {
             decimal = new BigDecimal(value.toString());
         } catch (NumberFormatException exception) {
             throw invalid("value must be a finite number for " + code);
         }
-        if (decimal.stripTrailingZeros().scale() > 0 || decimal.compareTo(MAX_WHOLE_METRIC) > 0) {
-            throw invalid("value must be a whole number not greater than 1000000000 for " + code);
+        if (decimal.compareTo(MAX_WHOLE_METRIC) > 0) {
+            throw invalid("value must not be greater than 1000000000 for " + code);
         }
     }
 

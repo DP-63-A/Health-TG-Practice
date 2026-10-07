@@ -14,6 +14,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -88,8 +89,10 @@ class AnalyticsServiceTest {
 
         assertEquals(450L, response.cards().sleep().totalMinutes());
         assertEquals(1, response.cards().sleep().daysWithData());
-        assertEquals(1, response.series().sleep().size());
-        assertEquals(inside.id(), response.series().sleep().getFirst().source().entryId());
+        assertEquals(7, response.series().sleep().size());
+        assertNull(response.series().sleep().getFirst().value());
+        assertNull(response.series().sleep().getFirst().source());
+        assertEquals(inside.id(), response.series().sleep().getLast().source().entryId());
         assertEquals(1, response.observations().daysWithAnyData());
     }
 
@@ -107,6 +110,36 @@ class AnalyticsServiceTest {
         assertEquals(0, response.cards().sleep().daysWithData());
         assertEquals(8000L, response.cards().steps().total());
         assertEquals(1, response.cards().steps().daysWithData());
+    }
+
+    @Test
+    void fillsSleepSeriesGapsButKeepsAnEmptyPeriodEmpty() {
+        Entry sleep14 = metric("sleep-14", "sleep_duration_min", 420, "2026-09-14T06:30:00Z", "2026-09-14");
+        Entry sleep16 = metric("sleep-16", "sleep_duration_min", 480, "2026-09-16T06:30:00Z", "2026-09-16");
+        when(entries.listEntries(any())).thenReturn(List.of(sleep14, sleep16));
+
+        var response = service.calculate(new OwnerContext(OWNER), "days_7", null, null);
+        var points = response.series().sleep();
+
+        assertEquals(List.of(LocalDate.parse("2026-09-13"), LocalDate.parse("2026-09-14"),
+                LocalDate.parse("2026-09-15"), LocalDate.parse("2026-09-16"), LocalDate.parse("2026-09-17"),
+                LocalDate.parse("2026-09-18"), LocalDate.parse("2026-09-19")),
+                points.stream().map(AnalyticsService.MetricPoint::date).toList());
+        assertNull(points.get(0).value());
+        assertNull(points.get(0).source());
+        assertEquals(420, points.get(1).value().intValueExact());
+        assertEquals(sleep14.id(), points.get(1).source().entryId());
+        assertNull(points.get(2).value());
+        assertNull(points.get(2).source());
+        assertEquals(480, points.get(3).value().intValueExact());
+        assertEquals(sleep16.id(), points.get(3).source().entryId());
+        assertEquals(900L, response.cards().sleep().totalMinutes());
+        assertEquals(450, response.cards().sleep().averageMinutes().intValueExact());
+        assertEquals(2, response.cards().sleep().daysWithData());
+
+        when(entries.listEntries(any())).thenReturn(List.of());
+        assertEquals(List.of(), service.calculate(new OwnerContext(OWNER), "days_7", null, null)
+                .series().sleep());
     }
 
     @Test

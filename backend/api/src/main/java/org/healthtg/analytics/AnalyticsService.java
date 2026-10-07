@@ -37,6 +37,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 @Service
 @ConditionalOnProperty(name = "health-tg.core.storage.enabled", matchIfMissing = true)
@@ -198,13 +199,19 @@ public class AnalyticsService {
 
     private static List<MetricPoint> metricSeries(List<Entry> found, DailyResult result, Metric metric,
                                                    Period period, String unit) {
-        return result.values().entrySet().stream().sorted(Map.Entry.comparingByKey()).map(item -> {
+        if (result.values().isEmpty()) return List.of();
+        Stream<LocalDate> dates = metric == Metric.SLEEP_DURATION_MIN
+                ? Stream.iterate(period.from(), date -> !date.isAfter(period.to()), date -> date.plusDays(1))
+                : result.values().keySet().stream().sorted();
+        return dates.map(date -> {
+            BigDecimal value = result.values().get(date);
+            if (value == null) return new MetricPoint(date, null, unit, null);
             Entry selected = found.stream()
                     .filter(entry -> isMetric(entry, metric))
-                    .filter(entry -> item.getKey().equals(metricDate(entry, metric, period.zone())))
+                    .filter(entry -> date.equals(metricDate(entry, metric, period.zone())))
                     .filter(entry -> metricValue(entry) != null)
                     .max(DAILY_METRIC_ORDER).orElseThrow();
-            return new MetricPoint(item.getKey(), item.getValue(), unit, source(selected, item.getKey()));
+            return new MetricPoint(date, value, unit, source(selected, date));
         }).toList();
     }
 
@@ -273,9 +280,8 @@ public class AnalyticsService {
     }
 
     /**
-     * Metric value usable by analytics. Steps and sleep minutes are whole, non-negative numbers within a
-     * bounded range (the canonical schema requires integer totals); legacy or malformed values are
-     * ignored instead of failing the whole response.
+     * Metric value usable by analytics. Steps and sleep minutes are treated as whole, non-negative numbers
+     * within a bounded range; fractional or malformed values are ignored instead of failing the response.
      */
     private static BigDecimal metricValue(Entry entry) {
         BigDecimal value;
