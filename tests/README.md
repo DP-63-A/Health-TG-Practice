@@ -26,6 +26,29 @@ published on `127.0.0.1`; Telegram opens the same frontend through the agreed
 HTTPS host. Do not enable live photo recognition unless that paid external call
 is explicitly part of the test.
 
+### Temporary HTTPS for Windows acceptance
+
+For a non-production manual run, download `cloudflared-windows-amd64.exe` from
+the [official Cloudflare GitHub releases](https://github.com/cloudflare/cloudflared/releases/latest)
+and keep this command running in a separate PowerShell window:
+
+```powershell
+& "C:\path\to\cloudflared-windows-amd64.exe" tunnel --url http://localhost:8088
+```
+
+Copy the generated `https://...trycloudflare.com` origin without a trailing
+slash into the private `.env`:
+
+```dotenv
+MINI_APP_URL=https://generated-host.trycloudflare.com
+CORS_ALLOWED_ORIGINS=http://localhost:8088,http://localhost:5173,https://generated-host.trycloudflare.com
+```
+
+Restart Compose after either value changes. A quick tunnel has no uptime
+guarantee and its address changes after restart; it is suitable only for manual
+acceptance. Stop it with `Ctrl+C`. A permanent stand must use the team's managed
+HTTPS host instead.
+
 ## Automated baseline
 
 ```powershell
@@ -34,6 +57,7 @@ docker info
 .\gradlew.bat check :backend:api:bootJar :backend:bot:bootJar validateContracts :contract-validator:validate --no-daemon --console=plain
 Set-Location frontend
 npm ci
+npm audit --omit=dev
 npm run lint
 npm run typecheck
 npm test -- --run
@@ -58,15 +82,22 @@ database manually.
 4. Run `docker compose ps`; `mongo`, `api` and `frontend` must be healthy and
    `bot` must remain running.
 5. Request `http://localhost:8088/api/v1/healthz`; expect MongoDB status `ok`.
-6. Authenticate the three test accounts normally. Read each account's internal
-   UUID from `/api/v1/me` and place it only in the private
-   `BE3_05_*_USER_ID` variables; do not edit MongoDB or record those values.
+6. Authenticate the three test accounts normally. Read their internal UUIDs
+   without changing MongoDB:
+
+   ```powershell
+   docker compose --env-file .env exec -T mongo mongosh --quiet health_tg_demo --eval 'db.users.find({}, {_id:1, telegramId:1}).sort({telegramId:1}).forEach(printjson)'
+   ```
+
+   Match the local Telegram IDs to `_id`, put only the UUID values in the
+   private `BE3_05_*_USER_ID` variables, and do not copy this output to reports.
 7. Run `.\scripts\demo-data.ps1 -Command seed -Compose` twice. Both runs must
    succeed and confirmed entry counts must remain 147, 80 and 52.
 8. Run `.\scripts\demo-data.ps1 -Command reset -Compose` twice, then seed once
    more. Reset must preserve accounts and unrelated records.
-9. Open the HTTPS Mini App from Telegram, create one quick check-in, and confirm
-   that it appears after reopening the application.
+9. In the bot run `/state` (or press `Отметить состояние`), select a category
+   and score, then open the HTTPS Mini App and confirm that the check-in appears
+   after reopening the application.
 10. Restart the stack with `docker compose restart`; the entry must remain.
 11. Stop without deleting volumes: `docker compose down`.
 
@@ -77,7 +108,8 @@ for the persistence check.
 
 Use one test account and one local date inside the selected analytics period.
 
-1. Create and confirm two meal entries with energy values 600 and 330 kcal.
+1. Send two meal descriptions to the bot. For each resulting draft, open it in
+   the Mini App, set energy to 600 and 330 kcal respectively, then confirm it.
 2. Open live Overview and verify 930 kcal in both the card and daily series.
 3. Edit the second entry to 247.5 kcal using its current revision.
 4. Refresh Overview and verify 847.5 kcal.
@@ -90,9 +122,11 @@ Capture entry IDs, revisions and request IDs only. The automated regression is
 
 ## G-07: replay and version conflict
 
-1. Repeat the same confirmation request with the same `submission_id`; expect
-   one confirmed record and the same successful result.
-2. Open one draft in two browser sessions. Save a change in the first session,
+1. Automated prerequisite: run
+   `Be1AcceptanceIntegrationTest.repeatedConfirmReturnsOneConfirmedDocument`;
+   it repeats the same `submission_id` and proves that only one record exists.
+   The product UI intentionally does not expose raw sessions or submission IDs.
+2. For the live part, open one draft in two browser sessions. Save a change in the first session,
    then submit the stale revision from the second; expect HTTP 409.
 3. Verify that the stale UI keeps the user's input, shows the conflict and lets
    the user reload the server version before making a conscious retry.

@@ -15,6 +15,8 @@ Java 21, Spring Boot 3.5.6, TelegramBots client 9.2.0; используется 
 core storage. Черновики, уточнения и шаг диалога сохраняются в MongoDB и восстанавливаются после
 перезапуска. Подробности — в [CHECKIN_SELECTION.md](CHECKIN_SELECTION.md),
 [TEXT_INPUT.md](TEXT_INPUT.md) и [DATETIME_PICKER.md](DATETIME_PICKER.md).
+Режимы распознавания фотографий описаны в
+[FOOD-RECOGNITION.md](FOOD-RECOGNITION.md).
 
 ## Настройки
 
@@ -25,6 +27,9 @@ core storage. Черновики, уточнения и шаг диалога с
 | `TELEGRAM_BOT_TOKEN` | Токен тестового бота от BotFather; обязательно |
 | `TELEGRAM_ALLOWED_USER_IDS` | Положительные Telegram ID разрешённых пользователей через запятую; обязательно |
 | `MINI_APP_URL` | HTTPS-адрес Mini App без логина и пароля; необязательно для запуска бота |
+| `FOOD_RECOGNITION_MODE` | `disabled` (по умолчанию), синтетический `fixture` или платный внешний `live` |
+| `GEMINI_API_KEY` | Секретный ключ только для `live`; не нужен для `disabled`/`fixture` |
+| `GEMINI_MODEL` | Модель Gemini для явно выбранного режима `live` |
 
 Имя бота определяется автоматически через `getMe`. При отсутствии адреса Mini App бот сообщает, что кабинет не подключён; проверка его открытия остаётся невыполненной.
 

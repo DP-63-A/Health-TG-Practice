@@ -11,7 +11,8 @@ results are defined in `tests/README.md`.
 
 | Field | Result |
 |---|---|
-| Tested commit | Local working tree based on `287958a`; final commit and CI link pending |
+| Tested application commit | [`287958a`](https://github.com/DP-63-A/Health-TG-Practice/commit/287958ae44529123692efa04a9b54b66089dfd60); the BE1-08 PR changes documentation only |
+| Tested documentation commit | Pending review-fix commit and CI link |
 | Verification date | 2026-10-08 |
 | Verifier (not the author) | Pending team assignment; automated baseline below was run by the author |
 | OS / architecture | Windows, x86-64 |

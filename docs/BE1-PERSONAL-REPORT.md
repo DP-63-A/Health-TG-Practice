@@ -31,6 +31,12 @@ unpersisted operation, while retrying without durable idempotency could duplicat
 data. The fix keeps the update unacknowledged for transient storage failures,
 uses bounded backoff and relies on durable update/submission identifiers. Bot
 runtime and storage regression tests cover retry, restart and duplicate delivery.
+The corrective implementation is commit
+[`35c1efa`](https://github.com/DP-63-A/Health-TG-Practice/commit/35c1efae5662d4b4c0a866151e369a49ab4bcb1a)
+in PR [#76](https://github.com/DP-63-A/Health-TG-Practice/pull/76). Its focused
+regressions include
+`BotRuntimeTest.transientStorageFailureRetriesSameUpdateBeforeFollowingMessages`
+and `BotRuntimeTest.storageRetryBackoffIsBoundedAtThirtySeconds`.
 
 ## Checks of AI-assisted solutions
 
@@ -50,12 +56,12 @@ accepting green tests or generated code at face value.
 
 ## Peer review
 
-Substantive reviews were performed for the Health Watch integration and the
-date/time picker integration, including repeat/restart, ownership and storage
-failure paths. Add the final PR review URLs here before acceptance:
+Substantive review evidence:
 
-- Health Watch review: Pending URL.
-- Date/time picker review: Pending URL.
+- Health Watch PR #114: [GitHub review](https://github.com/DP-63-A/Health-TG-Practice/pull/114#pullrequestreview-5445782759).
+- Date/time picker PR #122 was examined locally for repeat/restart, ownership
+  and storage-failure paths, but no GitHub review/comment was submitted. It is
+  supporting work, not the peer-review evidence claimed by this report.
 - BE1-08 reviewer: Pending assignment and URL.
 
 ## Defence notes
