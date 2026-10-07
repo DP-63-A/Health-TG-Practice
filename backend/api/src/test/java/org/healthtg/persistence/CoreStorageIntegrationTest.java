@@ -812,4 +812,63 @@ class CoreStorageIntegrationTest {
         context.refresh();
         return context;
     }
+
+    @Test
+    void entryPayloadValidator_validatesMetricsValueBoundsAndTypes() {
+        OwnerContext owner = new OwnerContext(OWNER_ID);
+    
+        // 1. Значение 1 000 000 001 выбрасывает EntryValidationException
+        var invalidCmd = new CreateDraftCommand(
+                EntryType.METRICS,
+                SourceKind.MANUAL,
+                Map.of(),
+                Instant.now(),
+                Map.of("code", "steps", "value", new BigDecimal("1000000001"), "unit", "count"),
+                Map.of(),
+                null,
+                "test-key-1"
+        );
+        assertThrows(EntryValidationException.class, () -> entryCoreService.createDraft(owner, invalidCmd));
+    
+        // 2. Граничное значение 1 000 000 000 успешно сохраняется
+        var validMaxCmd = new CreateDraftCommand(
+                EntryType.METRICS,
+                SourceKind.MANUAL,
+                Map.of(),
+                Instant.now(),
+                Map.of("code", "steps", "value", new BigDecimal("1000000000"), "unit", "count"),
+                Map.of(),
+                null,
+                "test-key-2"
+        );
+        Entry createdMax = entryCoreService.createDraft(owner, validMaxCmd);
+        assertNotNull(createdMax.id());
+    
+        // 3. Дробное значение (10.5) для steps и heart_rate успешно принимается
+        var validFractionalSteps = new CreateDraftCommand(
+                EntryType.METRICS,
+                SourceKind.MANUAL,
+                Map.of(),
+                Instant.now(),
+                Map.of("code", "steps", "value", 10.5, "unit", "count"),
+                Map.of(),
+                null,
+                "test-key-3"
+        );
+        Entry createdSteps = entryCoreService.createDraft(owner, validFractionalSteps);
+        assertNotNull(createdSteps.id());
+    
+        var validFractionalHeartRate = new CreateDraftCommand(
+                EntryType.METRICS,
+                SourceKind.MANUAL,
+                Map.of(),
+                Instant.now(),
+                Map.of("code", "heart_rate", "value", 10.5, "unit", "bpm"),
+                Map.of(),
+                null,
+                "test-key-4"
+        );
+        Entry createdHr = entryCoreService.createDraft(owner, validFractionalHeartRate);
+        assertNotNull(createdHr.id());
+    }
 }
