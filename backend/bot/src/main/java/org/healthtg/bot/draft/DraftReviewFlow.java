@@ -2,6 +2,7 @@ package org.healthtg.bot.draft;
 
 import org.healthtg.bot.BotAction;
 import org.healthtg.bot.BotUpdate;
+import org.healthtg.bot.datetime.DateTimePicker;
 import org.healthtg.bot.correction.CorrectionInputParser;
 import org.healthtg.bot.correction.CorrectionResult;
 import org.healthtg.core.dialog.DialogState;
@@ -146,7 +147,8 @@ public final class DraftReviewFlow {
         if (fields(entry).contains(action)) {
             context.put("field", action);
             DialogState accepted = save(owner, entry, "draft_await", context, update);
-            if (!accepted.context().equals(context)) return card(update, entry, zone, "Диалог уже изменён.");
+            if (!"draft_await".equals(accepted.step()) || !Objects.equals(accepted.context().get("field"), action)
+                    || number(accepted.context(), "entry_revision") != entry.revision()) return card(update, entry, zone, "Диалог уже изменён.");
             return withAnswer(update, message(update, "d".equals(action)
                     ? "Введите дату: ДД.ММ.ГГГГ или ГГГГ-ММ-ДД."
                     : correctionQuestion(entry,action), backRows(entry)));
@@ -225,6 +227,10 @@ public final class DraftReviewFlow {
                     || value.isBlank() || value.length() > 2010) return false;
             if ("d".equals(field)) {
                 var parsed = parser.parseDate(value);
+                if (context.containsKey("picker_time")) {
+                    if (entry.type() == EntryType.METRICS || !(context.get("picker_time") instanceof String time)) return false;
+                    LocalTime.parse(time);
+                }
                 return parsed instanceof CorrectionResult.Success<?> date && date.value().toString().equals(value);
             }
             // BigDecimal.toString() can use an exponent even though user input never does.
@@ -258,7 +264,8 @@ public final class DraftReviewFlow {
                 payload = Map.of("local_date", date.toString());
                 origin = "local_date";
             } else {
-                LocalDateTime local = date.atTime(entry.occurredAt().atZone(zone).toLocalTime());
+                LocalDateTime local = date.atTime(context.get("picker_time") instanceof String time
+                        ? LocalTime.parse(time) : entry.occurredAt().atZone(zone).toLocalTime());
                 var offsets = zone.getRules().getValidOffsets(local);
                 if (offsets.size() != 1) throw new EntryValidationException("Ambiguous local time");
                 occurredAt = local.toInstant(offsets.getFirst());
@@ -378,8 +385,33 @@ public final class DraftReviewFlow {
         dialogs.find(owner).filter(s -> entry.id().equals(s.activeEntryId()))
                 .map(s -> s.context().get("photo_queue")).filter(q -> q instanceof Map<?,?>)
                 .ifPresent(q -> preserved.put("photo_queue",q));
-        return dialogs.save(new SaveDialogStateCommand(owner, entry.id(), step, preserved,
+        return dialogs.save(new SaveDialogStateCommand(owner, entry.id(), step, DateTimePicker.rotate(preserved),
                 new TelegramUpdateKey("main", update.updateId())));
+    }
+
+    public Optional<DateTimePicker.Form> pickerForm(DialogState state, OwnerContext owner, ZoneId zone) {
+        if (!state.step().equals("draft_await") || !"d".equals(state.context().get("field")) || state.activeEntryId() == null)
+            return Optional.empty();
+        var entry = entries.requireEntry(owner, state.activeEntryId());
+        if (!validContext(state, entry) || entry.status() != EntryStatus.DRAFT
+                || entry.revision() != number(state.context(), "entry_revision")
+                || !zone.getId().equals(state.context().get("timezone"))) return Optional.empty();
+        if (entry.type() == EntryType.METRICS) return Optional.of(new DateTimePicker.Form(
+                entry.payload().get("local_date") instanceof String date ? date : null, null, false, false, false, "Дата показателя"));
+        var local = entry.occurredAt().atZone(zone);
+        return Optional.of(new DateTimePicker.Form(local.toLocalDate().toString(), local.toLocalTime().toString(),
+                true, false, false, "Дата и время события"));
+    }
+
+    public List<BotAction> applyPicker(BotUpdate update, OwnerContext owner, ZoneId zone, DialogState state,
+                                      DateTimePicker.Selection selection) {
+        var entry = entries.requireEntry(owner, state.activeEntryId());
+        if (update.updateId() <= savedUpdate(state) || entry.revision() != number(state.context(), "entry_revision")
+                || entry.status() != EntryStatus.DRAFT) return card(update, entry, zone, "Запись изменилась. Выберите исправление заново.");
+        var context = base(entry, zone);
+        context.put("field", "d"); context.put("operation", "patch"); context.put("value", selection.date().toString());
+        if (selection.time() != null) context.put("picker_time", selection.time().toString());
+        return recover(update, owner, save(owner, entry, "draft_pending", context, update), zone);
     }
     private static long number(Map<String, Object> context, String name) {
         if (!(context.get(name) instanceof Number value)) throw new IllegalArgumentException("Missing integer context field");

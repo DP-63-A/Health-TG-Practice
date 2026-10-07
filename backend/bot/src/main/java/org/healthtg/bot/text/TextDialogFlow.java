@@ -2,6 +2,7 @@ package org.healthtg.bot.text;
 
 import org.healthtg.bot.BotAction;
 import org.healthtg.bot.BotUpdate;
+import org.healthtg.bot.datetime.DateTimePicker;
 import org.healthtg.bot.correction.CorrectionInputParser;
 import org.healthtg.bot.correction.CorrectionResult;
 import org.healthtg.bot.draft.DraftReviewFlow;
@@ -302,7 +303,35 @@ public final class TextDialogFlow {
 
     private static boolean pending(DialogState state) { return state.step().startsWith("text_"); }
     private DialogState save(OwnerContext owner, String step, Map<String, Object> data, BotUpdate update) {
-        return dialogs.save(new SaveDialogStateCommand(owner, null, step, data, key(update.updateId())));
+        return dialogs.save(new SaveDialogStateCommand(owner, null, step, DateTimePicker.rotate(data), key(update.updateId())));
+    }
+
+    public Optional<DateTimePicker.Form> pickerForm(DialogState state) {
+        if (!valid(state) || !state.step().equals("text_clarification")
+                || !Set.of("date", "time").contains(expected(state.context()))) return Optional.empty();
+        var data = state.context();
+        boolean withTime = "note".equals(data.get("type")) || "meal".equals(data.get("type"));
+        String date = data.get("date") instanceof String d ? d : null;
+        String time = data.get("time") instanceof String t ? t : null;
+        return Optional.of(new DateTimePicker.Form(date, time, withTime, date != null, withTime && time != null,
+                withTime ? "Дата и время события" : "Дата показателя"));
+    }
+
+    public List<BotAction> applyPicker(BotUpdate update, OwnerContext owner, ZoneId zone, DialogState state,
+                                      DateTimePicker.Selection selection) {
+        if (update.updateId() <= savedUpdate(state)) return prompt(update, state, "Выбор уже обработан.");
+        var data = new LinkedHashMap<>(state.context());
+        data.put("date", selection.date().toString());
+        if (selection.time() != null) data.put("time", selection.time().toString());
+        var payload = map(data.get("payload"));
+        var origins = map(data.get("field_origins"));
+        if ("metrics".equals(data.get("type"))) {
+            payload.put("local_date", selection.date().toString()); origins.put("local_date", "reported");
+        } else origins.put("occurred_at", "reported");
+        data.put("payload", payload); data.put("field_origins", origins);
+        removeIssues(data, Set.of("MISSING_DATE", "UNSUPPORTED_DATE_EXPRESSION"));
+        DateTimePicker.recordReceipt(data, update.webAppData(), update.updateId());
+        return advance(update, owner, data, zone);
     }
     private static TelegramUpdateKey key(long updateId) { return new TelegramUpdateKey("main", updateId); }
     private static long savedUpdate(DialogState state) {

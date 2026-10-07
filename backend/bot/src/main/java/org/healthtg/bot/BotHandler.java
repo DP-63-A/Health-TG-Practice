@@ -30,6 +30,7 @@ public final class BotHandler {
             return List.of(); // Deny before dispatch, including future checkin calls.
         }
         if (update.kind() == BotUpdate.Kind.CALLBACK) return flow.handleCallback(update);
+        if (update.webAppData() != null) return flow.handleMessage(update);
         if (update.image() != null) return flow.handleMessage(update);
         String text = update.text();
         if (text == null) return List.of();

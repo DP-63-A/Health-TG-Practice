@@ -1,6 +1,7 @@
 package org.healthtg.bot.visual;
 
 import org.healthtg.bot.*;
+import org.healthtg.bot.datetime.DateTimePicker;
 import org.healthtg.bot.recognition.*;
 import org.healthtg.bot.draft.DraftReviewFlow;
 import org.healthtg.bot.correction.*;
@@ -437,7 +438,37 @@ public final class FoodPhotoFlow {
             var encoded=new LinkedHashMap<String,Object>();
             origins(data).forEach((k,v)->encoded.put(k.replace(".","|"),v)); data.put("origins",encoded);
         }
-        return dialogs.save(new SaveDialogStateCommand(owner,entry,step,data,new TelegramUpdateKey("main-food-"+phase,u.updateId())));
+        return dialogs.save(new SaveDialogStateCommand(owner,entry,step,DateTimePicker.rotate(data),new TelegramUpdateKey("main-food-"+phase,u.updateId())));
+    }
+    public Optional<DateTimePicker.Form> pickerForm(DialogState state) {
+        if (!valid(state) || !state.step().equals("food_clarify")
+                || !Set.of("date", "time", "metric_date").contains(expected(state.context()))) return Optional.empty();
+        var data = state.context();
+        if (isMetric(data)) return Optional.of(new DateTimePicker.Form(null, null, false, false, false,
+                switch (Objects.toString(map(data.get("payload")).get("code"), "")) {
+                    case "steps" -> "День итога шагов"; case "sleep_duration_min" -> "Дата пробуждения";
+                    default -> "Дата измерения пульса";
+                }));
+        String date = data.get("date") instanceof String d ? d : null;
+        String time = data.get("time") instanceof String t ? t : null;
+        return Optional.of(new DateTimePicker.Form(date, time, true, date != null, time != null, "Дата и время приёма пищи"));
+    }
+    public List<BotAction> applyPicker(BotUpdate update, OwnerContext owner, ZoneId zone, DialogState state,
+                                      DateTimePicker.Selection selection) {
+        if (update.updateId() <= last(state)) return prompt(update, state, "Выбор уже обработан.");
+        var data = new LinkedHashMap<>(state.context());
+        var payload = map(data.get("payload")); var origin = origins(data);
+        if (isMetric(data)) {
+            payload.put("local_date", selection.date().toString()); origin.put("local_date", "reported");
+        } else {
+            if (!data.containsKey("date")) origin.put("local_date", "reported");
+            if (!data.containsKey("time")) origin.put("local_time", "reported");
+            data.put("date", selection.date().toString()); data.put("time", selection.time().toString());
+        }
+        data.put("payload", payload); data.put("origins", origin);
+        DateTimePicker.recordReceipt(data, update.webAppData(), update.updateId());
+        return prompt(update, save(owner, null, "food_clarify", data, update, "answer"),
+                "Выбрано: " + selection.date() + (selection.time() == null ? "" : " " + selection.time()) + ".");
     }
     private List<BotAction> prompt(BotUpdate u,DialogState s,String notice) {
         var rows=new ArrayList<List<BotAction.InlineButton>>(); String question="";
