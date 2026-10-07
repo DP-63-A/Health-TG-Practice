@@ -59,7 +59,7 @@ public class AnalyticsService {
     }
 
     public AnalyticsResponse calculate(OwnerContext owner, String periodKind, String timezone,
-                                       String checkinCategory) {
+                                        String checkinCategory) {
         ZoneId zone;
         try {
             zone = timezone == null ? DEFAULT_TIMEZONE : ZoneId.of(timezone);
@@ -78,13 +78,13 @@ public class AnalyticsService {
         LocalDate from = to.minusDays(periodDays - 1L);
         Period period = new Period(from, to, zone);
 
-        // Fetch entries with a safety margin around [from, to] so time zone shifts 
+        // Fetch entries with a safety margin around [from, to] so time zone shifts
         // and payload.local_date overrides are safely captured without loading full history.
         LocalDate queryFrom = from.minusDays(3);
         LocalDate queryTo = to.plusDays(3);
 
         List<Entry> found = entries.listEntries(new ListEntriesQuery(owner, EntryStatus.CONFIRMED,
-                        queryFrom, queryTo, null, zone)).stream()
+                        null, queryFrom, queryTo, zone)).stream()
                 .filter(entry -> ANALYTICS_TYPES.contains(entry.type()))
                 .filter(entry -> inPeriod(entry, period))
                 .sorted(Comparator.comparing(Entry::occurredAt).thenComparing(entry -> entry.id().toString()))
@@ -200,7 +200,7 @@ public class AnalyticsService {
     }
 
     private static List<MetricPoint> metricSeries(List<Entry> found, DailyResult result, Metric metric,
-                                                   Period period, String unit) {
+                                                  Period period, String unit) {
         if (result.values().isEmpty()) return List.of();
         Stream<LocalDate> dates = metric == Metric.SLEEP_DURATION_MIN
                 ? Stream.iterate(period.from(), date -> !date.isAfter(period.to()), date -> date.plusDays(1))
@@ -256,7 +256,7 @@ public class AnalyticsService {
     }
 
     private static boolean metricSeriesSourceIsSelected(Entry candidate, List<Entry> found, Metric metric,
-                                                        LocalDate date, ZoneId zone) {
+                                                         LocalDate date, ZoneId zone) {
         return found.stream().filter(entry -> isMetric(entry, metric))
                 .filter(entry -> date.equals(metricDate(entry, metric, zone)))
                 .filter(entry -> metricValue(entry) != null)
