@@ -1,0 +1,154 @@
+{
+  "oracleVersion": "BE3-04-1",
+  "timezone": "Europe/Warsaw",
+  "tolerance": "0",
+
+  "scenarios": {
+    "nutrition_330": {
+      "description": "600 kcal per serving + 165 kcal per 100 g for 200 g",
+      "expected": {
+        "energyKcal": 930,
+        "proteinG": 50,
+        "fatG": 30,
+        "carbsG": 110,
+        "countedMeals": 2,
+        "incomplete": false
+      }
+    },
+
+    "nutrition_247_5": {
+      "description": "600 kcal per serving + 165 kcal per 100 g for 150 g",
+      "expected": {
+        "energyKcal": 847.5,
+        "proteinG": 45,
+        "fatG": 27.5,
+        "carbsG": 100,
+        "countedMeals": 2,
+        "incomplete": false
+      }
+    },
+
+    "nutrition_deleted": {
+      "description": "After deletion only the 600 kcal meal remains",
+      "expected": {
+        "energyKcal": 600,
+        "proteinG": 30,
+        "fatG": 20,
+        "carbsG": 70,
+        "countedMeals": 1,
+        "incomplete": false
+      }
+    },
+
+    "nutrition_330_from_100g": {
+      "description": "100 g meal with 330 kcal per 100 g",
+      "expected": {
+        "energyKcal": 330,
+        "countedMeals": 1,
+        "incomplete": false
+      }
+    },
+
+    "per_serving_is_not_scaled": {
+      "description": "A per-serving value remains unchanged regardless of mass",
+      "expected": {
+        "energyKcal": 600,
+        "proteinG": 30,
+        "fatG": 10,
+        "carbsG": 80,
+        "countedMeals": 1,
+        "incomplete": false
+      }
+    },
+
+    "unknown_nutrients": {
+      "description": "Unknown nutrient basis does not become zero",
+      "expected": {
+        "energyKcal": null,
+        "proteinG": null,
+        "fatG": null,
+        "carbsG": null,
+        "countedMeals": 1,
+        "incomplete": true
+      }
+    },
+
+    "empty_steps_period": {
+      "description": "No daily metric values exist in the selected period",
+      "expected": {
+        "total": null,
+        "average": null,
+        "daysWithData": 0
+      }
+    },
+
+    "two_days_denominator": {
+      "description": "Two daily values 300 and 500 over a seven-day period",
+      "expected": {
+        "total": 800,
+        "average": 400,
+        "daysWithData": 2
+      }
+    },
+
+    "latest_daily_total": {
+      "description": "For one local date only the latest daily total is counted",
+      "expected": {
+        "selectedValue": 5000,
+        "total": 5000,
+        "daysWithData": 1
+      }
+    },
+
+    "equal_timestamps_tie_break": {
+      "description": "Equal occurredAt and updatedAt are resolved by stable id",
+      "expected": {
+        "selectedEntryId": "b",
+        "selectedValue": 5000
+      }
+    },
+
+    "sleep_by_wake_date": {
+      "description": "Sleep belongs to its wake date",
+      "expected": {
+        "selectedDate": "2026-09-19",
+        "selectedValue": 420,
+        "total": 420,
+        "average": 420,
+        "daysWithData": 1
+      }
+    },
+
+    "warsaw_midnight_before": {
+      "description": "2026-09-18T21:59:59Z is still September 18 in Europe/Warsaw",
+      "expected": {
+        "localDate": "2026-09-18"
+      }
+    },
+
+    "warsaw_midnight_boundary": {
+      "description": "2026-09-18T22:00:00Z is September 19 in Europe/Warsaw",
+      "expected": {
+        "localDate": "2026-09-19"
+      }
+    },
+
+    "latest_pulse": {
+      "description": "Latest confirmed heart-rate value keeps its qualifier and source id",
+      "expected": {
+        "value": 72,
+        "qualifier": "RESTING",
+        "entryId": "pulse"
+      }
+    },
+
+    "confirmed_only": {
+      "description": "Draft, cancelled and deleted records do not participate",
+      "expected": {
+        "energyKcal": 600,
+        "countedMeals": 1,
+        "incomplete": false
+      }
+    }
+  }
+}
