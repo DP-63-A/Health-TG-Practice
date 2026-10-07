@@ -100,6 +100,51 @@ class FoodPhotoStorageTest {
         flow().handleMessage(msg(1,"Сегодня устал")); var original=dialogs.find(owner()).orElseThrow();
         flow().handleMessage(photo(2)); assertEquals(original,dialogs.find(owner()).orElseThrow()); assertEquals(0,calls.get());
     }
+    @Test void oldCheckinReceiptCannotDestroyPendingPhotoAndCanBeCancelledAfterPhotoEnds(){
+        var categories=flow().beginCheckin(msg(1,"/state"));
+        var scores=flow().handleCallback(cb(2,button(categories,"🙂 Настроение")));
+        String selected=button(scores,"4");
+        var receipt=flow().handleCallback(cb(3,selected));
+        String cancel=button(receipt,"Отменить отметку");
+        UUID id=UUID.fromString(cancel.split(":")[1]);
+        Entry saved=entries.requireEntry(owner(),id);
+        var photoReply=flow().handleMessage(photo(10));
+        DialogState pending=dialogs.find(owner()).orElseThrow();
+        context.close(); reopen();
+        flow().handleCallback(cb(11,cancel));
+        flow().handleCallback(cb(12,selected));
+        assertEquals(pending,dialogs.find(owner()).orElseThrow());
+        assertEquals(saved,entries.requireEntry(owner(),id));
+        assertEquals(1,calls.get());
+        flow().handleCallback(cb(13,button(photoReply,"Отменить")));
+        DialogState idle=dialogs.find(owner()).orElseThrow();
+        flow().handleCallback(cb(12,cancel));
+        assertEquals(saved,entries.requireEntry(owner(),id),"Stale callback after photo cancellation");
+        flow().handleCallback(cb(14,cancel));
+        assertEquals(EntryStatus.DELETED,entries.requireEntry(owner(),id).status());
+        assertEquals(idle,dialogs.find(owner()).orElseThrow());
+        flow().handleCallback(cb(15,cancel));
+        assertEquals(saved.revision()+1,entries.requireEntry(owner(),id).revision());
+        assertTrue(entries.findActiveDraft(owner()).isEmpty());
+    }
+    @Test void pendingCheckinRejectsPhotoAndReceiptReplayKeepsSavedLocalTime(){
+        var categories=flow().beginCheckin(msg(1,"/state"));
+        DialogState pending=dialogs.find(owner()).orElseThrow();
+        flow().handleMessage(photo(2));
+        assertEquals(pending,dialogs.find(owner()).orElseThrow());
+        assertEquals(0,calls.get());
+        var scores=flow().handleCallback(cb(3,button(categories,"🙂 Настроение")));
+        String selected=button(scores,"4");
+        var receipt=flow().handleCallback(cb(4,selected));
+        assertTrue(text(receipt).contains("07.10.2026 10:00 +02:00"));
+        context.close(); reopen();
+        var replay=flow().handleCallback(cb(5,selected));
+        assertTrue(text(replay).contains("07.10.2026 10:00 +02:00"));
+        assertEquals(button(receipt,"Отменить отметку"),button(replay,"Отменить отметку"));
+        assertEquals(1,entries.listEntries(new ListEntriesQuery(owner(),EntryStatus.CONFIRMED,
+                EntryType.CHECKIN,null,null,ZoneOffset.UTC)).size());
+        assertEquals(0,calls.get());
+    }
     @Test void cancelledCandidateOldButtonsCannotAffectNextCandidate(){
         var ready=ready(); String stale=button(ready,"Создать черновик");
         flow().handleCallback(cb(14,button(ready,"Отменить"))); flow().handleMessage(photo(15));

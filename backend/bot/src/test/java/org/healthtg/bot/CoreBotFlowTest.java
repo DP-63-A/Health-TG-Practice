@@ -56,14 +56,18 @@ class CoreBotFlowTest {
         when(users.findOrCreate(TELEGRAM_ID)).thenReturn(
                 new UserAccount(OWNER_ID, TELEGRAM_ID, ZoneId.of("Europe/Warsaw"), true));
         when(entries.findActiveDraft(any())).thenReturn(Optional.empty());
+        Map<UUID, Entry> savedCheckins = new java.util.concurrent.ConcurrentHashMap<>();
+        when(entries.requireEntry(any(), any())).thenAnswer(invocation -> savedCheckins.get(invocation.getArgument(1)));
         when(entries.createCheckin(any())).thenAnswer(invocation -> {
             CreateCheckinCommand command = invocation.getArgument(0);
-            return new Entry(UUID.randomUUID(), command.owner().userId(), EntryType.CHECKIN,
+            Entry entry = new Entry(UUID.randomUUID(), command.owner().userId(), EntryType.CHECKIN,
                     EntryStatus.CONFIRMED, SourceKind.QUICK_CHECKIN,
                     Map.of("telegram_update_id", command.updateKey().updateId()), command.occurredAt(), NOW, NOW, 1,
                     Map.of("category", command.category().code(), "score", command.score()),
                     Map.of("category", "reported", "score", "reported"), null,
                     command.updateKey().storageKey());
+            savedCheckins.put(entry.id(), entry);
+            return entry;
         });
         when(parser.parse(any())).thenAnswer(inv -> new TextInputParser().parse(inv.getArgument(0)));
         AtomicLong revision = new AtomicLong();

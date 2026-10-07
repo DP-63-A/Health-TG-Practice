@@ -45,6 +45,57 @@ class HealthWatchStorageTest extends HealthWatchTestSupport {
     List<BotAction> create(List<BotAction> actions,long update){return flow().handleCallback(cb(update,button(actions,"Создать черновик")));}
     void restart(){context.close();reopen();}
     void value(Entry entry,String value){assertEquals(0,new BigDecimal(value).compareTo(new BigDecimal(entry.payload().get("value").toString())));}
+    @ParameterizedTest
+    @CsvSource({"health_screenshot,Сохранить", "health_screenshot,Не сохранять", "watch_photo,Сохранить", "watch_photo,Не сохранять"})
+    void quickCheckinCallbacksCannotReplaceMetricQueueAcrossRestartAndTerminal(String kind,String terminal) {
+        var categories=flow().beginCheckin(msg(1,"/state"));
+        var scores=flow().handleCallback(cb(2,button(categories,"🙂 Настроение")));
+        String score=button(scores,"4");
+        var receipt=flow().handleCallback(cb(3,score));
+        String cancelReceipt=button(receipt,"Отменить отметку");
+        UUID checkinId=UUID.fromString(cancelReceipt.split(":")[1]);
+        Entry checkin=entries.requireEntry(owner(),checkinId);
+        var ready=start(kind);
+        var pending=dialogs.find(owner()).orElseThrow();
+        restart();
+        flow().handleCallback(cb(12,cancelReceipt));
+        flow().handleCallback(cb(13,score));
+        flow().beginCheckin(msg(14,"/state"));
+        assertEquals(pending,dialogs.find(owner()).orElseThrow());
+        assertEquals(checkin,entries.requireEntry(owner(),checkinId));
+        assertEquals(1,calls.get());assertEquals(0,fileCount());
+
+        var firstCard=create(ready,15);Entry first=active();
+        var queue=dialogs.find(owner()).orElseThrow();
+        flow().beginCheckin(msg(16,"/state"));
+        flow().handleCallback(cb(17,score));
+        assertEquals(queue,dialogs.find(owner()).orElseThrow());
+        assertEquals(first,active());
+        var next=flow().handleCallback(cb(18,button(firstCard,terminal)));
+        assertEquals(terminal.equals("Сохранить")?EntryStatus.CONFIRMED:EntryStatus.CANCELLED,
+                entries.requireEntry(owner(),first.id()).status());
+        var nextPending=dialogs.find(owner()).orElseThrow();
+        restart();
+        flow().handleCallback(cb(19,button(firstCard,terminal)));
+        flow().handleCallback(cb(20,cancelReceipt));
+        flow().handleCallback(cb(21,score));
+        assertEquals(nextPending,dialogs.find(owner()).orElseThrow());
+        assertEquals(checkin,entries.requireEntry(owner(),checkinId));
+        var secondCard=create(next,22);Entry second=active();
+        assertNotEquals(first.id(),second.id());value(second,"252");
+        flow().handleCallback(cb(23,button(secondCard,"Отменить оставшиеся показатели")));
+        restart();
+        assertEquals("idle",dialogs.find(owner()).orElseThrow().step());
+        assertTrue(entries.findActiveDraft(owner()).isEmpty());
+        flow().handleCallback(cb(24,cancelReceipt));
+        var deleted=entries.requireEntry(owner(),checkinId);
+        assertEquals(EntryStatus.DELETED,deleted.status());
+        flow().handleCallback(cb(25,cancelReceipt));
+        assertEquals(deleted,entries.requireEntry(owner(),checkinId));
+        assertEquals(2,fileCount());assertEquals(1,calls.get());
+        flow().beginCheckin(msg(26,"/state"));
+        assertEquals("checkin_category",dialogs.find(owner()).orElseThrow().step());
+    }
     void contract(Entry entry) throws Exception {
         var n=JSON.createObjectNode();n.put("id",entry.id().toString());n.put("user_id",entry.ownerId().toString());
         n.put("type",entry.type().name().toLowerCase(Locale.ROOT));n.put("status",entry.status().name().toLowerCase(Locale.ROOT));
