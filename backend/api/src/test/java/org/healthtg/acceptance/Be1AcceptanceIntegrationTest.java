@@ -1,6 +1,7 @@
 package org.healthtg.acceptance;
 
 import org.bson.Document;
+import org.healthtg.core.entry.ConfirmEntryCommand;
 import org.healthtg.core.entry.CreateDraftCommand;
 import org.healthtg.core.entry.Entry;
 import org.healthtg.core.entry.EntryCoreService;
@@ -26,6 +27,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -98,6 +100,25 @@ class Be1AcceptanceIntegrationTest {
     }
 
     @Test
+    void analyticsContainsOnlyAuthenticatedOwnersEntries() throws Exception {
+        Instant measuredAt = Instant.now();
+        Entry own = confirmedMetric(new OwnerContext(OWNER), 2501, 1200, measuredAt);
+        confirmedMetric(new OwnerContext(OTHER), 2502, 9000, measuredAt);
+
+        mockMvc.perform(get("/api/v1/analytics")
+                        .queryParam("period", "today")
+                        .queryParam("timezone", "UTC")
+                        .header("Authorization", "Bearer owner-session"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cards.steps.total").value(1200))
+                .andExpect(jsonPath("$.cards.steps.days_with_data").value(1))
+                .andExpect(jsonPath("$.series.steps.length()").value(1))
+                .andExpect(jsonPath("$.series.steps[0].source.entry_id").value(own.id().toString()))
+                .andExpect(jsonPath("$.sources.length()").value(1))
+                .andExpect(jsonPath("$.sources[0].entry_id").value(own.id().toString()));
+    }
+
+    @Test
     void concurrentPatchOfOneRevisionHasOneSuccessOneConflictAndOneResult() throws Exception {
         Entry original = draft(new OwnerContext(OWNER), 3001, 7000);
         CountDownLatch ready = new CountDownLatch(2);
@@ -157,5 +178,17 @@ class Be1AcceptanceIntegrationTest {
                 Map.of("code", "reported", "value", "reported", "unit", "reported",
                         "local_date", "reported"),
                 new TelegramUpdateKey("be1-06", updateId))).entry();
+    }
+
+    private Entry confirmedMetric(OwnerContext owner, long updateId, int value, Instant measuredAt) {
+        String localDate = measuredAt.atZone(ZoneOffset.UTC).toLocalDate().toString();
+        Entry draft = entries.createDraft(new CreateDraftCommand(owner, EntryType.METRICS, SourceKind.TEXT,
+                Map.of(), measuredAt,
+                Map.of("code", "steps", "value", value, "unit", "count", "local_date", localDate),
+                Map.of("code", "reported", "value", "reported", "unit", "reported",
+                        "local_date", "reported"),
+                new TelegramUpdateKey("be1-06-analytics", updateId))).entry();
+        return entries.confirm(new ConfirmEntryCommand(owner, draft.id(),
+                "be1-06-analytics-confirm-" + updateId, draft.revision()));
     }
 }

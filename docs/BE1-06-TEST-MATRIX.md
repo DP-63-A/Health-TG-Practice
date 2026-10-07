@@ -27,7 +27,7 @@ or training database is addressed.
 | Draft/dialog restoration after restart | `CoreStorageIntegrationTest.restoresDraftAndDialogStateAfterApplicationContextRestart`, `BotCoreStorageIntegrationTest.botFlowsPersistThroughCoreAndRestoreAfterRestart` | Recreated Spring context over the same MongoDB database |
 | Bot uses public core services | `BotCoreStorageIntegrationTest`, `QuickCheckinAcceptanceTest`, `TextDialogStorageTest` | Bot to core to MongoDB |
 | Stored-file optimistic version and controlled missing bytes | `FilesHttpIntegrationTest` | MongoDB `@Version`, protected HTTP route and private filesystem |
-| Foreign analytics | Pending BE3-03 merge | Must be added as a real authenticated route test; not claimed complete |
+| Foreign analytics is excluded | `Be1AcceptanceIntegrationTest.analyticsContainsOnlyAuthenticatedOwnersEntries` | Authenticated analytics route plus real core and MongoDB; response totals, series and sources contain only the session owner's entry |
 
 The ordinary `check` task retains the broad unit and regression suite. The
 dedicated acceptance task is a named CI step so its execution is visible and
