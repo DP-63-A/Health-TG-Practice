@@ -54,5 +54,6 @@ async function downloadFile(fileId: string, signal?: AbortSignal) {
 function buildUrl(baseUrl: string, path: string) {
   const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
   const normalizedPath = path.replace(/^\/+/, '')
-  return new URL(normalizedPath, normalizedBaseUrl).toString()
+  const resolvedBaseUrl = new URL(normalizedBaseUrl, window.location.origin)
+  return new URL(normalizedPath, resolvedBaseUrl).toString()
 }

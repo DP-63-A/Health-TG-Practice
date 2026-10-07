@@ -3,6 +3,7 @@
 - [Структура репозитория](repository-layout.md)
 - [Стек и команды текущей сборки](../README.md)
 - [API-контракты и примеры](../contracts/README.md)
+- [Приватное хранение изображений BE1-05](BE1-05-FILE-STORAGE.md)
 - [Рабочий процесс](../WORKFLOW.md)
 - [Зависимости задач](../DEPENDENCIES.md)
 - [Проектные решения](../DECISIONS.md)

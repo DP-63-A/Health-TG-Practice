@@ -8,6 +8,9 @@ import org.healthtg.core.entry.EntryNotFoundException;
 import org.healthtg.core.entry.EntryStatusConflictException;
 import org.healthtg.core.entry.EntryValidationException;
 import org.healthtg.core.entry.EntryVersionConflictException;
+import org.healthtg.core.file.FileValidationException;
+import org.healthtg.core.file.StoredFileNotFoundException;
+import org.healthtg.core.file.StoredFileUnavailableException;
 import org.healthtg.user.UserNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,6 +44,21 @@ public class ApiExceptionHandler {
     @ExceptionHandler(EntryNotFoundException.class)
     ResponseEntity<ApiError> entryNotFound(HttpServletRequest request) {
         return error(request, HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", "Resource not found");
+    }
+
+    @ExceptionHandler(StoredFileNotFoundException.class)
+    ResponseEntity<ApiError> fileNotFound(HttpServletRequest request) {
+        return error(request, HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", "Resource not found");
+    }
+
+    @ExceptionHandler(FileValidationException.class)
+    ResponseEntity<ApiError> invalidFile(HttpServletRequest request) {
+        return error(request, HttpStatus.UNPROCESSABLE_ENTITY, "VALIDATION_ERROR", "Image validation failed");
+    }
+
+    @ExceptionHandler(StoredFileUnavailableException.class)
+    ResponseEntity<ApiError> fileUnavailable(HttpServletRequest request) {
+        return error(request, HttpStatus.SERVICE_UNAVAILABLE, "FILE_UNAVAILABLE", "Stored file is unavailable");
     }
 
     @ExceptionHandler(EntryVersionConflictException.class)
