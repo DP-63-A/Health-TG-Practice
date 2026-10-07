@@ -61,6 +61,9 @@ services:
       DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-Europe/Warsaw}
       FILE_STORAGE_ROOT: /var/lib/health-tg/files
       APP_ENVIRONMENT: ${APP_ENVIRONMENT:-training}
+      FOOD_RECOGNITION_MODE: ${FOOD_RECOGNITION_MODE:-disabled}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
     volumes:
       - file-data:/var/lib/health-tg/files
     depends_on:

@@ -17,6 +17,11 @@ in `.env`; Git ignores it. `MINI_APP_URL` must be the agreed public HTTPS URL fo
 real Telegram launch. Compose fails during configuration when required values are
 missing and does not print their contents.
 
+Photo recognition is disabled by default. Set `FOOD_RECOGNITION_MODE=fixture` for
+the bundled synthetic response, which makes no external model call. The `live`
+mode requires `GEMINI_API_KEY`, uses `GEMINI_MODEL`, sends the image to an external
+Gemini API, and may incur charges. Never use `live` in CI or commit a real key.
+
 ## Build and start
 
 ```powershell
