@@ -230,11 +230,17 @@
         {"name": "heart_rate", "value": 114, "unit": "bpm", "confidence": 1.0, "qualifier": "instant"},
         {"name": "sleep_duration_min", "value": 378, "unit": "min", "confidence": 1.0}
       ],
-      "ignored_fields": [],
-      "uncertainties": [],
+      "ignored_fields": [
+        "fried_pelmeni_in_bowl",
+        "skuf_beer_can",
+        "tv_football_broadcast"
+      ],
+      "uncertainties": [
+        "Background contains food (fried pelmeni) and beer, but target category is smartwatch display"
+      ],
       "expected_action": "draft",
       "personal_data_check": true
-    },
+    }
     {
       "id": "N01",
       "path": "negative/N01.jpeg",
