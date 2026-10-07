@@ -50,9 +50,12 @@ The BE1-07 Compose stack mounts `/var/lib/health-tg/files` as the persistent
 
 Logical cancellation/deletion of an Entry does not remove its original. No expiry
 or background cleanup is implemented because the retention period is an open
-BE1/BE2/BE3 decision. BE3-05 must delete Mongo metadata and physical files only
-through its protected training reset; `docker compose down --volumes` is not the
-product reset operation.
+BE1/BE2/BE3 decision. The current BE3-05 reset removes only tagged synthetic
+entries and therefore must not delete the shared file catalogue or `file-data`
+volume: real bot entries would remain while their originals disappeared. A future
+protected reset of user-owned training data must remove matching Entry records,
+file metadata and physical files as one coordinated operation. `docker compose
+down --volumes` is not the product reset operation.
 
 ## Verification
 
@@ -66,10 +69,18 @@ Automated tests cover JPEG/PNG detection, corrupt and unsupported content, 5 MiB
 and 12 MP limits, owner isolation, source-reference binding, unchanged original
 bytes, corruption detection and safe HTTP headers.
 
-The following acceptance evidence still requires the dependent branches and a
-real training environment:
+The current dependent implementations are:
+
+- `feature/be2-03-food-integration-9` for Telegram download, retry-safe storage,
+  Entry creation and binding;
+- `develop` for authorized Mini App retrieval through an in-memory blob URL;
+- `issue-5-BE1-07-compose-ci` for the shared private `file-data` volume.
+
+The following acceptance evidence still requires those branches to be merged and
+a real training environment:
 
 - Telegram download through BE2 -> store -> Entry -> bind;
 - Mini App retrieval through the real session;
 - ordinary BE1-07 Compose restart with the same image;
-- protected BE3-05 reset and review by another participant.
+- a separately agreed protected reset for user-owned training data and review by
+  another participant.
