@@ -86,24 +86,21 @@ status, `seed` source, and field origins. Existing entry APIs expose confirmed
 records to the authenticated owner; drafts and cancelled entries remain subject
 to the normal API status rules.
 
-Use a dedicated local database. In `.env`, set `MONGODB_URI` to
-`mongodb://localhost:27017/health_tg_demo`, set `HEALTH_TG_DEMO=true`, and provide
+Use a dedicated local database. For the private Compose workflow, set
+`MONGODB_DATABASE=health_tg_demo` and provide
 the existing internal user UUIDs in `BE3_05_REGULAR_USER_ID`,
 `BE3_05_IRREGULAR_USER_ID`, and `BE3_05_INCOMPLETE_USER_ID`. These values are
 user document IDs, not Telegram IDs. Keep actual Telegram authentication and
 allow-list configuration unchanged; the seed tool does not create accounts or
 replace live Telegram verification. Use three test accounts with access to the
-demo database.
-
-The PowerShell command runs Gradle on the host and therefore requires this
-dedicated MongoDB to be reachable on the loopback address. The main Compose
-MongoDB intentionally has no host port and is not exposed for this operation.
+demo database. The Compose tool sets its protected demo flags internally; do not
+add them to the long-running API or bot services.
 
 From PowerShell at the repository root:
 
 ```powershell
-.\scripts\demo-data.ps1 -Command seed
-.\scripts\demo-data.ps1 -Command seed -StartDate 2026-09-01 -Seed 20260505
+.\scripts\demo-data.ps1 -Command seed -Compose
+.\scripts\demo-data.ps1 -Command seed -StartDate 2026-09-01 -Seed 20260505 -Compose
 ```
 
 The default seed is `20260505` and the default start date is `2026-09-01`.
@@ -133,11 +130,14 @@ the eleventh local date of the selected start date (2026-09-11 by default).
 Reset only the BE3-05-tagged entries in the fixed local demo database:
 
 ```powershell
-.\scripts\demo-data.ps1 -Command reset
+.\scripts\demo-data.ps1 -Command reset -Compose
 ```
 
-Both commands refuse to run unless `HEALTH_TG_DEMO=true` and `MONGODB_URI`
-targets the fixed `health_tg_demo` database on a loopback host. Reset never drops
+Both commands run as an isolated one-shot container on the private Compose
+network and refuse any database except `health_tg_demo` at the exact `mongo`
+service host. MongoDB remains unpublished. The original host mode remains
+available for a dedicated loopback MongoDB and still requires
+`HEALTH_TG_DEMO=true` with a matching `MONGODB_URI`. Reset never drops
 a database or collection; it removes only `seed` entries bearing the BE3-05
 dataset marker and one of the three fixed profile names. It does not remove
 users, sessions, other seed data, or files. No educational file-storage
@@ -180,6 +180,4 @@ returns `X-Request-ID`; readiness reports MongoDB failure as HTTP 503.
 
 - publish frontend through the agreed HTTPS host and set `MINI_APP_URL`;
 - verify BE1-05 upload/download persistence through the Compose file volume;
-- decide how the protected host seed command is exposed to the private Compose
-  MongoDB without publishing that database externally;
 - have another participant reproduce these instructions in a clean environment.

@@ -83,6 +83,32 @@ services:
         condition: service_healthy
     networks: [private]
 
+  demo-data:
+    build:
+      context: .
+      dockerfile: backend/api/Dockerfile
+      target: build
+    profiles: [tools]
+    restart: "no"
+    init: true
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/health_tg_demo
+      HEALTH_TG_DEMO: "true"
+      HEALTH_TG_DEMO_COMPOSE: "true"
+      BE3_05_REGULAR_USER_ID: ${BE3_05_REGULAR_USER_ID:-}
+      BE3_05_IRREGULAR_USER_ID: ${BE3_05_IRREGULAR_USER_ID:-}
+      BE3_05_INCOMPLETE_USER_ID: ${BE3_05_INCOMPLETE_USER_ID:-}
+    command:
+      - gradle
+      - :backend:api:demoData
+      - -PdemoArgs=${DEMO_DATA_ARGS:-seed}
+      - --no-daemon
+      - --console=plain
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks: [private]
+
 networks:
   private:
 
