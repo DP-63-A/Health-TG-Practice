@@ -10,7 +10,8 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
         "org.healthtg.user",
         "org.healthtg.session",
         "org.healthtg.core.entry",
-        "org.healthtg.core.dialog"
+        "org.healthtg.core.dialog",
+        "org.healthtg.core.file"
 })
 public class MongoRepositoryConfiguration {
 }

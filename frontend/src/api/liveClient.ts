@@ -73,7 +73,8 @@ async function request<TResponse, TBody = unknown>(
 function buildUrl(baseUrl: string, path: string, query?: ApiQueryParams) {
   const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
   const normalizedPath = path.replace(/^\/+/, '')
-  const url = new URL(normalizedPath, normalizedBaseUrl)
+  const resolvedBaseUrl = new URL(normalizedBaseUrl, window.location.origin)
+  const url = new URL(normalizedPath, resolvedBaseUrl)
 
   if (!query) {
     return url
