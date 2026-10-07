@@ -34,28 +34,14 @@ except ImportError:
 
 def load_manifest(manifest_path: Path) -> Dict:
     """Load and parse manifest.json"""
-    try:
-        with open(manifest_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        print(f"ERROR: Manifest file not found: {manifest_path}")
-        sys.exit(1)
-    except json.JSONDecodeError as e:
-        print(f"ERROR: Invalid JSON in manifest: {e}")
-        sys.exit(1)
+    with open(manifest_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
 
 def load_schema(schema_path: Path) -> Dict:
     """Load JSON schema for validation"""
-    try:
-        with open(schema_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        print(f"ERROR: Schema file not found: {schema_path}")
-        sys.exit(1)
-    except json.JSONDecodeError as e:
-        print(f"ERROR: Invalid JSON in schema: {e}")
-        sys.exit(1)
+    with open(schema_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
 
 def validate_schema(manifest: Dict, schema: Dict) -> None:
@@ -358,9 +344,12 @@ def validate_manifest(manifest_path: str) -> None:
     Raises ValidationError or other exceptions instead of calling sys.exit(),
     so it can be used in tests with pytest.raises().
     """
-    base_dir = Path(manifest_path).parent
-    manifest = load_manifest(Path(manifest_path))
-    schema = load_schema(base_dir / 'manifest-schema.json')
+    manifest_file = Path(manifest_path)
+    base_dir = manifest_file.parent
+    script_dir = Path(__file__).parent
+    
+    manifest = load_manifest(manifest_file)
+    schema = load_schema(script_dir / 'manifest-schema.json')
     
     # Validate schema — raises ValidationError directly
     try:
