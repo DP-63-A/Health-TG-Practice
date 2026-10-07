@@ -44,10 +44,17 @@ MINI_APP_URL=https://generated-host.trycloudflare.com
 CORS_ALLOWED_ORIGINS=http://localhost:8088,http://localhost:5173,https://generated-host.trycloudflare.com
 ```
 
-Restart Compose after either value changes. A quick tunnel has no uptime
-guarantee and its address changes after restart; it is suitable only for manual
-acceptance. Stop it with `Ctrl+C`. A permanent stand must use the team's managed
-HTTPS host instead.
+After either value changes, apply the new environment by recreating the affected
+containers (plain `docker compose restart` does not reread `.env`):
+
+```powershell
+docker compose --env-file .env up -d
+```
+
+Compose preserves the named data volumes during this recreation. A quick tunnel
+has no uptime guarantee and its address changes after restart; it is suitable
+only for manual acceptance. Stop it with `Ctrl+C`. A permanent stand must use
+the team's managed HTTPS host instead.
 
 ## Automated baseline
 
