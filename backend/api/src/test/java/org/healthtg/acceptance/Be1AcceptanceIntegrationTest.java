@@ -27,6 +27,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
@@ -101,12 +102,14 @@ class Be1AcceptanceIntegrationTest {
 
     @Test
     void analyticsContainsOnlyAuthenticatedOwnersEntries() throws Exception {
-        Instant measuredAt = Instant.now();
-        Entry own = confirmedMetric(new OwnerContext(OWNER), 2501, 1200, measuredAt);
-        confirmedMetric(new OwnerContext(OTHER), 2502, 9000, measuredAt);
+        LocalDate referenceDate = LocalDate.now(ZoneOffset.UTC);
+        Entry own = confirmedMetric(new OwnerContext(OWNER), 2501, 1200,
+                referenceDate.minusDays(1).atTime(12, 0).toInstant(ZoneOffset.UTC));
+        confirmedMetric(new OwnerContext(OTHER), 2502, 9000,
+                referenceDate.minusDays(2).atTime(12, 0).toInstant(ZoneOffset.UTC));
 
         mockMvc.perform(get("/api/v1/analytics")
-                        .queryParam("period", "today")
+                        .queryParam("period", "days_7")
                         .queryParam("timezone", "UTC")
                         .header("Authorization", "Bearer owner-session"))
                 .andExpect(status().isOk())
