@@ -6,7 +6,8 @@ import java.util.List;
 /** Intent for a future Telegram adapter; returning an action does not send anything. */
 public sealed interface BotAction permits BotAction.SendMessage, BotAction.SendInlineMessage,
         BotAction.AnswerCallback, BotAction.SetMenuButton {
-    record ReplyKeyboard(List<String> buttons, boolean persistent, boolean resize) {
+    record ReplyKeyboard(List<String> buttons, boolean persistent, boolean resize, URI pickerUrl) {
+        public ReplyKeyboard(List<String> buttons, boolean persistent, boolean resize) { this(buttons, persistent, resize, null); }
         public ReplyKeyboard { buttons = List.copyOf(buttons); }
     }
 

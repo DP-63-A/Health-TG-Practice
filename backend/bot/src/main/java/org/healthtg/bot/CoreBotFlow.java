@@ -1,6 +1,7 @@
 package org.healthtg.bot;
 
 import org.healthtg.bot.checkin.CheckinSelector;
+import org.healthtg.bot.datetime.DateTimePicker;
 import org.healthtg.bot.text.TextInputParser;
 import org.healthtg.core.dialog.DialogState;
 import org.healthtg.core.dialog.DialogStateService;
@@ -38,6 +39,7 @@ public final class CoreBotFlow implements BotFlow {
     private final CheckinReceiptFlow checkinReceipts;
     private final org.healthtg.bot.text.TextDialogFlow textDialog;
     private org.healthtg.bot.visual.FoodPhotoFlow photos;
+    private final java.net.URI pickerBase;
     public CoreBotFlow withPhotos(org.healthtg.bot.visual.FoodPhotoFlow photos) { this.photos = photos; return this; }
 
 
@@ -57,6 +59,7 @@ public final class CoreBotFlow implements BotFlow {
     private CoreBotFlow(UserService users, EntryCoreService entries, DialogStateService dialogs,
                         TextInputParser parser, CheckinSelector selector, Clock clock, java.net.URI miniAppUrl) {
         this.drafts = new org.healthtg.bot.draft.DraftReviewFlow(entries, dialogs, miniAppUrl);
+        this.pickerBase = miniAppUrl;
         this.checkinReceipts = new CheckinReceiptFlow(entries);
         this.users = users;
         this.entries = entries;
@@ -68,6 +71,9 @@ public final class CoreBotFlow implements BotFlow {
 
     @Override
     public synchronized List<BotAction> beginCheckin(BotUpdate update) {
+        return withPicker(update, () -> beginCheckinInternal(update));
+    }
+    private List<BotAction> beginCheckinInternal(BotUpdate update) {
         UserAccount user = users.findOrCreate(update.senderId());
         OwnerContext owner = new OwnerContext(user.id());
         if (isStale(update, owner)) return staleResponse(update);
@@ -100,6 +106,9 @@ public final class CoreBotFlow implements BotFlow {
 
     @Override
     public synchronized List<BotAction> handleMessage(BotUpdate update) {
+        return withPicker(update, () -> update.webAppData() == null ? handleMessageInternal(update) : handlePicker(update));
+    }
+    private List<BotAction> handleMessageInternal(BotUpdate update) {
         if (update.image() == null && (update.text() == null || update.text().startsWith("/"))) return List.of();
         UserAccount user = users.findOrCreate(update.senderId());
         OwnerContext owner = new OwnerContext(user.id());
@@ -133,6 +142,9 @@ public final class CoreBotFlow implements BotFlow {
 
     @Override
     public synchronized List<BotAction> handleCallback(BotUpdate update) {
+        return withPicker(update, () -> handleCallbackInternal(update));
+    }
+    private List<BotAction> handleCallbackInternal(BotUpdate update) {
         if (update.callbackId() == null || update.callbackData() == null) return List.of();
         UserAccount user = users.findOrCreate(update.senderId());
         OwnerContext owner = new OwnerContext(user.id());
@@ -176,6 +188,74 @@ public final class CoreBotFlow implements BotFlow {
                 < org.healthtg.bot.visual.FoodPhotoFlow.observedUpdate(state)
                 || (state.context().get("last_photo_update") instanceof Number photo
                 && update.updateId() <= photo.longValue())).isPresent();
+    }
+
+    private Optional<DateTimePicker.Form> pickerForm(DialogState state, OwnerContext owner, ZoneId zone) {
+        if (!state.context().containsKey("picker_nonce")) return Optional.empty();
+        if (state.step().startsWith("text_")) return textDialog.pickerForm(state);
+        if (state.step().startsWith("food_") && photos != null) return photos.pickerForm(state);
+        return drafts.pickerForm(state, owner, zone);
+    }
+
+    private List<BotAction> withPicker(BotUpdate update, java.util.function.Supplier<List<BotAction>> action) {
+        if (pickerBase == null) return action.get();
+        var user = users.findOrCreate(update.senderId());
+        var owner = new OwnerContext(user.id());
+        boolean previous = dialogs.find(owner).filter(s -> s.context().containsKey("picker_nonce")).isPresent();
+        var result = new java.util.ArrayList<>(action.get());
+        var state = dialogs.find(owner);
+        Optional<DateTimePicker.Form> form;
+        try { form = state.flatMap(s -> pickerForm(s, owner, user.timezone())); }
+        catch (IllegalArgumentException | EntryNotFoundException | java.time.DateTimeException invalid) { form = Optional.empty(); }
+        if (form.isPresent()) {
+            var url = DateTimePicker.url(pickerBase, state.orElseThrow(), user.timezone(), form.get());
+            result.add(new BotAction.SendMessage(update.chatId(), "Можно выбрать дату в окне или ввести ответ текстом.",
+                    new BotAction.ReplyKeyboard(List.of(BotHandler.CHECKIN_BUTTON), false, true, url)));
+        } else if (previous || update.webAppData() != null) {
+            result.add(new BotAction.SendMessage(update.chatId(), "Продолжите диалог по сообщению выше.",
+                    new BotAction.ReplyKeyboard(List.of(BotHandler.CHECKIN_BUTTON), true, true)));
+        }
+        return List.copyOf(result);
+    }
+
+    private List<BotAction> handlePicker(BotUpdate update) {
+        var user = users.findOrCreate(update.senderId());
+        var owner = new OwnerContext(user.id());
+        var stored = dialogs.find(owner);
+        if (stored.isEmpty() || isStale(update, owner)) return pickerRejected(update);
+        var state = stored.get();
+        // A lost acknowledgement may leave the durable patch intent after Entry has changed.
+        if (state.step().equals("draft_pending") && state.telegramUpdateKey().equals(key(update.updateId()).storageKey()))
+            return drafts.message(update, owner, user.timezone()).orElseGet(() -> pickerRejected(update));
+        var active = entries.findActiveDraft(owner);
+        if (active.isPresent() && key(update.updateId()).storageKey().equals(active.get().telegramUpdateKey())) {
+            save(owner, active.get().id(), "draft_review", Map.of("entry_revision", active.get().revision()), update.updateId());
+            return drafts.card(update, active.get(), user.timezone(), "Выбор уже применён. Проверьте черновик.");
+        }
+        if (active.isPresent() && !state.step().equals("draft_await")) return pickerRejected(update);
+        // Saving a clarification may succeed while its acknowledgement is lost.
+        // Only an exact replay of that accepted update may render the next question;
+        // it must not validate against the rotated nonce or apply the selection again.
+        if (photos != null && state.step().equals("food_clarify")
+                && DateTimePicker.matchesReceipt(state, update.webAppData(), update.updateId(), "main-food-answer"))
+            return photos.message(update, owner, user.timezone());
+        if (state.step().equals("text_clarification")
+                && DateTimePicker.matchesReceipt(state, update.webAppData(), update.updateId(), "main"))
+            return textDialog.message(update, owner, user.timezone());
+        try {
+            var form = pickerForm(state, owner, user.timezone());
+            if (form.isEmpty()) return pickerRejected(update);
+            var selection = DateTimePicker.parse(update.webAppData(), state, user.timezone(), form.get());
+            if (state.step().equals("text_clarification")) return textDialog.applyPicker(update, owner, user.timezone(), state, selection);
+            if (state.step().equals("food_clarify") && photos != null) return photos.applyPicker(update, owner, user.timezone(), state, selection);
+            return drafts.applyPicker(update, owner, user.timezone(), state, selection);
+        } catch (IllegalArgumentException | EntryNotFoundException | java.time.DateTimeException invalid) {
+            return List.of(new BotAction.SendInlineMessage(update.chatId(),
+                    "Выбор не применён: окно устарело или дата/время недопустимы (включая перевод часов). Откройте актуальное окно или введите значение текстом.", List.of()));
+        }
+    }
+    private static List<BotAction> pickerRejected(BotUpdate update) {
+        return List.of(new BotAction.SendInlineMessage(update.chatId(), "Это окно уже не относится к текущему шагу. Продолжите актуальный диалог.", List.of()));
     }
     private static List<BotAction> staleResponse(BotUpdate update) {
         return update.callbackId() == null

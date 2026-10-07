@@ -36,6 +36,10 @@ public final class TelegramAdapter {
                 KeyboardRow row = new KeyboardRow();
                 row.addAll(message.keyboard().buttons().stream()
                         .map(org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton::new).toList());
+                if (message.keyboard().pickerUrl() != null) row.add(
+                        org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton.builder()
+                                .text("Выбрать дату и время")
+                                .webApp(new WebAppInfo(message.keyboard().pickerUrl().toString())).build());
                 var keyboard = ReplyKeyboardMarkup.builder().keyboard(List.of(row))
                         .isPersistent(message.keyboard().persistent()).resizeKeyboard(message.keyboard().resize()).build();
                 client.execute(SendMessage.builder().chatId(message.chatId()).text(message.text())
@@ -101,6 +105,7 @@ public final class TelegramAdapter {
         }
         return new BotUpdate(update.getUpdateId(), BotUpdate.Kind.MESSAGE, type, message.getChatId(),
                 message.getFrom().getId(), message.getFrom().getIsBot(), message.getText(), entities, null, null,
-                message.getDate() == null ? null : Instant.ofEpochSecond(message.getDate()), image);
+                message.getDate() == null ? null : Instant.ofEpochSecond(message.getDate()), image,
+                message.getWebAppData() == null ? null : message.getWebAppData().getData());
     }
 }
