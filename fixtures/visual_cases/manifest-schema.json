@@ -138,34 +138,34 @@
           "personal_data_check": {
             "type": "boolean",
             "description": "Confirmed no personal health data in image"
-          },
-          "allOf": [
-            {
-              "if": {"properties": {"category": {"const": "food"}}, "required": ["category"]},
-              "then": {
-                "properties": {
-                  "expected_fields": {
-                    "type": "object",
-                    "minProperties": 1,
-                    "additionalProperties": {"required": ["value", "unit", "confidence"]}
-                  }
+          }
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"category": {"const": "food"}}, "required": ["category"]},
+            "then": {
+              "properties": {
+                "expected_fields": {
+                  "type": "object",
+                  "minProperties": 1,
+                  "additionalProperties": {"required": ["value", "unit", "confidence"]}
                 }
               }
-            },
-            {
-              "if": {"properties": {"category": {"enum": ["health", "watch"]}}, "required": ["category"]},
-              "then": {"properties": {"expected_fields": {"type": "array", "minItems": 1}}}
-            },
-            {
-              "if": {"properties": {"expected_action": {"const": "ask"}}, "required": ["expected_action"]},
-              "then": {"required": ["ask_clarification"]}
-            },
-            {
-              "if": {"properties": {"expected_action": {"const": "refuse"}}, "required": ["expected_action"]},
-              "then": {"required": ["refuse_reason"]}
             }
-          ]
-        }
+          },
+          {
+            "if": {"properties": {"category": {"enum": ["health", "watch"]}}, "required": ["category"]},
+            "then": {"properties": {"expected_fields": {"type": "array", "minItems": 1}}}
+          },
+          {
+            "if": {"properties": {"expected_action": {"const": "ask"}}, "required": ["expected_action"]},
+            "then": {"required": ["ask_clarification"]}
+          },
+          {
+            "if": {"properties": {"expected_action": {"const": "refuse"}}, "required": ["expected_action"]},
+            "then": {"required": ["refuse_reason"]}
+          }
+        ]
       }
     }
   },
