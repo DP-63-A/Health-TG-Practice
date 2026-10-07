@@ -817,10 +817,10 @@ class CoreStorageIntegrationTest {
 
     @Test
     void entryPayloadValidator_validatesMetricsValueBoundsAndTypes() {
-        UUID owner1 = UUID.randomUUID();
-        UUID owner2 = UUID.randomUUID();
-        UUID owner3 = UUID.randomUUID();
-        UUID owner4 = UUID.randomUUID();
+        var owner1 = new OwnerContext(UUID.randomUUID());
+        var owner2 = new OwnerContext(UUID.randomUUID());
+        var owner3 = new OwnerContext(UUID.randomUUID());
+        var owner4 = new OwnerContext(UUID.randomUUID());
 
         // 1. Значение 1 000 000 001 выбрасывает EntryValidationException
         var invalidCmd = new CreateDraftCommand(
@@ -831,8 +831,7 @@ class CoreStorageIntegrationTest {
                 Instant.now(),
                 Map.of("code", "steps", "value", new BigDecimal("1000000001"), "unit", "count"),
                 Map.of(),
-                null,
-                new TelegramUpdateKey(101L, 201L)
+                new TelegramUpdateKey("main", 101L)
         );
         assertThrows(EntryValidationException.class, () -> entries.createDraft(invalidCmd));
 
@@ -845,8 +844,7 @@ class CoreStorageIntegrationTest {
                 Instant.now(),
                 Map.of("code", "steps", "value", new BigDecimal("1000000000"), "unit", "count"),
                 Map.of(),
-                null,
-                new TelegramUpdateKey(102L, 202L)
+                new TelegramUpdateKey("main", 102L)
         );
         Entry createdMax = entries.createDraft(validMaxCmd).entry();
         assertNotNull(createdMax.id());
@@ -860,8 +858,7 @@ class CoreStorageIntegrationTest {
                 Instant.now(),
                 Map.of("code", "steps", "value", 10.5, "unit", "count"),
                 Map.of(),
-                null,
-                new TelegramUpdateKey(103L, 203L)
+                new TelegramUpdateKey("main", 103L)
         );
         Entry createdSteps = entries.createDraft(validFractionalSteps).entry();
         assertNotNull(createdSteps.id());
@@ -874,8 +871,7 @@ class CoreStorageIntegrationTest {
                 Instant.now(),
                 Map.of("code", "heart_rate", "value", 10.5, "unit", "bpm"),
                 Map.of(),
-                null,
-                new TelegramUpdateKey(104L, 204L)
+                new TelegramUpdateKey("main", 104L)
         );
         Entry createdHr = entries.createDraft(validFractionalHeartRate).entry();
         assertNotNull(createdHr.id());
