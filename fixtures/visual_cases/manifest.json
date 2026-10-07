@@ -2,7 +2,7 @@
   "version": "1.0.0",
   "created_at": "2026-10-04T00:00:00Z",
   "last_updated": "2026-10-06T00:00:00Z",
-  "commit_hash": "7a652d5a52be0f35388f8efec24a958b4ef8d3f1",
+  "commit_hash": "b63d6a668672a0cf38521bbf834775de1b6f8ed1",
   "cases": [
     {
       "id": "F01",
@@ -231,9 +231,9 @@
         {"name": "sleep_duration_min", "value": 378, "unit": "min", "confidence": 1.0}
       ],
       "ignored_fields": [
-        "fried_pelmeni_in_bowl",
-        "skuf_beer_can",
-        "tv_football_broadcast"
+        {"name": "fried_pelmeni_in_bowl", "reason": "background_food_ignored_for_watch_category"},
+        {"name": "skuf_beer_can", "reason": "background_item_ignored_for_watch_category"},
+        {"name": "tv_football_broadcast", "reason": "background_item_ignored_for_watch_category"}
       ],
       "uncertainties": [
         "Background contains food (fried pelmeni) and beer, but target category is smartwatch display"
