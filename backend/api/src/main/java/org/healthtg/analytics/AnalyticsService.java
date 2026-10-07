@@ -25,6 +25,7 @@ import java.time.Clock;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -76,9 +77,9 @@ public class AnalyticsService {
         LocalDate from = to.minusDays(periodDays - 1L);
         Period period = new Period(from, to, zone);
 
-        // Steps and sleep belong to payload.local_date (the wake date for sleep), so the period filter
-        // must not be applied to occurred_at in core. Load all confirmed entries of the owner and select
-        // by the analytics date here.
+        // Steps, sleep and heart rate belong to payload.local_date (the wake date for sleep), so the
+        // period filter must not be applied to occurred_at in core. Load all confirmed entries of the
+        // owner and select by the analytics date here.
         List<Entry> found = entries.listEntries(new ListEntriesQuery(owner, EntryStatus.CONFIRMED,
                         null, null, null, zone)).stream()
                 .filter(entry -> ANALYTICS_TYPES.contains(entry.type()))
@@ -105,7 +106,8 @@ public class AnalyticsService {
     }
 
     private static LocalDate analyticsDate(Entry entry, ZoneId zone) {
-        if (isMetric(entry, Metric.STEPS) || isMetric(entry, Metric.SLEEP_DURATION_MIN)) {
+        if (isMetric(entry, Metric.STEPS) || isMetric(entry, Metric.SLEEP_DURATION_MIN)
+                || isMetric(entry, Metric.HEART_RATE)) {
             return localDate(entry.payload().get("local_date"));
         }
         return entry.occurredAt().atZone(zone).toLocalDate();
@@ -128,9 +130,10 @@ public class AnalyticsService {
         Cards cards = new Cards(nutritionCard, new MealCountCard(nutrition.countedMeals()),
                 sleepCard(sleep), stepsCard(steps),
                 heartRate.map(result -> new HeartRateCard(result.value(), result.occurredAt(),
+                        result.localDate(), result.localTime(),
                         result.qualifier() == null ? null : result.qualifier().name().toLowerCase(Locale.ROOT),
                         UUID.fromString(result.entryId())))
-                        .orElse(new HeartRateCard(null, null, null, null)),
+                        .orElse(new HeartRateCard(null, null, null, null, null, null)),
                 checkinCards(checkins));
 
         List<Source> allSources = sources.stream().distinct()
@@ -223,7 +226,8 @@ public class AnalyticsService {
                 result.add(source(entry, entry.occurredAt().atZone(period.zone()).toLocalDate()));
             } else if (entry.type() == EntryType.METRICS && isMetric(entry, Metric.HEART_RATE)) {
                 if (heartRate.isPresent() && entry.id().toString().equals(heartRate.get().entryId())) {
-                    result.add(source(entry, entry.occurredAt().atZone(period.zone()).toLocalDate()));
+                    LocalDate date = metricDate(entry, Metric.HEART_RATE, period.zone());
+                    if (date != null) result.add(source(entry, date));
                 }
             } else if (entry.type() == EntryType.METRICS
                     && (isMetric(entry, Metric.STEPS) || isMetric(entry, Metric.SLEEP_DURATION_MIN))) {
@@ -254,8 +258,8 @@ public class AnalyticsService {
         return new Source(entry.id(), entry.type().code(), date);
     }
 
+    /** Steps, sleep and heart rate are all attributed to payload.local_date, never to occurred_at. */
     private static LocalDate metricDate(Entry entry, Metric metric, ZoneId zone) {
-        if (metric == Metric.HEART_RATE) return entry.occurredAt().atZone(zone).toLocalDate();
         return localDate(entry.payload().get("local_date"));
     }
 
@@ -304,13 +308,16 @@ public class AnalyticsService {
             case "resting" -> Qualifier.RESTING;
             default -> null;
         };
+        // local_time is passed through as stored; an unknown time stays null and is never replaced by
+        // the time of the message.
         return new AnalyticsFunctions.Entry(entry.id().toString(), type, Status.CONFIRMED, entry.occurredAt(),
                 entry.updatedAt(), entry.revision(), localDate(entry.payload().get("local_date")),
                 entry.type() == EntryType.METRICS && metric == Metric.SLEEP_DURATION_MIN
                         ? localDate(entry.payload().get("local_date")) : null,
                 metric, metricValue(entry), qualifier, category,
                 integer(entry.payload().get("score")), decimal(entry.payload().get("mass_g")),
-                nutrients(entry.payload().get("nutrients")), basis(entry.payload().get("nutrients_basis")));
+                nutrients(entry.payload().get("nutrients")), basis(entry.payload().get("nutrients_basis")),
+                localTime(entry.payload().get("local_time")));
     }
 
     private static Optional<CheckinCategory> checkinCategory(Entry entry) {
@@ -354,6 +361,18 @@ public class AnalyticsService {
         return null;
     }
 
+    private static LocalTime localTime(Object value) {
+        if (value instanceof LocalTime time) return time;
+        if (value instanceof String text) {
+            try {
+                return LocalTime.parse(text);
+            } catch (RuntimeException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     private static BigDecimal decimal(Object value) {
         if (value instanceof BigDecimal decimal) return decimal;
         if (value instanceof Number number) return new BigDecimal(number.toString());
@@ -381,7 +400,12 @@ public class AnalyticsService {
     public record SleepCard(Long totalMinutes, BigDecimal averageMinutes, int daysWithData) {}
     /** Serialized as total / average / days_with_data (analytics.json#/$defs/aggregateCount). */
     public record StepsCard(Long total, BigDecimal average, int daysWithData) {}
-    public record HeartRateCard(BigDecimal valueBpm, Instant occurredAt, String qualifier, UUID entryId) {}
+    /**
+     * occurredAt is the original report timestamp; localDate/localTime describe the measurement
+     * (localTime is null when unknown).
+     */
+    public record HeartRateCard(BigDecimal valueBpm, Instant occurredAt, LocalDate localDate, LocalTime localTime,
+                                String qualifier, UUID entryId) {}
     public record CheckinCards(RatingCard sleepQuality, RatingCard digestionComfort, RatingCard wellbeing,
                                RatingCard mood) {}
     public record RatingCard(Integer score, LocalDate date, UUID entryId) {}
