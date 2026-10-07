@@ -43,8 +43,10 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d mongo
 
 The override publishes MongoDB only on `127.0.0.1` at `MONGODB_PORT` (27017 by
 default). Host-side applications use `MONGODB_URI=mongodb://localhost:27017/health_tg`
-from `.env.example`. Keep the `health_tg_demo` URI only for the protected BE3-05
-host workflow. Stop the development MongoDB without deleting its data using:
+from `.env.example`. Its comma-separated `CORS_ALLOWED_ORIGINS` permits both the
+Compose frontend on port 8088 and the Vite development server on port 5173.
+Keep the `health_tg_demo` URI only for the protected BE3-05 host workflow. Stop
+the development MongoDB without deleting its data using:
 
 ```powershell
 docker compose -f compose.yaml -f compose.dev.yaml --env-file .env down
