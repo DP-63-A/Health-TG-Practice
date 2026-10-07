@@ -73,14 +73,14 @@ final class EntryPayloadValidator {
             }
         }
 
-        validateEnum(payload, "nutrients_basis", NUTRIENT_BASES, false);
+        validateEnum(payload, "nutrients_basis", NUTRIENT_BASES, true);
     }
 
     private static void validateMetrics(Map<String, Object> payload) {
         rejectUnknown(payload, METRICS_FIELDS);
         String code = requireEnum(payload, "code", METRIC_CODES);
         Number value = requireNumber(payload, "value");
-        if (new java.math.BigDecimal(value.toString()).signum() < 0) {
+        if (new BigDecimal(value.toString()).signum() < 0) {
             throw invalid("value must be non-negative for " + code);
         }
         if (code.equals("steps") || code.equals("sleep_duration_min")) {
@@ -167,7 +167,7 @@ final class EntryPayloadValidator {
         if (!payload.containsKey(field)) return;
         Object value = payload.get(field);
         if (value == null && nullable) return;
-        if (!(value instanceof Number number) || new java.math.BigDecimal(number.toString()).signum() < 0) {
+        if (!(value instanceof Number number) || new BigDecimal(number.toString()).signum() < 0) {
             throw invalid(field + " must be a non-negative number or null");
         }
     }
@@ -196,15 +196,14 @@ final class EntryPayloadValidator {
             throw invalid("Numeric values must be finite");
         }
         if (value instanceof Number number) {
-            java.math.BigDecimal decimal;
+            BigDecimal decimal;
             try {
-                decimal = new java.math.BigDecimal(number.toString());
+                decimal = new BigDecimal(number.toString());
             } catch (NumberFormatException exception) {
                 throw invalid("Invalid numeric value");
             }
             if (decimal.precision() > MAX_NUMERIC_DIGITS
-                    || decimal.scale() < -MAX_NUMERIC_DIGITS
-                    || decimal.scale() > MAX_NUMERIC_DIGITS) {
+                    || Math.abs((long) decimal.scale()) > MAX_NUMERIC_DIGITS) {
                 throw invalid("Numeric precision and absolute scale must not exceed " + MAX_NUMERIC_DIGITS);
             }
             // API consumers use IEEE-754 numbers. Keep their finite range without
