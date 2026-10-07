@@ -73,7 +73,7 @@ final class EntryPayloadValidator {
             }
         }
 
-        validateEnum(payload, "nutrients_basis", NUTRIENT_BASES, true);
+        validateEnum(payload, "nutrients_basis", NUTRIENT_BASES, false);
     }
 
     private static void validateMetrics(Map<String, Object> payload) {
