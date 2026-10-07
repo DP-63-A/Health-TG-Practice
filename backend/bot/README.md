@@ -50,6 +50,17 @@ Linux/macOS: `sh ./gradlew :backend:bot:test :backend:bot:bootJar`.
 
 Из терминала, в котором переменные уже настроены: `sh ./gradlew :backend:bot:bootRun` (Windows: `.\gradlew.bat :backend:bot:bootRun`). Либо запустите собранный `backend/bot/build/libs/bot-0.1.0.jar` через `java -jar`.
 
+Если MongoDB запускается из Compose, основной `compose.yaml` не публикует её на
+хост. Для разработки запустите из корня репозитория loopback-only override:
+
+```powershell
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d mongo
+```
+
+После этого IDEA, `bootRun` и собранный JAR используют
+`MONGODB_URI=mongodb://localhost:27017/health_tg`. Подробности приведены в
+[`docs/local-environment.md`](../../docs/local-environment.md).
+
 Один токен должен обслуживаться только одним запущенным экземпляром. Если для бота установлен webhook, запуск отклоняется: приложение не удаляет его и не очищает очередь сообщений. Остановка — Stop в IDEA или Ctrl+C в терминале.
 
 Не включайте отладочные логи TelegramBots/HTTP-клиента: они могут содержать секретный URL запроса. Штатные сообщения приложения не выводят токены, ID и текст сообщений.

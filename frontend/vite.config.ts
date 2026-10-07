@@ -7,6 +7,7 @@ export default defineConfig({
   test: {
     env: { VITE_API_MODE: 'fixture' },
     environment: 'jsdom',
+    pool: 'vmThreads',
     setupFiles: './src/setupTests.ts',
   },
 })

@@ -4,6 +4,7 @@ param(
     [string]$Command,
     [string]$StartDate,
     [long]$Seed = 20260505,
+    [switch]$Compose,
     [string]$EnvFile = (Join-Path $PSScriptRoot "..\.env")
 )
 
@@ -49,7 +50,15 @@ if ($Command -eq "seed") {
 
 Push-Location $repoRoot
 try {
-    & (Join-Path $repoRoot "gradlew.bat") :backend:api:demoData "-PdemoArgs=$arguments" --console=plain
+    if ($Compose) {
+        if ($env:MONGODB_DATABASE -ne "health_tg_demo") {
+            throw "Compose demo data requires MONGODB_DATABASE=health_tg_demo in the selected env file."
+        }
+        $env:DEMO_DATA_ARGS = $arguments
+        & docker compose --env-file $EnvFile --profile tools run --rm demo-data
+    } else {
+        & (Join-Path $repoRoot "gradlew.bat") :backend:api:demoData "-PdemoArgs=$arguments" --console=plain
+    }
     $exitCode = $LASTEXITCODE
 } finally {
     Pop-Location
