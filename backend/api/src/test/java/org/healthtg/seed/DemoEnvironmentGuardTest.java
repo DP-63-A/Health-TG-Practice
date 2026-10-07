@@ -26,6 +26,18 @@ class DemoEnvironmentGuardTest {
     }
 
     @Test
+    void composeMongoRequiresExplicitComposeFlagAndFixedDatabase() {
+        DemoEnvironmentGuard.requireDemoEnvironment("true", "mongodb://mongo:27017/health_tg_demo", "true");
+
+        assertThrows(IllegalStateException.class, () ->
+                DemoEnvironmentGuard.requireDemoEnvironment("true", "mongodb://mongo:27017/health_tg_demo", null));
+        assertThrows(IllegalStateException.class, () ->
+                DemoEnvironmentGuard.requireDemoEnvironment("true", "mongodb://mongo:27017/health_tg", "true"));
+        assertThrows(IllegalStateException.class, () ->
+                DemoEnvironmentGuard.requireDemoEnvironment("true", "mongodb://example.com/health_tg_demo", "true"));
+    }
+
+    @Test
     void profileConfigurationAcceptsOnlyInternalUserUuidsAndNoPublicSelector() {
         Map<String, String> environment = Map.of(
                 "BE3_05_REGULAR_USER_ID", "11111111-1111-4111-8111-111111111101",

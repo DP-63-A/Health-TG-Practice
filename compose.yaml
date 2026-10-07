@@ -1,21 +1,120 @@
 name: health-tg-practice
 
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  init: true
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
 services:
   mongo:
+    <<: *service-defaults
     image: ${MONGODB_IMAGE:-mongodb/mongodb-community-server:8.0-ubi9-slim}
-    container_name: health-tg-mongo
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:${MONGODB_PORT:-27017}:27017"
     volumes:
-      - health-tg-mongo-data:/data/db
+      - mongo-data:/data/db
     healthcheck:
       test: ["CMD-SHELL", "mongosh --quiet --eval 'quit(db.runCommand({ ping: 1 }).ok ? 0 : 2)' || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 12
       start_period: 10s
+    networks: [private]
+
+  api:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: backend/api/Dockerfile
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/${MONGODB_DATABASE:-health_tg}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN in .env}
+      TELEGRAM_ALLOWED_USER_IDS: ${TELEGRAM_ALLOWED_USER_IDS:?Set TELEGRAM_ALLOWED_USER_IDS in .env}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8088}
+      FILE_STORAGE_ROOT: /var/lib/health-tg/files
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-training}
+    volumes:
+      - file-data:/var/lib/health-tg/files
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/api/v1/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [private]
+
+  bot:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: backend/bot/Dockerfile
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/${MONGODB_DATABASE:-health_tg}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN in .env}
+      TELEGRAM_ALLOWED_USER_IDS: ${TELEGRAM_ALLOWED_USER_IDS:?Set TELEGRAM_ALLOWED_USER_IDS in .env}
+      MINI_APP_URL: ${MINI_APP_URL:?Set MINI_APP_URL to the public HTTPS frontend URL}
+      DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-Europe/Warsaw}
+      FILE_STORAGE_ROOT: /var/lib/health-tg/files
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-training}
+      FOOD_RECOGNITION_MODE: ${FOOD_RECOGNITION_MODE:-disabled}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+    volumes:
+      - file-data:/var/lib/health-tg/files
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks: [private]
+
+  frontend:
+    <<: *service-defaults
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_MODE: live
+        VITE_API_BASE_URL: /api/v1
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8088}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [private]
+
+  demo-data:
+    build:
+      context: .
+      dockerfile: backend/api/Dockerfile
+      target: build
+    profiles: [tools]
+    restart: "no"
+    init: true
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/health_tg_demo
+      HEALTH_TG_DEMO: "true"
+      HEALTH_TG_DEMO_COMPOSE: "true"
+      BE3_05_REGULAR_USER_ID: ${BE3_05_REGULAR_USER_ID:-}
+      BE3_05_IRREGULAR_USER_ID: ${BE3_05_IRREGULAR_USER_ID:-}
+      BE3_05_INCOMPLETE_USER_ID: ${BE3_05_INCOMPLETE_USER_ID:-}
+    command:
+      - gradle
+      - :backend:api:demoData
+      - -PdemoArgs=${DEMO_DATA_ARGS:-seed}
+      - --no-daemon
+      - --console=plain
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks: [private]
+
+networks:
+  private:
 
 volumes:
-  health-tg-mongo-data:
-    name: health-tg-mongo-data
+  mongo-data:
+  file-data:
