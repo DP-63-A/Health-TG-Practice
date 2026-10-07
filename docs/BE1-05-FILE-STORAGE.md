@@ -43,10 +43,13 @@ and creates an in-memory blob URL. The bearer token is never placed in the URL.
 
 ## Storage and lifecycle
 
-`FILE_STORAGE_ROOT` selects the private root (`./data/files` by default). Files are
-placed below UUID-derived shard directories and use a `.bin` physical suffix.
-The BE1-07 Compose stack mounts `/var/lib/health-tg/files` as the persistent
-`file-data` volume for both API and bot and does not publish the directory.
+`FILE_STORAGE_ROOT` selects the private root. Without an override, both applications
+use `${user.home}/.health-tg/files`, which is independent of the Gradle module working
+directory. The repository `.env.example` selects `./data/files` for a shared local
+run. Files are placed below UUID-derived shard directories and use a `.bin` physical
+suffix. BE1-07 must mount `/var/lib/health-tg/files` as the same persistent
+`file-data` volume for API and bot without publishing the directory; that Compose
+configuration is a dependency and is not part of this branch.
 
 Logical cancellation/deletion of an Entry does not remove its original. No expiry
 or background cleanup is implemented because the retention period is an open
@@ -67,7 +70,8 @@ down --volumes` is not the product reset operation.
 
 Automated tests cover JPEG/PNG detection, corrupt and unsupported content, 5 MiB
 and 12 MP limits, owner isolation, source-reference binding, unchanged original
-bytes, corruption detection and safe HTTP headers.
+bytes, corruption detection, HTTP authentication/error contracts, Mongo metadata
+persistence and optimistic locking.
 
 The current dependent implementations are:
 

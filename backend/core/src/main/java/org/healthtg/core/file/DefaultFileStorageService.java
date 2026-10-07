@@ -38,7 +38,7 @@ public class DefaultFileStorageService implements FileStorageService {
     private final Path root;
 
     public DefaultFileStorageService(MongoStoredFileRepository files, EntryCoreService entries, Clock clock,
-                                     @Value("${health-tg.files.root:./data/files}") String root) {
+                                     @Value("${health-tg.files.root:${user.home}/.health-tg/files}") String root) {
         this.files = files;
         this.entries = entries;
         this.clock = clock;
