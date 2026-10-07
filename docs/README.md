@@ -7,6 +7,8 @@
 - [Backend endpoint аналитики BE3-03](BE3-03-ANALYTICS-ENDPOINT.md)
 - [Матрица backend-приёмки BE1-06](BE1-06-TEST-MATRIX.md)
 - [Отчёт backend-приёмки BE1-06](BE1-06-ACCEPTANCE-REPORT.md)
+- [Матрица автоматических проверок бота BE2-08](BE2-08-TEST-MATRIX.md)
+- [Личный отчёт BE-2](BE2-PERSONAL-REPORT.md)
 - [Рабочий процесс](../WORKFLOW.md)
 - [Зависимости задач](../DEPENDENCIES.md)
 - [Проектные решения](../DECISIONS.md)
