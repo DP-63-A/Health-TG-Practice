@@ -37,6 +37,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -50,6 +51,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -113,6 +115,17 @@ class CoreStorageIntegrationTest {
         assertThrows(EntryValidationException.class, () -> entries.patch(new PatchEntryCommand(owner,
                 zero.id(), zero.revision(), null, Map.of("value", -1), Map.of())));
         assertEquals(zero, entries.requireEntry(owner, zero.id()));
+    }
+
+    @Test void fieldOriginsKeepDistinctDotAndFullwidthDotKeysInMongo() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Map<String, String> origins = Map.of(".．", "reported", "．.", "computed",
+                "payload.value", "estimated");
+        Entry saved = entries.createDraft(new CreateDraftCommand(owner, EntryType.METRICS, SourceKind.TEXT,
+                Map.of(), Instant.parse("2026-10-06T12:00:00Z"),
+                Map.of("code", "steps", "value", 1), origins, new TelegramUpdateKey("main", 913))).entry();
+
+        assertEquals(origins, entries.requireEntry(owner, saved.id()).fieldOrigins());
     }
 
     @Container
@@ -800,5 +813,67 @@ class CoreStorageIntegrationTest {
         context.register(RestartStorageTestConfiguration.class);
         context.refresh();
         return context;
+    }
+
+    @Test
+    void entryPayloadValidator_validatesMetricsValueBoundsAndTypes() {
+        var owner1 = new OwnerContext(UUID.randomUUID());
+        var owner2 = new OwnerContext(UUID.randomUUID());
+        var owner3 = new OwnerContext(UUID.randomUUID());
+        var owner4 = new OwnerContext(UUID.randomUUID());
+
+        // 1. Значение 1 000 000 001 выбрасывает EntryValidationException
+        var invalidCmd = new CreateDraftCommand(
+                owner1,
+                EntryType.METRICS,
+                SourceKind.TEXT,
+                Map.of(),
+                Instant.now(),
+                Map.of("code", "steps", "value", new BigDecimal("1000000001"), "unit", "count"),
+                Map.of(),
+                new TelegramUpdateKey("main", 101L)
+        );
+        assertThrows(EntryValidationException.class, () -> entries.createDraft(invalidCmd));
+
+        // 2. Граничное значение 1 000 000 000 успешно сохраняется
+        var validMaxCmd = new CreateDraftCommand(
+                owner2,
+                EntryType.METRICS,
+                SourceKind.TEXT,
+                Map.of(),
+                Instant.now(),
+                Map.of("code", "steps", "value", new BigDecimal("1000000000"), "unit", "count"),
+                Map.of(),
+                new TelegramUpdateKey("main", 102L)
+        );
+        Entry createdMax = entries.createDraft(validMaxCmd).entry();
+        assertNotNull(createdMax.id());
+
+        // 3. Дробное значение (10.5) для steps и heart_rate успешно принимается
+        var validFractionalSteps = new CreateDraftCommand(
+                owner3,
+                EntryType.METRICS,
+                SourceKind.TEXT,
+                Map.of(),
+                Instant.now(),
+                Map.of("code", "steps", "value", 10.5, "unit", "count"),
+                Map.of(),
+                new TelegramUpdateKey("main", 103L)
+        );
+        Entry createdSteps = entries.createDraft(validFractionalSteps).entry();
+        assertNotNull(createdSteps.id());
+
+        var validFractionalHeartRate = new CreateDraftCommand(
+                owner4,
+                EntryType.METRICS,
+                SourceKind.TEXT,
+                Map.of(),
+                Instant.now(),
+                Map.of("code", "heart_rate", "value", 10.5, "unit", "bpm"),
+                Map.of(),
+                new TelegramUpdateKey("main", 104L)
+        );
+        Entry createdHr = entries.createDraft(validFractionalHeartRate).entry();
+        assertNotNull(createdHr.id());
     }
 }
