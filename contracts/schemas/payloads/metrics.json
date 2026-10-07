@@ -14,7 +14,7 @@
     },
     "value": {
       "type": "number",
-      "description": "Must be >= 0 for steps, sleep_duration_min and heart_rate. Unknown is not represented as negative.",
+      "description": "Must be >= 0 and <= 1000000000 for all metric codes (steps, sleep_duration_min, heart_rate). Unknown is not represented as negative.",
       "minimum": 0,
       "maximum": 1000000000
     },
