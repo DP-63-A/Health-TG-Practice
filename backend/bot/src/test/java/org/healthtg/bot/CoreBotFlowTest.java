@@ -65,6 +65,7 @@ class CoreBotFlowTest {
                     Map.of("category", "reported", "score", "reported"), null,
                     command.updateKey().storageKey());
         });
+        when(parser.parse(any())).thenAnswer(inv -> new TextInputParser().parse(inv.getArgument(0)));
         AtomicLong revision = new AtomicLong();
         AtomicReference<DialogState> state = new AtomicReference<>();
         when(dialogs.save(any())).thenAnswer(invocation -> {
@@ -101,10 +102,10 @@ class CoreBotFlowTest {
 
     @Test
     void parsedTextCreatesDraftAndPersistsReviewStep() {
-        Map<String, Object> payload = Map.of("code", "steps", "value", 8000, "unit", "count");
+        Map<String, Object> payload = Map.of("code", "steps", "value", 8000, "unit", "count", "local_date", "2026-09-24");
         when(parser.parse("8000 шагов")).thenReturn(new TextParseResult(TextParseResult.Outcome.PARSED,
                 "8000 шагов", new TextParseResult.ParsedData("metrics", payload,
-                Map.of("value", "reported"), null, null), List.of()));
+                Map.of("value", "reported"), java.time.LocalDate.of(2026, 9, 24), null), List.of()));
         Entry draft = new Entry(UUID.randomUUID(), OWNER_ID, EntryType.METRICS, EntryStatus.DRAFT,
                 SourceKind.TEXT, Map.of("telegram_update_id", 20L), NOW, NOW, NOW, 1,
                 payload, Map.of("value", "reported"), null, "main:20");
@@ -176,7 +177,7 @@ class CoreBotFlowTest {
 
         flow.handleMessage(message(41, "ударов в минуту"));
 
-        verify(parser).parse("24.09.2026 пульс 72 ударов в минуту");
+        verify(parser).parse("ударов в минуту");
         ArgumentCaptor<CreateDraftCommand> command = ArgumentCaptor.forClass(CreateDraftCommand.class);
         verify(entries).createDraft(command.capture());
         assertEquals("heart_rate", command.getValue().payload().get("code"));
@@ -245,14 +246,6 @@ class CoreBotFlowTest {
     @Test
     void multipleClarificationsAndRecreatedFlowUseFirstMessageTimeNotAnswersOrClock() {
         Instant firstTime = Instant.parse("2026-10-05T06:00:00Z");
-        Map<String, Object> payload = Map.of("code", "steps", "value", 9000);
-        when(parser.parse("first")).thenReturn(new TextParseResult(TextParseResult.Outcome.NEEDS_CLARIFICATION,
-                "first", new TextParseResult.ParsedData("metrics", payload, Map.of(), null, null), List.of()));
-        when(parser.parse("first second")).thenReturn(new TextParseResult(TextParseResult.Outcome.NEEDS_CLARIFICATION,
-                "first second", new TextParseResult.ParsedData("metrics", Map.of("unit", "count"), Map.of(), null, null), List.of()));
-        when(parser.parse("first second third")).thenReturn(new TextParseResult(TextParseResult.Outcome.PARSED,
-                "first second third", new TextParseResult.ParsedData("metrics", Map.of("local_date", "2026-10-04"),
-                Map.of(), java.time.LocalDate.of(2026, 10, 4), null), List.of()));
         when(entries.createDraft(any())).thenAnswer(inv -> {
             CreateDraftCommand c = inv.getArgument(0);
             return new DraftCreationResult(new Entry(UUID.randomUUID(), OWNER_ID, c.type(), EntryStatus.DRAFT,
@@ -260,19 +253,20 @@ class CoreBotFlowTest {
                     c.updateKey().storageKey()), DraftCreationResult.Outcome.CREATED);
         });
         flow.handleMessage(new BotUpdate(80, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE,
-                TELEGRAM_ID, TELEGRAM_ID, false, "first", List.of(), null, null, firstTime));
+                TELEGRAM_ID, TELEGRAM_ID, false, "9000 шагов", List.of(), null, null, firstTime));
         flow.handleMessage(new BotUpdate(81, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE,
-                TELEGRAM_ID, TELEGRAM_ID, false, "second", List.of(), null, null, firstTime.plusSeconds(86400)));
+                TELEGRAM_ID, TELEGRAM_ID, false, "04.10.2026", List.of(), null, null, firstTime.plusSeconds(86400)));
         CoreBotFlow recreated = new CoreBotFlow(users, entries, dialogs, parser, new CheckinSelector(),
                 Clock.fixed(NOW, ZoneId.of("UTC")));
         recreated.handleMessage(new BotUpdate(82, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE,
-                TELEGRAM_ID, TELEGRAM_ID, false, "third", List.of(), null, null, firstTime.plusSeconds(172800)));
+                TELEGRAM_ID, TELEGRAM_ID, false, "да", List.of(), null, null, firstTime.plusSeconds(172800)));
         var captured = ArgumentCaptor.forClass(CreateDraftCommand.class);
         verify(entries).createDraft(captured.capture());
         assertEquals(firstTime, captured.getValue().occurredAt());
         assertEquals("2026-10-04", captured.getValue().payload().get("local_date"));
         assertEquals("count", captured.getValue().payload().get("unit"));
-        assertEquals(9000, captured.getValue().payload().get("value"));
+        assertEquals(0, new java.math.BigDecimal("9000").compareTo(
+                (java.math.BigDecimal) captured.getValue().payload().get("value")));
     }
 
     @Test
@@ -306,7 +300,7 @@ class CoreBotFlowTest {
                         java.time.LocalDate.of(2026, 10, 4), null), List.of());
         when(parser.parse(any())).thenReturn(complete);
         var result = flow.handleMessage(message(94, "04.10.2026 за день прошёл 9000 шагов"));
-        assertEquals("Не удалось восстановить время исходного сообщения. Отправьте показатель заново с датой.",
+        assertEquals("Не удалось восстановить текстовый ввод. Запись не подтверждена. Отправьте сообщение заново.",
                 ((BotAction.SendInlineMessage) result.getFirst()).text());
         verify(entries, never()).createDraft(any());
     }

@@ -10,6 +10,7 @@ import org.springframework.context.SmartLifecycle;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.TransientDataAccessException;
 import org.telegram.telegrambots.meta.api.methods.GetMe;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.updates.GetUpdates;
 import org.telegram.telegrambots.meta.api.methods.updates.GetWebhookInfo;
@@ -111,6 +112,7 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
                     } catch (DataAccessResourceFailureException | TransientDataAccessException e) {
                         failed = true;
                         storageFailures = Math.min(storageFailures + 1, 6);
+                        if (storageFailures == 1) notifyStorageRetry(update);
                         long delayMillis = storageRetryDelay(storageFailures);
                         LOG.warn("Временная ошибка хранилища. Сообщение не подтверждено; повтор через {} мс.",
                                 delayMillis);
@@ -128,6 +130,18 @@ public final class BotRuntime implements SmartLifecycle, AutoCloseable {
             LOG.error("Обработка Telegram остановлена из-за внутренней ошибки. Содержимое сообщений и исключения скрыты.");
         } finally {
             close();
+        }
+    }
+
+    private void notifyStorageRetry(org.telegram.telegrambots.meta.api.objects.Update update) {
+        try {
+            BotUpdate projected = TelegramAdapter.project(update);
+            if (projected.chatType() != BotUpdate.ChatType.PRIVATE || projected.senderId() == null
+                    || !settings.forUsername("placeholder_bot").allowedUserIds().contains(projected.senderId())) return;
+            client.execute(SendMessage.builder().chatId(projected.chatId())
+                    .text("Хранилище временно недоступно. Повторяю обработку; повторно отправлять сообщение не нужно.").build());
+        } catch (TelegramApiException | RuntimeException notificationFailure) {
+            LOG.warn("Не удалось доставить уведомление о повторной обработке; исходное сообщение остаётся в очереди.");
         }
     }
 

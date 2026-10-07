@@ -199,6 +199,10 @@ class BotRuntimeTest {
             assertTrue(runtime.isRunning());
             assertEquals(List.of("первое", "первое", "второе"), handled);
             assertEquals(List.of(0, 0, 12), offsets);
+            var notification = org.mockito.ArgumentCaptor.forClass(SendMessage.class);
+            verify(client).execute(notification.capture());
+            assertEquals("Хранилище временно недоступно. Повторяю обработку; повторно отправлять сообщение не нужно.",
+                    notification.getValue().getText());
         }
     }
 
