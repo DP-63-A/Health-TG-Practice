@@ -869,4 +869,13 @@ class AnalyticsFunctionsIndependentTest {
             null
         );
     }
+    
+    ```java
+    @Test
+    void negativeMassIsRejected() {
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> portionFactor(d("-1"))
+        );
+    }
 }
