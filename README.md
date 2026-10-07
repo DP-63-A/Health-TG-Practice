@@ -94,6 +94,9 @@ JSON-схемы и примеры. MongoDB-интеграционные тест
 - [Зависимости задач](DEPENDENCIES.md)
 - [Проектные решения](DECISIONS.md)
 - [Правила проверки результатов](VALIDATION.md)
+- [Сквозной протокол G-01/G-06/G-07/G-11](tests/README.md)
+- [Приёмка BE1-08](docs/BE1-08-INTEGRATION-ACCEPTANCE.md)
+- [Личный отчёт BE-1](docs/BE1-PERSONAL-REPORT.md)
 - [Исходный документ проекта](student_project_complete_7673.pdf)
 
 Исходный PDF содержит ранние технические решения и может отличаться от текущего состояния.

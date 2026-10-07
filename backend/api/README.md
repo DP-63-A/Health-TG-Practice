@@ -32,8 +32,8 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173
 .\gradlew.bat :backend:api:test :backend:api:bootJar validateContracts :contract-validator:validate --console=plain
 ```
 
-Интеграционные тесты MongoDB используют Testcontainers и требуют запущенный Docker. При отсутствии
-Docker они пропускаются; для итоговой проверки задачи их необходимо выполнить с доступным Docker.
+Интеграционные тесты MongoDB используют Testcontainers и требуют запущенный Docker. Задача
+`be1Acceptance` намеренно не пропускает обязательное доказательство при недоступном Docker.
 
 ## Запуск
 
@@ -43,9 +43,9 @@ Docker они пропускаются; для итоговой проверки
 .\gradlew.bat :backend:api:bootRun
 ```
 
-Общий owner guard предназначен для BE1-04, BE1-05 и BE3-03. Негативные проверки на реальных
-маршрутах выполняются после появления этих маршрутов. Java-тесты backend находятся в
-`backend/api/src/test/java`; общие сквозные сценарии относятся к [`tests`](../../tests/README.md).
+Owner guard применяется к entry, file и analytics маршрутам. Негативные проверки отсутствующей,
+просроченной и чужой сессии выполняются через реальные HTTP-маршруты. Java-тесты backend находятся
+в `backend/api/src/test/java`; общие сквозные сценарии описаны в [`tests`](../../tests/README.md).
 
 Linux/macOS: используйте `sh ./gradlew` с теми же задачами. Для Windows с кириллицей в пути
 при ошибке загрузки тестового класса добавьте `'-Dorg.gradle.jvmargs=-Dfile.encoding=COMPAT'`.
@@ -61,7 +61,8 @@ API не содержит Telegram polling и может работать нез
 
 [Инструкция окружения](../../docs/local-environment.md) описывает MongoDB в
 [Compose](../../compose.yaml), сохранение данных и проверку `/api/v1/healthz`.
-Compose запускает только MongoDB. Для API из корня репозитория можно использовать:
+Основной Compose запускает MongoDB, API, bot и frontend. Для host-side разработки
+`compose.dev.yaml` публикует MongoDB только на loopback. API из корня репозитория запускается так:
 
 ```powershell
 .\scripts\run-backend.ps1
