@@ -198,7 +198,7 @@ components:
           type: string
           minLength: 1
           example: Europe/Warsaw
-          description: IANA timezone used to interpret the inclusive local dates from and to. Steps are filtered by payload.local_date directly; missing dates are excluded, never inferred from occurred_at.
+          description: IANA timezone used to interpret the inclusive local dates from and to. Metrics are filtered by payload.local_date directly (sleep wake date, heart-rate measurement date, steps total day); missing dates are excluded, never inferred from occurred_at.
         types:
           type: array
           items:

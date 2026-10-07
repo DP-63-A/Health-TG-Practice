@@ -43,13 +43,24 @@ public final class CoreBotFlow implements BotFlow {
     private final TextInputParser parser;
     private final CheckinSelector selector;
     private final Clock clock;
+    private final org.healthtg.bot.draft.DraftReviewFlow drafts;
 
     public CoreBotFlow(UserService users, EntryCoreService entries, DialogStateService dialogs, Clock clock) {
-        this(users, entries, dialogs, new TextInputParser(), new CheckinSelector(), clock);
+        this(users, entries, dialogs, new TextInputParser(), new CheckinSelector(), clock, null);
     }
 
     CoreBotFlow(UserService users, EntryCoreService entries, DialogStateService dialogs,
                 TextInputParser parser, CheckinSelector selector, Clock clock) {
+        this(users, entries, dialogs, parser, selector, clock, null);
+    }
+
+    public CoreBotFlow(UserService users, EntryCoreService entries, DialogStateService dialogs, Clock clock, java.net.URI miniAppUrl) {
+        this(users, entries, dialogs, new TextInputParser(), new CheckinSelector(), clock, miniAppUrl);
+    }
+
+    private CoreBotFlow(UserService users, EntryCoreService entries, DialogStateService dialogs,
+                        TextInputParser parser, CheckinSelector selector, Clock clock, java.net.URI miniAppUrl) {
+        this.drafts = new org.healthtg.bot.draft.DraftReviewFlow(entries, dialogs, miniAppUrl);
         this.users = users;
         this.entries = entries;
         this.dialogs = dialogs;
@@ -63,7 +74,7 @@ public final class CoreBotFlow implements BotFlow {
         UserAccount user = users.findOrCreate(update.senderId());
         OwnerContext owner = new OwnerContext(user.id());
         var active = entries.findActiveDraft(owner);
-        if (active.isPresent()) return activeDraft(update, active.get().id(), active.get().revision());
+        if (active.isPresent()) return drafts.card(update, active.get(), user.timezone(), "Завершите текущий черновик.");
         CheckinSelector proposed = new CheckinSelector();
         CheckinSelector.Outcome outcome = proposed.begin(update.senderId(), update.chatId(), update.updateId());
         if (outcome.status() == CheckinSelector.Status.REJECTED) return List.of(inline(update.chatId(), outcome.view()));
@@ -86,10 +97,13 @@ public final class CoreBotFlow implements BotFlow {
     }
 
     @Override
-    public List<BotAction> handleMessage(BotUpdate update) {
-        if (update.text() == null || update.text().isBlank() || update.text().startsWith("/")) return List.of();
+    public synchronized List<BotAction> handleMessage(BotUpdate update) {
+        if (update.text() == null || update.text().startsWith("/")) return List.of();
         UserAccount user = users.findOrCreate(update.senderId());
         OwnerContext owner = new OwnerContext(user.id());
+        var correction = drafts.message(update, owner, user.timezone());
+        if (correction.isPresent()) return correction.get();
+        if (update.text().isBlank()) return List.of();
         var active = entries.findActiveDraft(owner);
         if (active.isPresent()) {
             var draft = active.get();
@@ -97,7 +111,7 @@ public final class CoreBotFlow implements BotFlow {
                 save(owner, draft.id(), "draft_review", Map.of("entry_revision", draft.revision()),
                         update.updateId());
             }
-            return activeDraft(update, draft.id(), draft.revision());
+            return drafts.card(update, draft, user.timezone(), "Завершите текущий черновик.");
         }
 
         Optional<ClarificationContext> clarification = readClarification(owner, update.updateId());
@@ -107,11 +121,11 @@ public final class CoreBotFlow implements BotFlow {
         if (clarification.isPresent()) parsed = mergeClarification(clarification.get(), parsed);
         Instant messageSentAt = clarification.isPresent()
                 ? clarification.get().messageSentAt() : update.messageSentAt();
-        if (parsed.data() != null && "steps".equals(parsed.data().payload().get("code"))
+        if (parsed.data() != null && "metrics".equals(parsed.data().type())
                 && messageSentAt == null) {
             save(owner, null, "idle", Map.of("schema_version", DIALOG_SCHEMA_VERSION), update.updateId());
             return List.of(new BotAction.SendInlineMessage(update.chatId(),
-                    "Не удалось восстановить время исходного сообщения. Отправьте итог шагов заново с датой.",
+                    "Не удалось восстановить время исходного сообщения. Отправьте показатель заново с датой.",
                     List.of()));
         }
         if (parsed.outcome() == TextParseResult.Outcome.NEEDS_CLARIFICATION && parsed.data() != null) {
@@ -128,7 +142,7 @@ public final class CoreBotFlow implements BotFlow {
             return List.of(new BotAction.SendInlineMessage(update.chatId(), text, List.of()));
         }
         var data = parsed.data();
-        Instant occurredAt = "steps".equals(data.payload().get("code")) ? messageSentAt
+        Instant occurredAt = "metrics".equals(data.type()) ? messageSentAt
                 : occurredAt(data.date(), data.time(), user.timezone());
         var result = entries.createDraft(new CreateDraftCommand(owner,
                 EntryType.valueOf(data.type().toUpperCase()), SourceKind.TEXT,
@@ -136,18 +150,15 @@ public final class CoreBotFlow implements BotFlow {
                 data.payload(), data.fieldOrigins(), key(update.updateId())));
         save(owner, result.entry().id(), "draft_review", Map.of("entry_revision", result.entry().revision()),
                 update.updateId());
-        return List.of(new BotAction.SendInlineMessage(update.chatId(),
-                result.outcome() == org.healthtg.core.entry.DraftCreationResult.Outcome.CREATED
-                        ? "Черновик сохранён. Проверьте его в дневнике или отмените."
-                        : "У вас уже есть активный черновик. Завершите или отмените его.",
-                cancelRows(result.entry().id(), result.entry().revision())));
+        return drafts.card(update, result.entry(), user.timezone(), "Проверьте черновик.");
     }
 
     @Override
-    public List<BotAction> handleCallback(BotUpdate update) {
+    public synchronized List<BotAction> handleCallback(BotUpdate update) {
         if (update.callbackId() == null || update.callbackData() == null) return List.of();
         UserAccount user = users.findOrCreate(update.senderId());
         OwnerContext owner = new OwnerContext(user.id());
+        if (update.callbackData().startsWith("dr:")) return drafts.callback(update, owner, user.timezone());
         if (update.callbackData().startsWith("cancel:")) return cancel(update, owner);
         Optional<List<BotAction>> completed = completedCheckin(update, owner);
         if (completed.isPresent()) return completed.get();
@@ -322,6 +333,10 @@ public final class CoreBotFlow implements BotFlow {
                 throw new IllegalArgumentException("Incomplete clarification state");
             }
             Map<String, Object> payload = objectMap(context.get("payload"));
+            for (String numeric : List.of("value", "mass_g")) {
+                Object value = payload.get(numeric);
+                if (value instanceof String textValue) payload.put(numeric, new java.math.BigDecimal(textValue));
+            }
             Map<String, String> origins = stringMap(context.get("field_origins"));
             LocalDate date = context.get("date") instanceof String value ? LocalDate.parse(value) : null;
             LocalTime time = context.get("time") instanceof String value ? LocalTime.parse(value) : null;

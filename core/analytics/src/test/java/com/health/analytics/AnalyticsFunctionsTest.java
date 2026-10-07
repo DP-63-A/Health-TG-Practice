@@ -28,6 +28,44 @@ import static org.junit.jupiter.api.Assertions.*;
 
 
 class AnalyticsFunctionsTest {
+    @Test void pulseTiesAreDeterministicRegardlessOfInputOrder() {
+        LocalDate day = LocalDate.of(2026, 9, 19);
+        Instant sent = Instant.parse("2026-09-20T23:50:00Z");
+        Entry a = new Entry("a", "metrics", Status.CONFIRMED, sent, sent, 1L, day, null,
+                Metric.HEART_RATE, d("70"), null, null, null, null, null, (Basis) null);
+        Entry b = new Entry("b", "metrics", Status.CONFIRMED, sent, sent, 1L, day, null,
+                Metric.HEART_RATE, d("80"), null, null, null, null, null, (Basis) null);
+        assertEquals("b", latestHeartRate(List.of(a,b), WEEK).orElseThrow().entryId());
+        assertEquals(latestHeartRate(List.of(a,b), WEEK), latestHeartRate(List.of(b,a), WEEK));
+    }
+
+    @Test void pulseSelectsLatestMeasurementDateThenLatestReportAndKeepsUnknownTime() {
+        LocalDate day = LocalDate.of(2026, 9, 19);
+        Entry morningReportedLate = new Entry("late", "metrics", Status.CONFIRMED,
+                Instant.parse("2026-09-21T10:00:00Z"), null, 1L, day, null, Metric.HEART_RATE,
+                d("65"), Qualifier.RESTING, null, null, null, null, null, java.time.LocalTime.of(7, 0));
+        Entry daytime = new Entry("daytime", "metrics", Status.CONFIRMED,
+                Instant.parse("2026-09-19T11:00:00Z"), null, 1L, day, null, Metric.HEART_RATE,
+                d("80"), Qualifier.INSTANT, null, null, null, null, null, java.time.LocalTime.of(13, 0));
+        Entry oldDayReportedLast = new Entry("old", "metrics", Status.CONFIRMED,
+                Instant.parse("2026-09-22T10:00:00Z"), null, 1L, day.minusDays(1), null, Metric.HEART_RATE,
+                d("99"), null, null, null, null, null, null);
+        var selected = latestHeartRate(List.of(oldDayReportedLast, daytime, morningReportedLate), WEEK).orElseThrow();
+        assertEquals("late", selected.entryId());
+        assertEquals(java.time.LocalTime.of(7,0), selected.localTime());
+        assertEquals(day, selected.localDate());
+        assertEquals(morningReportedLate.occurredAt(), selected.occurredAt());
+        assertNull(latestHeartRate(List.of(oldDayReportedLast), WEEK).orElseThrow().localTime());
+    }
+
+    @Test void sleepReportsAcrossMidnightReplaceOneWakeDateWithoutSumming() {
+        LocalDate wake = LocalDate.of(2026,9,19);
+        Entry first = new Entry("a", "metrics", Status.CONFIRMED, Instant.parse("2026-09-19T20:00:00Z"),
+                null, 1L, wake, wake, Metric.SLEEP_DURATION_MIN, d("400"), null, null, null, null, null, null);
+        Entry last = new Entry("b", "metrics", Status.CONFIRMED, Instant.parse("2026-09-20T01:00:00Z"),
+                null, 1L, wake, wake, Metric.SLEEP_DURATION_MIN, d("420"), null, null, null, null, null, null);
+        assertEquals(d("420"), dailyMetric(List.of(first, last), Metric.SLEEP_DURATION_MIN, WEEK).aggregate().total());
+    }
     private static final ZoneId WARSAW = ZoneId.of("Europe/Warsaw");
     private static final Period WEEK = new Period(LocalDate.of(2026, 9, 13), LocalDate.of(2026, 9, 19), WARSAW);
     private static BigDecimal d(String value) { return new BigDecimal(value); }
@@ -78,7 +116,7 @@ class AnalyticsFunctionsTest {
     @Test void timezoneAndHeartRateContextArePreserved() {
         assertEquals(LocalDate.of(2026,9,19), localDate(Instant.parse("2026-09-18T22:30:00Z"), WARSAW));
         Entry pulse = new Entry("pulse", "metrics", Status.CONFIRMED, Instant.parse("2026-09-19T10:15:00Z"), null, 1L,
-                null, null, Metric.HEART_RATE, d("72"), Qualifier.RESTING, null, null, null, null, (Basis) null);
+                LocalDate.of(2026,9,19), null, Metric.HEART_RATE, d("72"), Qualifier.RESTING, null, null, null, null, (Basis) null);
         assertEquals(Qualifier.RESTING, latestHeartRate(List.of(pulse), WEEK).orElseThrow().qualifier());
     }
 

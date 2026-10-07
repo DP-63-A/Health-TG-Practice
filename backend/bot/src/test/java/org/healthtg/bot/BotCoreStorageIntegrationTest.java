@@ -108,7 +108,7 @@ class BotCoreStorageIntegrationTest {
 
             var activeDraft = (BotAction.SendInlineMessage) flow.handleMessage(
                     message(1001, 12, "новая запись")).getFirst();
-            String cancel = activeDraft.rows().getFirst().getFirst().callbackData();
+            String cancel = activeDraft.rows().get(1).getFirst().callbackData();
             flow.handleCallback(callback(1001, 13, cancel));
             assertFalse(entries.findActiveDraft(new OwnerContext(draftOwner)).isPresent());
             assertEquals(EntryStatus.CANCELLED,

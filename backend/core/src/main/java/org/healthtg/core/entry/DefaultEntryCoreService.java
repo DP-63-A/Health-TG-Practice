@@ -130,12 +130,12 @@ class DefaultEntryCoreService implements EntryCoreService {
         }
         requireRevision(current, command.expectedRevision());
         Map<String, Object> payload = mergePayload(current.payload(), command.payload());
-        boolean wasSteps = isSteps(current.type(), current.payload());
-        if (wasSteps != isSteps(current.type(), payload)) {
-            throw new EntryValidationException("Cannot convert steps to or from another metric; create a new entry");
+        boolean metric = current.type() == EntryType.METRICS;
+        if (metric && !java.util.Objects.equals(current.payload().get("code"), payload.get("code"))) {
+            throw new EntryValidationException("Cannot convert metric codes; create a new entry");
         }
-        if (wasSteps && command.occurredAt() != null && !current.occurredAt().equals(command.occurredAt())) {
-            throw new EntryValidationException("The original steps report timestamp cannot be changed");
+        if (metric && command.occurredAt() != null && !current.occurredAt().equals(command.occurredAt())) {
+            throw new EntryValidationException("The original metric report timestamp cannot be changed");
         }
         Map<String, String> origins = merge(current.fieldOrigins(), command.fieldOrigins());
         EntryPayloadValidator.validateOrigins(origins);
@@ -256,7 +256,7 @@ class DefaultEntryCoreService implements EntryCoreService {
     }
 
     private static LocalDate localDate(Entry entry, ZoneId timezone) {
-        if (!isSteps(entry.type(), entry.payload())) return entry.occurredAt().atZone(timezone).toLocalDate();
+        if (entry.type() != EntryType.METRICS) return entry.occurredAt().atZone(timezone).toLocalDate();
         Object value = entry.payload().get("local_date");
         if (value instanceof LocalDate date) return date;
         if (value instanceof String text) {

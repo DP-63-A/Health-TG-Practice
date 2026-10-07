@@ -58,7 +58,10 @@ class Pr76StateRegressionTest {
     static String token(String button) { return button.substring(2, 34); }
     static String storedToken(DialogState state) { return state.context().get("selector_id").toString().replace("-", ""); }
     String draft(CoreBotFlow flow, long user, long update) {
-        return button(flow.handleMessage(msg(user, update, "24.09.2026 за день прошёл 8000 шагов")));
+        flow.handleMessage(msg(user, update, "24.09.2026 за день прошёл 8000 шагов"));
+        Entry draft = entries.findActiveDraft(owner(user)).orElseThrow();
+        // These regressions exercise cancellation buttons sent before draft-review was introduced.
+        return "cancel:" + draft.id() + ":" + draft.revision();
     }
 
     @Test void repeatedStartAcrossTwoContextRestartsKeepsUsableButtons() {

@@ -130,6 +130,7 @@ public class EntriesController {
     }
 
     public record EntryPatchRequest(@NotNull @Positive Long expectedRevision, Instant occurredAt,
+                                    @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = EntryPayloadDeserializer.class)
                                     Map<String, Object> payload, Map<String, String> fieldOrigins) { }
 
     public record ConfirmRequest(@NotBlank @Size(max = 128) String submissionId,

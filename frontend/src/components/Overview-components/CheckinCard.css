@@ -1,7 +1,9 @@
-
 .checkin-card {
+  --checkin-accent: #a58adf;
+  --checkin-accent-soft: rgb(165 138 223 / 16%);
+
   padding: 20px;
-  border-radius: 16px;
+  border-radius: 20px;
 
   background: var(
     --tg-theme-secondary-bg-color,
@@ -14,15 +16,24 @@
   );
 }
 
+.checkin-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  margin-bottom: 22px;
+}
+
 .checkin-card__title {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 
   font-size: 16px;
   font-weight: 600;
 }
 
 .checkin-card__description {
-  margin: 0 0 20px;
+  margin: 0;
 
   font-size: 13px;
 
@@ -32,37 +43,97 @@
   );
 }
 
+.checkin-card__icon {
+  display: grid;
+  place-items: center;
+
+  flex: 0 0 auto;
+
+  width: 42px;
+  height: 42px;
+
+  border-radius: 14px;
+
+  color: var(--checkin-accent);
+  background: var(--checkin-accent-soft);
+}
+
 .checkin-card__scores {
   display: flex;
   flex-direction: column;
+  gap: 20px;
+}
+
+.checkin-card__item {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
 }
 
 .checkin-card__row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
 
   gap: 16px;
-  padding: 14px 0;
-
-  border-top: 1px solid
-    var(--tg-theme-hint-color, #ddd);
 }
 
 .checkin-card__label {
+  min-width: 0;
+
   font-size: 14px;
+  font-weight: 500;
 }
 
 .checkin-card__value {
-  flex-shrink: 0;
+  flex: 0 0 auto;
 
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
+
+  color: var(
+    --tg-theme-hint-color,
+    #777
+  );
+}
+
+.checkin-card__scale {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.checkin-card__segment {
+  height: 7px;
+
+  border-radius: 999px;
+
+  background: var(
+    --tg-theme-bg-color,
+    #fff
+  );
+}
+
+.checkin-card__segment--active {
+  background: var(--checkin-accent);
 }
 
 @media (max-width: 360px) {
   .checkin-card {
     padding: 14px;
+  }
+
+  .checkin-card__header {
+    margin-bottom: 18px;
+  }
+
+  .checkin-card__icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .checkin-card__scores {
+    gap: 17px;
   }
 
   .checkin-card__row {
@@ -74,6 +145,10 @@
   }
 
   .checkin-card__value {
-    font-size: 18px;
+    font-size: 12px;
+  }
+
+  .checkin-card__scale {
+    gap: 4px;
   }
 }

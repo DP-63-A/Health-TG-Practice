@@ -132,7 +132,7 @@ class CoreBotFlowTest {
         var action = assertInstanceOf(BotAction.SendInlineMessage.class,
                 flow.handleMessage(message(30, "новый текст")).getFirst());
 
-        assertEquals("cancel:" + draft.id() + ":3", action.rows().getFirst().getFirst().callbackData());
+        assertEquals("dr:x:" + draft.id() + ":3", action.rows().get(1).getFirst().callbackData());
         verify(parser, never()).parse(any());
         verify(entries, never()).createDraft(any());
     }
@@ -161,7 +161,7 @@ class CoreBotFlowTest {
         when(dialogs.find(any())).thenReturn(Optional.of(new DialogState(OWNER_ID, null,
                 "text_clarification", Map.of("schema_version", 1, "type", "metrics",
                 "payload", partial, "field_origins", Map.of("value", "reported"),
-                "original_text", "24.09.2026 пульс 72"), 1, NOW, "main:40")));
+                "original_text", "24.09.2026 пульс 72", "message_sent_at", NOW.toString()), 1, NOW, "main:40")));
         var parsed = new TextParseResult(TextParseResult.Outcome.PARSED,
                 "24.09.2026 пульс 72 ударов в минуту",
                 new TextParseResult.ParsedData("metrics", Map.of("unit", "bpm"),
@@ -280,14 +280,14 @@ class CoreBotFlowTest {
         var realFlow = new CoreBotFlow(users, entries, dialogs, Clock.fixed(NOW, ZoneId.of("UTC")));
         var result = realFlow.handleMessage(new BotUpdate(90, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE,
                 TELEGRAM_ID, TELEGRAM_ID, false, "04.10.2026 за день прошёл 9000 шагов", List.of(), null, null));
-        assertEquals("Не удалось восстановить время исходного сообщения. Отправьте итог шагов заново с датой.",
+        assertEquals("Не удалось восстановить время исходного сообщения. Отправьте показатель заново с датой.",
                 ((BotAction.SendInlineMessage) result.getFirst()).text());
         when(dialogs.find(any())).thenReturn(Optional.of(new DialogState(OWNER_ID, null, "text_clarification",
                 Map.of("schema_version", 1, "type", "metrics", "original_text", "за день прошёл 9000 шагов",
                         "payload", Map.of("code", "steps", "value", 9000, "unit", "count"), "field_origins", Map.of()),
                 1, NOW, "main:91")));
         var answerResult = realFlow.handleMessage(message(92, "04.10.2026"));
-        assertEquals("Не удалось восстановить время исходного сообщения. Отправьте итог шагов заново с датой.",
+        assertEquals("Не удалось восстановить время исходного сообщения. Отправьте показатель заново с датой.",
                 ((BotAction.SendInlineMessage) answerResult.getFirst()).text());
         verify(entries, never()).createDraft(any());
     }
@@ -306,7 +306,7 @@ class CoreBotFlowTest {
                         java.time.LocalDate.of(2026, 10, 4), null), List.of());
         when(parser.parse(any())).thenReturn(complete);
         var result = flow.handleMessage(message(94, "04.10.2026 за день прошёл 9000 шагов"));
-        assertEquals("Не удалось восстановить время исходного сообщения. Отправьте итог шагов заново с датой.",
+        assertEquals("Не удалось восстановить время исходного сообщения. Отправьте показатель заново с датой.",
                 ((BotAction.SendInlineMessage) result.getFirst()).text());
         verify(entries, never()).createDraft(any());
     }
