@@ -240,7 +240,7 @@
       ],
       "expected_action": "draft",
       "personal_data_check": true
-    }
+    },
     {
       "id": "N01",
       "path": "negative/N01.jpeg",
