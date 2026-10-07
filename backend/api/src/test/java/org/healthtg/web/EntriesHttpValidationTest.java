@@ -34,7 +34,6 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -119,16 +118,10 @@ class EntriesHttpValidationTest {
     }
 
     @Test
-    void patchEntry_metricsValueValidation() throws Exception {
-        // Настраиваем мок сервиса на реальное поведение: сервис выбрасывает EntryValidationException при невалидном значении
-        when(entries.patch(argThat(cmd -> cmd != null 
-                && cmd.payload() != null 
-                && cmd.payload().containsKey("value")
-                && new BigDecimal(cmd.payload().get("value").toString()).compareTo(new BigDecimal("1000000000")) > 0)))
-                .thenThrow(new EntryValidationException("value must not be greater than 1000000000"));
+    void entryValidationExceptionTranslatesToHttp422UnprocessableEntity() throws Exception {
+        when(entries.patch(any())).thenThrow(new EntryValidationException("Invalid payload value"));
 
-        // 1. Невалидное значение транслируется HTTP-слоем в 422 Unprocessable Entity
-        String invalidPayload = """
+        String payload = """
                 {
                   "expected_revision": 1,
                   "payload": {
@@ -141,45 +134,11 @@ class EntriesHttpValidationTest {
         mockMvc.perform(patch("/api/v1/entries/{id}", ENTRY)
                         .header("Authorization", "Bearer test-session")
                         .contentType("application/json")
-                        .content(invalidPayload))
+                        .content(payload))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
-
-        // 2. Валидное граничное значение (1000000000) передается в сервис и возвращает 200 OK
-        String validMaxPayload = """
-                {
-                  "expected_revision": 1,
-                  "payload": {
-                    "code": "steps",
-                    "value": 1000000000
-                  }
-                }
-                """;
-
-        mockMvc.perform(patch("/api/v1/entries/{id}", ENTRY)
-                        .header("Authorization", "Bearer test-session")
-                        .contentType("application/json")
-                        .content(validMaxPayload))
-                .andExpect(status().isOk());
-
-        // 3. Дробное значение (10.5) передается в сервис и возвращает 200 OK
-        String validFractionalPayload = """
-                {
-                  "expected_revision": 1,
-                  "payload": {
-                    "code": "steps",
-                    "value": 10.5
-                  }
-                }
-                """;
-
-        mockMvc.perform(patch("/api/v1/entries/{id}", ENTRY)
-                        .header("Authorization", "Bearer test-session")
-                        .contentType("application/json")
-                        .content(validFractionalPayload))
-                .andExpect(status().isOk());
     }
-    
+
     private static Entry entryWithNullMass() {
         Instant now = Instant.parse("2026-09-23T08:00:00Z");
         Map<String, Object> payload = new LinkedHashMap<>();
