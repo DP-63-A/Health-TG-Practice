@@ -31,7 +31,7 @@ function formatValue(
     return `— ${unit}`
   }
 
-  return `${value.toLocaleString('ru-RU')} ${unit}`
+  return `${value.toLocaleString('en-GB')} ${unit}`
 }
 
 function getMacroData(
@@ -47,19 +47,19 @@ function getMacroData(
 
   return [
     {
-      name: 'Белки',
+      name: 'Protein',
       grams: nutrition.protein_g,
       calories: nutrition.protein_g * 4,
       cssColor: 'var(--nutrition-protein)',
     },
     {
-      name: 'Жиры',
+      name: 'Fat',
       grams: nutrition.fat_g,
       calories: nutrition.fat_g * 9,
       cssColor: 'var(--nutrition-fat)',
     },
     {
-      name: 'Углеводы',
+      name: 'Carbs',
       grams: nutrition.carbs_g,
       calories: nutrition.carbs_g * 4,
       cssColor: 'var(--nutrition-carbs)',
@@ -81,17 +81,24 @@ export function NutritionCard({
 
   return (
     <section
-      className="nutrition-card"
-      aria-label="Калории и БЖУ"
+      className="nutrition-card paper-note"
+      aria-label="Calories & macros"
     >
-      <h2 className="nutrition-card__title">
-        Калории и БЖУ
-      </h2>
+      <div className="nutrition-card__header">
+        <h2 className="nutrition-card__title">
+          Calories & macros
+        </h2>
+        <div className="nutrition-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" focusable="false">
+            <path d="m13 2-8 12h6l-1 8 8-12h-6z" />
+          </svg>
+        </div>
+      </div>
 
       <p className="nutrition-card__energy">
         {formatValue(
           nutrition?.energy_kcal,
-          'ккал',
+          'kcal',
         )}
       </p>
 
@@ -99,7 +106,7 @@ export function NutritionCard({
         <div className="nutrition-card__macro-layout">
           <div
             className="nutrition-card__chart"
-            aria-label="Соотношение белков, жиров и углеводов"
+            aria-label="Protein, fat and carbohydrate ratio"
           >
             <ResponsiveContainer
               width="100%"
@@ -153,8 +160,8 @@ export function NutritionCard({
             </ResponsiveContainer>
 
             <div className="nutrition-card__chart-center">
-              <strong>БЖУ</strong>
-              <span>состав</span>
+              <strong>Macros</strong>
+              <span>breakdown</span>
             </div>
           </div>
 
@@ -185,7 +192,7 @@ export function NutritionCard({
                     </span>
 
                     <strong>
-                      {formatValue(item.grams, 'г')}
+                      {formatValue(item.grams, 'g')}
                     </strong>
 
                     <span className="nutrition-card__legend-percent">
@@ -200,31 +207,31 @@ export function NutritionCard({
       ) : (
         <div className="nutrition-card__nutrients">
           <div>
-            <span>Белки</span>
+            <span>Protein</span>
             <strong>
               {formatValue(
                 nutrition?.protein_g,
-                'г',
+                'g',
               )}
             </strong>
           </div>
 
           <div>
-            <span>Жиры</span>
+            <span>Fat</span>
             <strong>
               {formatValue(
                 nutrition?.fat_g,
-                'г',
+                'g',
               )}
             </strong>
           </div>
 
           <div>
-            <span>Углеводы</span>
+            <span>Carbs</span>
             <strong>
               {formatValue(
                 nutrition?.carbs_g,
-                'г',
+                'g',
               )}
             </strong>
           </div>
@@ -236,8 +243,8 @@ export function NutritionCard({
           className="nutrition-card__warning"
           role="status"
         >
-          Данные о рационе неполные.
-          Показаны только записанные показатели.
+          Nutrition data is incomplete.
+          Only recorded values are shown.
         </p>
       )}
     </section>

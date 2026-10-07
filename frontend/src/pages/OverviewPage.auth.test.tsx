@@ -69,19 +69,19 @@ it(
 
     // 401 показывает общий экран сессии, а не состояние аналитики.
     for (const name of [
-      'Обзор', 'Загрузка аналитики', 'Ошибка загрузки', 'Нет данных',
+      'Overview', 'Loading analytics', 'Loading error', 'No data',
     ]) {
       expect(screen.queryByRole('heading', { name })).not.toBeInTheDocument()
     }
     for (const name of [
-      'Калории и БЖУ', 'Количество приёмов пищи', 'Аналитика сна',
-      'Аналитика шагов', 'Аналитика пульса', 'Субъективные оценки состояния',
-      'Питание', 'Сон', 'Шаги', 'Состояние',
+      'Calories & macros', 'Meal count', 'Sleep analytics',
+      'Step analytics', 'Heart rate analytics', 'Subjective wellbeing scores',
+      'Nutrition', 'Sleep', 'Steps', 'Wellbeing',
     ]) {
       expect(screen.queryByRole('region', { name })).not.toBeInTheDocument()
     }
     expect(screen.queryByRole('button', {
-      name: 'Повторить',
+      name: 'Retry',
     })).not.toBeInTheDocument()
 
     expect(getAnalyticsMock).toHaveBeenCalledExactlyOnceWith({

@@ -27,14 +27,14 @@ function formatSleep(
   const remainingMinutes = minutes % 60
 
   if (hours === 0) {
-    return `${remainingMinutes} мин`
+    return `${remainingMinutes} min`
   }
 
   if (remainingMinutes === 0) {
-    return `${hours} ч`
+    return `${hours} h`
   }
 
-  return `${hours} ч ${remainingMinutes} мин`
+  return `${hours} h ${remainingMinutes} min`
 }
 
 function formatCount(
@@ -44,7 +44,7 @@ function formatCount(
     return '—'
   }
 
-  return value.toLocaleString('ru-RU')
+  return value.toLocaleString('en-GB')
 }
 
 // Используем готовую календарную дату BE3,
@@ -62,12 +62,12 @@ export function SleepCard({
 }: SleepCardProps) {
   return (
     <section
-      className="sleep-card"
-      aria-label="Аналитика сна"
+      className="sleep-card paper-note"
+      aria-label="Sleep analytics"
     >
       <div className="sleep-card__header">
         <h2 className="sleep-card__title">
-          Сон
+          Sleep
         </h2>
 
         <div
@@ -91,7 +91,7 @@ export function SleepCard({
 
       <div className="sleep-card__main">
         <p className="sleep-card__label">
-          Всего за период
+          Period total
         </p>
 
         <p className="sleep-card__total">
@@ -104,7 +104,7 @@ export function SleepCard({
       <div className="sleep-card__details">
         <div className="sleep-card__stat">
           <span className="sleep-card__label">
-            Среднее
+            Average
           </span>
 
           <strong>
@@ -114,13 +114,13 @@ export function SleepCard({
           </strong>
 
           <span className="sleep-card__hint">
-            за день с данными
+            per recorded day
           </span>
         </div>
 
         <div className="sleep-card__stat">
           <span className="sleep-card__label">
-            Дней с данными
+            Days recorded
           </span>
 
           <strong>
@@ -130,7 +130,7 @@ export function SleepCard({
           </strong>
 
           <span className="sleep-card__hint">
-            в выбранном периоде
+            in the selected period
           </span>
         </div>
       </div>

@@ -1,4 +1,3 @@
-import { fixtureApiClient } from './fixtureClient'
 import { createLiveApiClient } from './liveClient'
 import type { ApiClient, ApiMode } from './types'
 
@@ -23,10 +22,12 @@ export type {
 
 export const apiMode = readApiMode()
 export const apiClient: ApiClient =
-  apiMode === 'live' ? createLiveApiClient(readApiBaseUrl()) : fixtureApiClient
+  import.meta.env.VITE_API_MODE === 'fixture'
+    ? (await import('./fixtureClient')).fixtureApiClient
+    : createLiveApiClient(readApiBaseUrl())
 
 function readApiMode(): ApiMode {
-  const value = import.meta.env.VITE_API_MODE ?? 'fixture'
+  const value = import.meta.env.VITE_API_MODE ?? 'live'
 
   if (value === 'live' || value === 'fixture') {
     return value
