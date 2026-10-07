@@ -38,7 +38,7 @@ afterEach(() => {
 })
 
 function getChartTable() {
-  const summary = screen.getByText('Значения по дням')
+  const summary = screen.getByText('Daily values')
 
   const details = summary.closest('details')
 
@@ -51,7 +51,7 @@ function getChartTable() {
   const table = details.querySelector('table')
 
   if (!table) {
-    throw new Error('Не найдена таблица графика')
+    throw new Error('Не найдена таблица gрафика')
   }
 
   return within(table)
@@ -122,7 +122,7 @@ describe('NutritionChart', () => {
     ).toBeVisible()
 
     expect(
-      table.getByText('Нет данных'),
+      table.getByText('No data'),
     ).toBeVisible()
 
     expect(
@@ -159,7 +159,7 @@ describe('NutritionChart', () => {
     const table = getChartTable()
 
     const buttons = table.getAllByRole('button', {
-      name: /Выбрать день/,
+      name: /Select day/,
     })
 
     expect(buttons).toHaveLength(3)
@@ -214,13 +214,13 @@ describe('NutritionChart', () => {
 
     expect(
       screen.getByText(
-        /Нет данных о питании за выбранный период/,
+        /No nutrition data for the selected period/,
       ),
     ).toBeVisible()
 
     expect(
       screen.queryByRole('button', {
-        name: /Выбрать день/,
+        name: /Select day/,
       }),
     ).toBeNull()
   })
@@ -247,7 +247,7 @@ describe('SleepChart', () => {
     ).toBeVisible()
 
     expect(
-      table.getByText('Нет данных'),
+      table.getByText('No data'),
     ).toBeVisible()
 
     expect(
@@ -303,14 +303,14 @@ describe('SleepChart', () => {
 
     expect(
       screen.getByText(
-        /Нет данных о сне за выбранный период/,
+        /No sleep data for the selected period/,
       ),
     ).toBeVisible()
   })
 })
 
 describe('StepsChart', () => {
-  it('отображает шаги и передаёт правильную дату', () => {
+  it('отображает steps и передаёт правильную дату', () => {
     const onSelectDay = vi.fn()
 
     render(
@@ -330,7 +330,7 @@ describe('StepsChart', () => {
     ).toBeVisible()
 
     expect(
-      table.getByText('Нет данных'),
+      table.getByText('No data'),
     ).toBeVisible()
 
     expect(
@@ -350,7 +350,7 @@ describe('StepsChart', () => {
     expect(onSelectDay).toHaveBeenCalledTimes(1)
   })
 
-  it('позволяет выбрать ноль шагов', () => {
+  it('позволяет выбрать ноль steps', () => {
     const onSelectDay = vi.fn()
 
     render(
@@ -391,7 +391,7 @@ describe('StepsChart', () => {
 
     expect(
       screen.getByText(
-        /Нет данных о шагах за выбранный период/,
+        /No step data for the selected period/,
       ),
     ).toBeVisible()
   })
@@ -417,11 +417,11 @@ describe('CheckinChart', () => {
     const table = getChartTable()
 
     expect(
-      table.getByText('4 из 5'),
+      table.getByText('4 out of 5'),
     ).toBeVisible()
 
     expect(
-      table.getByText('Нет данных'),
+      table.getByText('No data'),
     ).toBeVisible()
 
     expect(
@@ -460,13 +460,13 @@ describe('CheckinChart', () => {
 
     expect(
       screen.getByText(
-        /Данные выбранной категории ещё не получены/,
+        /Data for the selected category has not arrived yet/,
       ),
     ).toBeVisible()
 
     expect(
       screen.queryByRole('button', {
-        name: /Выбрать день/,
+        name: /Select day/,
       }),
     ).toBeNull()
 
@@ -490,12 +490,12 @@ describe('CheckinChart', () => {
     )
 
     expect(
-      screen.getByText('Загрузка оценок…'),
+      screen.getByText('Loading scores…'),
     ).toBeVisible()
 
     expect(
       screen.queryByRole('button', {
-        name: /Выбрать день/,
+        name: /Select day/,
       }),
     ).toBeNull()
 
@@ -516,7 +516,7 @@ describe('CheckinChart', () => {
 
     expect(
       screen.getByText(
-        /Нет оценок «Настроение» за выбранный период/,
+        /No scores for “Mood” for the selected period/,
       ),
     ).toBeVisible()
   })
@@ -538,7 +538,7 @@ describe('empty day selection', () => {
       }
       expect(screen.getByRole('status')).toBeVisible()
       const table = getChartTable()
-      const button = table.getByRole('button', { name: /16\.09\.2026.*Нет данных/ })
+      const button = table.getByRole('button', { name: /16\.09\.2026.*No data/ })
       expect(button).toBeEnabled()
       fireEvent.click(button)
       if (kind === 'checkin') {
@@ -564,7 +564,7 @@ describe('empty day selection', () => {
       } else {
         render(<CheckinChart series={{ category: 'mood', points: [checkinPoint(date, null), checkinPoint(next, 4)] }} onSelectDay={onSelectDay} />)
       }
-      fireEvent.click(getChartTable().getByRole('button', { name: /15\.09\.2026.*Нет данных/ }))
+      fireEvent.click(getChartTable().getByRole('button', { name: /15\.09\.2026.*No data/ }))
       if (kind === 'checkin') {
         expect(onSelectDay).toHaveBeenCalledExactlyOnceWith(date, 'mood')
       } else {
@@ -585,7 +585,7 @@ describe('empty day selection', () => {
           onSelectDay={onSelectDay}
         />,
       )
-      expect(screen.queryByText('Значения по дням')).not.toBeInTheDocument()
+      expect(screen.queryByText('Daily values')).not.toBeInTheDocument()
       expect(onSelectDay).not.toHaveBeenCalled()
     },
   )

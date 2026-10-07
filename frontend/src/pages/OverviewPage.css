@@ -1,10 +1,113 @@
 
+@import '../components/Overview-components/PaperNote.css';
+
+.stats-page :is(.nutrition-card, .nutrition-chart) {
+  --sticker-paper: #f5e3ad;
+  --sticker-ink: #51432a;
+  --sticker-muted: #776347;
+  --sticker-accent: #99712c;
+}
+
+.stats-page .meal-count-card {
+  --sticker-paper: #f4d5b7;
+  --sticker-ink: #59402c;
+  --sticker-muted: #7b5c43;
+  --sticker-accent: #a46432;
+  --meal-accent: var(--sticker-accent);
+}
+
+.stats-page :is(.sleep-card, .sleep-chart) {
+  --sticker-paper: #dfd8ef;
+  --sticker-ink: #493c68;
+  --sticker-muted: #6c5d82;
+  --sticker-accent: #7762a8;
+  --sleep-accent: var(--sticker-accent);
+}
+
+.stats-page :is(.steps-card, .steps-chart) {
+  --sticker-paper: #d1e7cc;
+  --sticker-ink: #354e36;
+  --sticker-muted: #59745a;
+  --sticker-accent: #4d8058;
+  --steps-accent: var(--sticker-accent);
+}
+
+.stats-page .heart-rate-card {
+  --sticker-paper: #f1cdd0;
+  --sticker-ink: #653c43;
+  --sticker-muted: #8a5b63;
+  --sticker-accent: #b65f6b;
+  --heart-accent: var(--sticker-accent);
+}
+
+.stats-page :is(.checkin-card, .checkin-chart) {
+  --sticker-paper: #f3e7ad;
+  --sticker-ink: #54492b;
+  --sticker-muted: #7a6a40;
+  --sticker-accent: #9b782a;
+  --checkin-accent: var(--sticker-accent);
+  --checkin-accent-soft: color-mix(in srgb, var(--sticker-accent) 16%, transparent);
+  --checkin-chart-color: var(--sticker-accent);
+  --checkin-chart-soft: color-mix(in srgb, var(--sticker-accent) 16%, transparent);
+}
+
+/* Keep the same paper treatment on summary cards and their charts. */
+.app-shell .stats-page.ui-card :is(.overview-cards > section, .nutrition-chart, .sleep-chart, .steps-chart, .checkin-chart) {
+  --bg: var(--sticker-paper);
+  --text: var(--sticker-ink);
+  --muted: var(--sticker-muted);
+  --tg-theme-text-color: var(--sticker-ink);
+  --tg-theme-hint-color: var(--sticker-muted);
+  --tg-theme-button-color: var(--sticker-accent);
+  --tg-theme-bg-color: color-mix(in srgb, var(--sticker-paper) 65%, white);
+  --tg-theme-secondary-bg-color: var(--sticker-paper);
+  color-scheme: light;
+  position: relative;
+  padding: 20px 20px 28px;
+  color: var(--sticker-ink);
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  transform: none;
+}
+
+.stats-page :is(.overview-cards > section, .nutrition-chart, .sleep-chart, .steps-chart, .checkin-chart) > [class$='__header'] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  align-items: start;
+  gap: 14px 16px;
+  margin-bottom: 18px;
+}
+
+.stats-page [class$='__header'] > div:not([class$='__icon']) { display: contents; }
+
+.stats-page [class$='__header'] h2 {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  min-height: 56px;
+  margin: -20px -20px 0;
+  padding: 16px 76px 16px 20px;
+  font-size: 16px;
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--sticker-accent) 14%, transparent);
+}
+
+.stats-page [class$='__header'] [class$='__icon'] {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  margin: -20px 0 0;
+}
+.stats-page [class$='__header'] [class$='__description'] { grid-column: 1 / -1; grid-row: 2; margin: 0; }
+
 .overview-cards {
   display: grid;
 
   grid-template-columns: minmax(0, 1fr);
 
-  gap: 16px;
+  gap: 22px;
 
   margin-top: 20px;
 }
@@ -18,36 +121,62 @@
 
 
 .overview-filters {
+    --sticker-paper: #d5e3a3;
+    --sticker-accent: #829652;
     display: grid;
-    grid-template-columns: auto minmax(150px, 220px);
+    grid-template-columns: minmax(150px, 220px);
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     width: fit-content;
-    max-width: 100%;
-    margin: 20px 0 8px;
-    padding: 12px 16px;
-    border: 1px solid var(--tg-theme-hint-color,
-    #d1d5db);
-    border-radius: 14px;
-    color: var(--tg-theme-text-color, #172033);
-    background: var(--tg-theme-secondary-bg-color,
-    #f5f7fa);
+    max-width: calc(100% - 4px);
+    margin: 4px 2px 24px;
+    padding: 18px 20px;
+    border: 1px solid transparent;
+    border-radius: 0;
+    color: #384329;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .overview-filters__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 56px;
+    margin: -18px -20px 0;
+    padding: 7px 20px;
+    background: #82965224;
   }
 
   .overview-filters label {
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 20px;
+    font-weight: 400;
+  }
+
+  .stats-page .overview-filters__header .overview-filters__icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    margin: 0;
+    border-radius: 14px;
+    color: #64753c;
+    background: #82965224;
   }
 
   .overview-filters select {
     width: 100%;
     min-height: 44px;
     padding: 8px 36px 8px 12px;
-    border: 1px solid var(--tg-theme-hint-color,
-    #c4cad4);
-    border-radius: 10px;
-    color: var(--tg-theme-text-color, #172033);
-    background-color: var(--tg-theme-bg-color, #fff);
+    border: 0;
+    border-bottom: 1px solid #667e4880;
+    border-radius: 0;
+    color: #384329;
+    background-color: #f6ffdf33;
+    color-scheme: light;
     font: inherit;
     cursor: pointer;
     transition: border-color 150ms ease, box-shadow
@@ -55,8 +184,7 @@
   }
 
   .overview-filters select:hover {
-    border-color: var(--tg-theme-button-color,
-    #2563eb);
+    border-color: #64753c;
   }
 
   .overview-filters select:focus-visible {
@@ -78,7 +206,7 @@
   @media (max-width: 480px) {
     .overview-filters {
       grid-template-columns: 1fr;
-      gap: 6px;
+      gap: 14px;
       width: 100%;
       box-sizing: border-box;
     }
@@ -257,7 +385,6 @@
   }
 
   /* Удобные поля выбора и клавиатурный фокус */
-  .overview-filters select,
   .checkin-chart select {
     min-height: 46px;
     padding: 9px 12px;

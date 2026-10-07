@@ -1,5 +1,5 @@
 
-const numberFormatter = new Intl.NumberFormat('ru-RU', {
+const numberFormatter = new Intl.NumberFormat('en-GB', {
   maximumFractionDigits: 10,
 })
 
@@ -35,19 +35,19 @@ export function formatTooltipDate(localDate: string): string {
   return `${day}.${month}.${year}`
 }
 
-// 330 → 330 ккал
-// 247.5 → 247,5 ккал
+// 330 → 330 kcal
+// 247.5 → 247,5 kcal
 export function formatCalories(value: number | null): string {
   if (value === null) {
     return '—'
   }
 
-  return `${formatNumber(value)} ккал`
+  return `${formatNumber(value)} kcal`
 }
 
-// 450 → 7 ч 30 мин
-// 60 → 1 ч
-// 0 → 0 мин
+// 450 → 7 h 30 min
+// 60 → 1 h
+// 0 → 0 min
 export function formatSleep(value: number | null): string {
   if (value === null) {
     return '—'
@@ -57,32 +57,23 @@ export function formatSleep(value: number | null): string {
   const minutes = value % 60
 
   if (hours === 0) {
-    return `${minutes} мин`
+    return `${minutes} min`
   }
 
   if (minutes === 0) {
-    return `${hours} ч`
+    return `${hours} h`
   }
 
-  return `${hours} ч ${minutes} мин`
+  return `${hours} h ${minutes} min`
 }
 
-// 8432 → 8 432 шага
+// 8432 → 8 432 steps
 export function formatSteps(value: number | null): string {
   if (value === null) {
     return '—'
   }
 
-  const plural = new Intl.PluralRules('ru-RU').select(value)
-
-  const unit =
-    plural === 'one'
-      ? 'шаг'
-      : plural === 'few'
-        ? 'шага'
-        : plural === 'many'
-          ? 'шагов'
-          : 'шага'
+  const unit = value === 1 ? 'step' : 'steps'
 
   return `${formatNumber(value)} ${unit}`
 }

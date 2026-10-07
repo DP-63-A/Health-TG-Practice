@@ -48,17 +48,17 @@ export function NutritionChart({
 
   return (
     <section
-      className="nutrition-chart"
+      className="nutrition-chart paper-note"
       aria-labelledby={titleId}
     >
       <div className="nutrition-chart__header">
         <div>
           <h2 id={titleId}>
-            Питание
+            Nutrition
           </h2>
 
           <p className="nutrition-chart__description">
-            Записанные калории по дням
+            Recorded calories by day
           </p>
         </div>
 
@@ -107,14 +107,13 @@ export function NutritionChart({
           </span>
 
           <p>
-            Нет данных о питании за выбранный
-            период.
+            No nutrition data for the selected period.
           </p>
         </div>
       ) : (
         <>
           <div className="nutrition-chart__unit">
-            ккал
+            kcal
           </div>
 
           <div className="nutrition-chart__plot">
@@ -220,7 +219,7 @@ export function NutritionChart({
 
                 <Bar
                   dataKey="energy_kcal"
-                  name="Калории"
+                  name="Calories"
                   fill="var(--nutrition-chart-color)"
                   radius={[8, 8, 3, 3]}
                   maxBarSize={34}
@@ -261,8 +260,7 @@ export function NutritionChart({
 
           {onSelectDay && (
             <p className="nutrition-chart__hint">
-              Нажмите на столбец, чтобы открыть
-              записи за выбранный день
+              Tap a bar to open entries for the selected day
             </p>
           )}
         </>
@@ -271,24 +269,23 @@ export function NutritionChart({
       {series.length > 0 && (
         <details className="nutrition-chart__details">
           <summary>
-            Значения по дням
+            Daily values
           </summary>
 
           <div className="nutrition-chart__table-wrapper">
             <table>
               <caption>
-                Записанные калории по локальным
-                датам
+                Recorded calories by local date
               </caption>
 
               <thead>
                 <tr>
                   <th scope="col">
-                    Дата
+                    Date
                   </th>
 
                   <th scope="col">
-                    Калории
+                    Calories
                   </th>
                 </tr>
               </thead>
@@ -306,10 +303,10 @@ export function NutritionChart({
                             )
                           }
                           aria-label={
-                            `Выбрать день ${formatTooltipDate(point.date)}: ` +
+                            `Select day ${formatTooltipDate(point.date)}: ` +
                             (point.energy_kcal ===
                             null
-                              ? 'Нет данных'
+                              ? 'No data'
                               : formatCalories(
                                   point.energy_kcal,
                                 ))
@@ -329,7 +326,7 @@ export function NutritionChart({
                     <td>
                       {point.energy_kcal ===
                       null
-                        ? 'Нет данных'
+                        ? 'No data'
                         : formatCalories(
                             point.energy_kcal,
                           )}

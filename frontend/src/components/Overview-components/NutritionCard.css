@@ -17,6 +17,9 @@
   );
 }
 
+.nutrition-card__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.nutrition-card__icon { display: grid; place-items: center; flex: 0 0 auto; width: 42px; height: 42px; border-radius: 14px; color: #99712c; background: #99712c24; }
+
 .nutrition-card__title {
   margin: 0 0 8px;
   font-size: 16px;

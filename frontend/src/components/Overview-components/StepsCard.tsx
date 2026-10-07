@@ -17,7 +17,7 @@ function formatSteps(
     return '—'
   }
 
-  return value.toLocaleString('ru-RU')
+  return value.toLocaleString('en-GB')
 }
 
 function formatCount(
@@ -27,7 +27,7 @@ function formatCount(
     return '—'
   }
 
-  return value.toLocaleString('ru-RU')
+  return value.toLocaleString('en-GB')
 }
 
 function formatDate(date: string): string {
@@ -80,12 +80,12 @@ export function StepsCard({
 
   return (
     <section
-      className="steps-card"
-      aria-label="Аналитика шагов"
+      className="steps-card paper-note"
+      aria-label="Step analytics"
     >
       <div className="steps-card__header">
         <h2 className="steps-card__title">
-          Шаги
+          Steps
         </h2>
 
         <div
@@ -111,19 +111,19 @@ export function StepsCard({
       </div>
 
       <p className="steps-card__label">
-        Всего за период
+        Period total
       </p>
 
       <p className="steps-card__total">
         {formatSteps(steps?.total)}
 
-        <span> шагов</span>
+        <span> steps</span>
       </p>
 
       <div className="steps-card__details">
         <div className="steps-card__stat">
           <span className="steps-card__label">
-            Среднее
+            Average
           </span>
 
           <strong>
@@ -131,13 +131,13 @@ export function StepsCard({
           </strong>
 
           <span className="steps-card__unit">
-            шагов в день
+            steps per day
           </span>
         </div>
 
         <div className="steps-card__stat">
           <span className="steps-card__label">
-            Дней с данными
+            Days recorded
           </span>
 
           <strong>
@@ -148,7 +148,7 @@ export function StepsCard({
 
           {daysInPeriod !== null && (
             <span className="steps-card__unit">
-              из {daysInPeriod}
+              of {daysInPeriod}
             </span>
           )}
         </div>
@@ -157,7 +157,7 @@ export function StepsCard({
       {coverage !== null && (
         <div className="steps-card__coverage">
           <div className="steps-card__coverage-header">
-            <span>Данные за период</span>
+            <span>Period coverage</span>
 
             <strong>
               {coverage}%
@@ -167,7 +167,7 @@ export function StepsCard({
           <div
             className="steps-card__progress"
             role="progressbar"
-            aria-label="Покрытие периода данными о шагах"
+            aria-label="Step data coverage"
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={coverage}
@@ -181,9 +181,9 @@ export function StepsCard({
           </div>
 
           <p className="steps-card__coverage-description">
-            Данные записаны за{' '}
+            Data recorded for{' '}
             {steps?.days_with_data ?? 0}{' '}
-            из {daysInPeriod} дней
+            of {daysInPeriod} days
           </p>
         </div>
       )}

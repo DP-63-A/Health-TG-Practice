@@ -10,16 +10,21 @@ describe('app routes', () => {
     renderRoute('/diary')
 
     expect(
-      await screen.findByRole('heading', { name: 'Дневник', level: 2 }),
+      await screen.findByRole('region', { name: 'Diary' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Режим: fixture')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: /Овсянка с ягодами/ })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Diary', level: 2 })).not.toBeInTheDocument()
+    expect(screen.queryByText('Health TG Practice')).not.toBeInTheDocument()
+    expect(screen.queryByText('Режим: fixture')).not.toBeInTheDocument()
+    expect(screen.queryByText('История confirmed и отдельный режим проверки draft.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/revision/)).not.toBeInTheDocument()
   })
 
   it('renders /overview route', async () => {
     renderRoute('/overview')
 
     expect(
-      await screen.findByRole('heading', { name: 'Обзор', level: 2 }),
+      await screen.findByRole('heading', { name: 'Stats', level: 1 }),
     ).toBeInTheDocument()
   })
 })

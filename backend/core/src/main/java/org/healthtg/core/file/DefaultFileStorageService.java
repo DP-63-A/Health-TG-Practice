@@ -5,6 +5,7 @@ import org.healthtg.core.entry.OwnerContext;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DuplicateKeyException;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -65,6 +66,42 @@ public class DefaultFileStorageService implements FileStorageService {
         }
     }
 
+    @Override
+    public StoredFile store(OwnerContext owner, UUID id, InputStream content, long contentLength) {
+        if (owner == null || id == null || content == null)
+            throw new IllegalArgumentException("owner, fileId and content are required");
+        if (contentLength > MAX_BYTES) throw new FileValidationException("Image exceeds 5 MiB");
+        byte[] bytes = readBounded(content);
+        ImageMetadata image = decode(bytes);
+        String relativePath = id.toString().substring(0, 2) + "/" + id + ".bin";
+        var proposed = new MongoStoredFileDocument(id.toString(), owner.userId().toString(), null,
+                relativePath, image.mediaType(), image.extension(), bytes.length, image.width(), image.height(),
+                sha256(bytes), clock.instant(), null);
+        MongoStoredFileDocument reserved;
+        try {
+            // Insert, never upsert: another owner/content cannot be replaced under this ID.
+            reserved = files.insert(proposed);
+        } catch (DuplicateKeyException exists) {
+            reserved = files.findById(id.toString()).orElseThrow(() ->
+                    new StoredFileUnavailableException("File reservation is unavailable", null));
+        }
+        // A lost acknowledgement is allowed to propagate: no file is deleted. A later retry
+        // finds the same reservation through duplicate-key handling and completes the write.
+        validateReservation(reserved, proposed);
+        Path target = resolve(reserved.relativePath());
+        writeReserved(target, bytes);
+        return domain(reserved);
+    }
+
+    private static void validateReservation(MongoStoredFileDocument stored, MongoStoredFileDocument proposed) {
+        if (!stored.ownerId().equals(proposed.ownerId())) throw new StoredFileNotFoundException();
+        if (!stored.id().equals(proposed.id()) || !stored.sha256().equals(proposed.sha256())
+                || stored.size() != proposed.size() || !stored.relativePath().equals(proposed.relativePath())
+                || !stored.mediaType().equals(proposed.mediaType()) || !stored.extension().equals(proposed.extension())
+                || stored.width() != proposed.width() || stored.height() != proposed.height()) {
+            throw new FileValidationException("File ID is reserved for different image contents");
+        }
+    }
     @Override
     public StoredFile bindToEntry(OwnerContext owner, UUID fileId, UUID entryId) {
         MongoStoredFileDocument file = requireOwned(owner, fileId);
@@ -162,6 +199,37 @@ public class DefaultFileStorageService implements FileStorageService {
         }
     }
 
+    private void writeReserved(Path target, byte[] bytes) {
+        try {
+            if (Files.exists(target)) {
+                requireMatchingContents(target, bytes);
+                return;
+            }
+            Files.createDirectories(target.getParent());
+            Path temporary = Files.createTempFile(target.getParent(), ".upload-", ".tmp");
+            try {
+                Files.write(temporary, bytes);
+                try {
+                    // Do not replace an existing destination; concurrent identical retries converge.
+                    Files.move(temporary, target);
+                } catch (java.nio.file.FileAlreadyExistsException concurrentWrite) {
+                    requireMatchingContents(target, bytes);
+                }
+            } finally {
+                Files.deleteIfExists(temporary);
+            }
+        } catch (IOException failure) {
+            throw new StoredFileUnavailableException("File storage is unavailable", failure);
+        }
+    }
+
+    private static void requireMatchingContents(Path target, byte[] bytes) throws IOException {
+        try (var existing = Files.newInputStream(target)) {
+            byte[] saved = existing.readNBytes((int) MAX_BYTES + 1);
+            if (saved.length != bytes.length || !sha256(saved).equals(sha256(bytes)))
+                throw new StoredFileUnavailableException("Stored file conflicts with reservation", null);
+        }
+    }
     private void writeAtomically(Path target, byte[] bytes) {
         try {
             Files.createDirectories(target.getParent());
