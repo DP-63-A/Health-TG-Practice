@@ -1,0 +1,26 @@
+{
+  "is_food": true,
+  "description": "Учебный fixture: печёное яблоко 🍎",
+  "mass_g": null,
+  "nutrients": {
+    "energy_kcal": null,
+    "protein_g": null,
+    "fat_g": null,
+    "carbs_g": null
+  },
+  "nutrients_basis": "unknown",
+  "occurred_at": null,
+  "local_date": null,
+  "local_time": null,
+  "field_origins": {
+    "description": "estimated",
+    "mass_g": null,
+    "nutrients.energy_kcal": null,
+    "nutrients.protein_g": null,
+    "nutrients.fat_g": null,
+    "nutrients.carbs_g": null,
+    "occurred_at": null,
+    "local_date": null,
+    "local_time": null
+  }
+}

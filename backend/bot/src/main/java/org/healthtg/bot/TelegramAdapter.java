@@ -89,8 +89,18 @@ public final class TelegramAdapter {
         var entities = message.getEntities() == null ? List.<BotUpdate.Entity>of()
                 : message.getEntities().stream().filter(e -> e != null && e.getOffset() != null && e.getLength() != null)
                 .map(e -> new BotUpdate.Entity(e.getType(), e.getOffset(), e.getLength())).toList();
+        BotUpdate.Image image = null;
+        if (message.getPhoto() != null && !message.getPhoto().isEmpty()) {
+            var photo = message.getPhoto().stream().max(java.util.Comparator.comparingLong(
+                    p -> (long)p.getWidth() * p.getHeight())).orElseThrow();
+            image = new BotUpdate.Image(photo.getFileId(), photo.getFileSize() == null ? null : photo.getFileSize().longValue(),
+                    "image/jpeg", message.getMediaGroupId() != null);
+        } else if (message.getDocument() != null) {
+            var document = message.getDocument();
+            image = new BotUpdate.Image(document.getFileId(), document.getFileSize(), document.getMimeType(), message.getMediaGroupId() != null);
+        }
         return new BotUpdate(update.getUpdateId(), BotUpdate.Kind.MESSAGE, type, message.getChatId(),
                 message.getFrom().getId(), message.getFrom().getIsBot(), message.getText(), entities, null, null,
-                message.getDate() == null ? null : Instant.ofEpochSecond(message.getDate()));
+                message.getDate() == null ? null : Instant.ofEpochSecond(message.getDate()), image);
     }
 }

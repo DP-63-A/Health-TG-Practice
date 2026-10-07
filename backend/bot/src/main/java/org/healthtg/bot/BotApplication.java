@@ -33,8 +33,25 @@ public class BotApplication {
 
     @Bean
     @ConditionalOnProperty(name = "health-tg.core.storage.enabled", matchIfMissing = true)
-    BotFlow botFlow(UserService users, EntryCoreService entries, DialogStateService dialogs, Clock clock, RuntimeSettings settings) {
-        return new CoreBotFlow(users, entries, dialogs, clock, settings.miniAppUrl());
+    BotFlow botFlow(UserService users, EntryCoreService entries, DialogStateService dialogs, Clock clock, RuntimeSettings settings, TelegramTransport transport, org.healthtg.core.file.FileStorageService files) {
+        var flow = new CoreBotFlow(users, entries, dialogs, clock, settings.miniAppUrl());
+        String mode = System.getenv().getOrDefault("FOOD_RECOGNITION_MODE", "disabled");
+        if (mode.equals("disabled")) return flow;
+        try {
+            org.healthtg.bot.recognition.RecognitionProvider provider = switch (mode) {
+                case "fixture" -> org.healthtg.bot.recognition.FixtureRecognitionProvider.bundled();
+                case "live" -> new org.healthtg.bot.recognition.GeminiRecognitionProvider(System.getenv("GEMINI_API_KEY"),
+                        System.getenv().getOrDefault("GEMINI_MODEL", org.healthtg.bot.recognition.GeminiRecognitionProvider.DEFAULT_MODEL));
+                default -> throw new IllegalArgumentException("FOOD_RECOGNITION_MODE: disabled, fixture or live required");
+            };
+            var recognition = new org.healthtg.bot.recognition.FoodRecognitionService(new org.healthtg.bot.recognition.ImageValidator(),
+                    provider, new org.healthtg.bot.recognition.RecognitionResponseParser());
+            return flow.withPhotos(new org.healthtg.bot.visual.FoodPhotoFlow(entries, dialogs, files, recognition,
+                    new org.healthtg.bot.visual.TelegramImageLoader(transport.client(), settings.token()),
+                    new org.healthtg.bot.draft.DraftReviewFlow(entries, dialogs, settings.miniAppUrl()), provider.mode().name()));
+        } catch (org.healthtg.bot.recognition.RecognitionException invalid) {
+            throw new IllegalArgumentException("Invalid food recognition configuration");
+        }
     }
 
     @Bean
