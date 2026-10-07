@@ -4,6 +4,7 @@
 - [Стек и команды текущей сборки](../README.md)
 - [API-контракты и примеры](../contracts/README.md)
 - [Приватное хранение изображений BE1-05](BE1-05-FILE-STORAGE.md)
+- [Backend endpoint аналитики BE3-03](BE3-03-ANALYTICS-ENDPOINT.md)
 - [Рабочий процесс](../WORKFLOW.md)
 - [Зависимости задач](../DEPENDENCIES.md)
 - [Проектные решения](../DECISIONS.md)
