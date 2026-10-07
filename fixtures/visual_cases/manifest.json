@@ -10,8 +10,8 @@
       "category": "food",
       "source": {
         "origin": "AI-generated educational food database - common food items",
-        "license": "CC0-1.0",
-        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
       },
       "expected_fields": {
         "dish_name": {"value": "Fried Pelmeni with Mayonnaise and Beer", "unit": null, "confidence": "certain"},
@@ -33,8 +33,8 @@
       "category": "food",
       "source": {
         "origin": "AI-generated educational food database - common food items",
-        "license": "CC0-1.0",
-        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
       },
       "expected_fields": {
         "dish_name": {"value": "Buckwheat Groats with Beef Stew and Vegetables", "unit": null, "confidence": "certain"},
@@ -55,8 +55,8 @@
       "category": "food",
       "source": {
         "origin": "AI-generated educational food database - common food items",
-        "license": "CC0-1.0",
-        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
       },
       "expected_fields": {
         "dish_name": {"value": "Club Sandwiches with Ham and Cheese, Juice, and Banana", "unit": null, "confidence": "certain"},
@@ -78,8 +78,8 @@
       "category": "food",
       "source": {
         "origin": "AI-generated educational food database - common food items",
-        "license": "CC0-1.0",
-        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
       },
       "expected_fields": {
         "dish_name": {"value": "Grilled Chicken Breast with White Rice and Fresh Salad", "unit": null, "confidence": "certain"},
@@ -102,8 +102,8 @@
       "ui_variant": 1,
       "source": {
         "origin": "AI-generated educational health tracking application screenshot",
-        "license": "CC0-1.0",
-        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
       },
       "datetime": {"date": "2026-10-05", "time": "10:17", "timezone": "Europe/Warsaw"},
       "expected_fields": [
@@ -128,8 +128,8 @@
       "ui_variant": 1,
       "source": {
         "origin": "AI-generated educational health tracking application screenshot",
-        "license": "CC0-1.0",
-        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
       },
       "datetime": {"date": "2026-10-04", "time": "22:56", "timezone": "Europe/Warsaw"},
       "expected_fields": [
@@ -155,8 +155,8 @@
       "ui_variant": 2,
       "source": {
         "origin": "AI-generated educational health tracking application screenshot (variant 2)",
-        "license": "CC0-1.0",
-        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
       },
       "datetime": {"date": "2026-10-04", "time": "17:22", "timezone": "Europe/Warsaw"},
       "expected_fields": [
@@ -179,8 +179,8 @@
       "ui_variant": 2,
       "source": {
         "origin": "AI-generated educational health tracking application screenshot (variant 2)",
-        "license": "CC0-1.0",
-        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
       },
       "datetime": {"date": "2026-10-03", "time": "10:33", "timezone": "Europe/Warsaw"},
       "expected_fields": [
@@ -202,8 +202,8 @@
       "category": "watch",
       "source": {
         "origin": "AI-generated educational smartwatch/fitness tracker photo",
-        "license": "CC0-1.0",
-        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data"
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
       },
       "datetime": {"date": "2026-10-02", "time": "14:07", "timezone": "Europe/Warsaw"},
       "expected_fields": [
@@ -221,8 +221,8 @@
       "category": "watch",
       "source": {
         "origin": "AI-generated educational smartwatch/fitness tracker photo",
-        "license": "CC0-1.0",
-        "attribution": "Generated with Google Gemini AI for educational software testing; contains no personal or real medical data"
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Google Gemini AI for educational software testing; contains no personal or real medical data. Usage is regulated by Google Gemini terms of use."
       },
       "datetime": {"date": "2026-10-05", "time": "12:05", "timezone": "Europe/Warsaw"},
       "expected_fields": [
@@ -247,8 +247,8 @@
       "category": "negative",
       "source": {
         "origin": "AI-generated intentionally unreadable test case",
-        "license": "CC0-1.0",
-        "attribution": "Generated with Microsoft Copilot AI and blurred in Paint.net app for educational software testing; contains no personal or real medical data"
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI and blurred in Paint.net app for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
       },
       "expected_fields": {},
       "datetime": {"date": null, "time": null, "timezone": "Europe/Warsaw"},
@@ -266,8 +266,8 @@
       "category": "negative",
       "source": {
         "origin": "AI-generated unsupported image type test case",
-        "license": "CC0-1.0",
-        "attribution": "Generated with Google Gemini AI for educational software testing; contains no personal or real medical data"
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Google Gemini AI for educational software testing; contains no personal or real medical data. Usage is regulated by Google Gemini terms of use."
       },
       "expected_fields": {},
       "datetime": {"date": null, "time": null, "timezone": "Europe/Warsaw"},
