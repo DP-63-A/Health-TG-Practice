@@ -29,6 +29,11 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
@@ -42,13 +47,9 @@ import java.util.stream.Stream;
 @Service
 @ConditionalOnProperty(name = "health-tg.core.storage.enabled", matchIfMissing = true)
 public class AnalyticsService {
-    private static final ZoneId DEFAULT_TIMEZONE = ZoneId.of("Europe/Warsaw");
-    private static final Set<EntryType> ANALYTICS_TYPES =
-            EnumSet.of(EntryType.MEAL, EntryType.METRICS, EntryType.CHECKIN);
-    /** Upper bound for a single daily steps/sleep value; keeps sums of up to 21 days inside long. */
-    private static final BigDecimal MAX_WHOLE_METRIC = BigDecimal.valueOf(1_000_000_000L);
-    private static final Comparator<Entry> DAILY_METRIC_ORDER = Comparator.comparing(Entry::occurredAt)
-            .thenComparing(Entry::updatedAt).thenComparing(entry -> entry.id().toString());
+    private static final Set<EntryType> TYPES = Set.of(EntryType.MEAL, EntryType.METRICS, EntryType.CHECKIN);
+    private static final Comparator<Entry> ENTRY_ORDER = Comparator.comparing(Entry::occurredAt)
+            .thenComparing(Entry::updatedAt).thenComparing(Entry::id);
 
     private final EntryCoreService entries;
     private final Clock clock;
@@ -58,370 +59,242 @@ public class AnalyticsService {
         this.clock = clock;
     }
 
-    public AnalyticsResponse calculate(OwnerContext owner, String periodKind, String timezone,
-                                        String checkinCategory) {
-        ZoneId zone;
-        try {
-            zone = timezone == null ? DEFAULT_TIMEZONE : ZoneId.of(timezone);
-        } catch (DateTimeException invalidTimezone) {
-            throw new IllegalArgumentException("Unsupported analytics timezone", invalidTimezone);
-        }
-        CheckinCategory selectedCategory = checkinCategory == null
-                ? CheckinCategory.MOOD : checkinCategory(checkinCategory);
-        LocalDate to = clock.instant().atZone(zone).toLocalDate();
-        int periodDays = switch (periodKind) {
-            case "today" -> 1;
-            case "days_7" -> 7;
-            case "days_21" -> 21;
-            default -> throw new IllegalArgumentException("Unsupported analytics period");
-        };
-        LocalDate from = to.minusDays(periodDays - 1L);
-        Period period = new Period(from, to, zone);
+    public AnalyticsResponse get(OwnerContext owner, String periodName, String timezoneName,
+                                 String categoryName) {
+        PeriodKind kind = PeriodKind.from(periodName);
+        ZoneId zone = zone(timezoneName);
+        AnalyticsFunctions.CheckinCategory category = checkinCategory(categoryName);
+        LocalDate to = LocalDate.now(clock.withZone(zone));
+        LocalDate from = to.minusDays(kind.days - 1L);
+        var period = new AnalyticsFunctions.Period(from, to, zone);
 
-        // Fetch confirmed entries within a safety margin around [from, to] so time zone shifts
-        // and payload.local_date overrides are safely captured.
-        LocalDate queryFrom = from.minusDays(3);
-        LocalDate queryTo = to.plusDays(3);
+        List<Entry> stored = entries.listConfirmedEntries(
+                new ListConfirmedEntriesQuery(owner, from, to, zone, TYPES));
+        List<AnalyticsFunctions.Entry> input = stored.stream().map(this::adapt).toList();
+        AnalyticsFunctions.NutritionResult nutrition = AnalyticsFunctions.nutrition(input, period);
+        AnalyticsFunctions.DailyResult sleep = AnalyticsFunctions.dailyMetric(
+                input, AnalyticsFunctions.Metric.SLEEP_DURATION_MIN, period);
+        AnalyticsFunctions.DailyResult steps = AnalyticsFunctions.dailyMetric(
+                input, AnalyticsFunctions.Metric.STEPS, period);
+        var heart = AnalyticsFunctions.latestHeartRate(input, period);
+        var ratings = AnalyticsFunctions.checkins(input, period);
 
-        List<Entry> found = entries.listEntries(new ListEntriesQuery(owner, EntryStatus.CONFIRMED,
-                        null, queryFrom, queryTo, zone)).stream()
-                .filter(entry -> ANALYTICS_TYPES.contains(entry.type()))
-                .filter(entry -> inPeriod(entry, period))
-                .sorted(Comparator.comparing(Entry::occurredAt).thenComparing(entry -> entry.id().toString()))
-                .toList();
-        List<AnalyticsFunctions.Entry> records = found.stream().map(AnalyticsService::calculationEntry).toList();
+        Map<LocalDate, List<Entry>> meals = mealsByDate(stored, zone);
+        Map<LocalDate, Entry> selectedSleep = selectedMetrics(stored, "sleep_duration_min");
+        Map<LocalDate, Entry> selectedSteps = selectedMetrics(stored, "steps");
+        Map<String, AnalyticsResponse.Source> sources = new LinkedHashMap<>();
 
-        AnalyticsFunctions.NutritionResult nutrition = AnalyticsFunctions.nutrition(records, period);
-        DailyResult sleep = AnalyticsFunctions.dailyMetric(records, Metric.SLEEP_DURATION_MIN, period);
-        DailyResult steps = AnalyticsFunctions.dailyMetric(records, Metric.STEPS, period);
-        Optional<AnalyticsFunctions.HeartRateResult> heartRate =
-                AnalyticsFunctions.latestHeartRate(records, period);
-        Map<CheckinCategory, List<RatingPoint>> checkins = AnalyticsFunctions.checkins(records, period);
-
-        List<Source> sources = buildSources(found, period, checkins, heartRate);
-        return response(periodKind, periodDays, period, selectedCategory, found, nutrition, sleep,
-                steps, heartRate, checkins, sources, clock.instant());
-    }
-
-    private static boolean inPeriod(Entry entry, Period period) {
-        LocalDate date = analyticsDate(entry, period.zone());
-        return date != null && !date.isBefore(period.from()) && !date.isAfter(period.to());
-    }
-
-    private static LocalDate analyticsDate(Entry entry, ZoneId zone) {
-        if (isMetric(entry, Metric.STEPS) || isMetric(entry, Metric.SLEEP_DURATION_MIN)
-                || isMetric(entry, Metric.HEART_RATE)) {
-            return localDate(entry.payload().get("local_date"));
-        }
-        return entry.occurredAt().atZone(zone).toLocalDate();
-    }
-
-    private static AnalyticsResponse response(String periodKind, int periodDays, Period period,
-                                              CheckinCategory selectedCategory, List<Entry> found,
-                                              AnalyticsFunctions.NutritionResult nutrition, DailyResult sleep,
-                                              DailyResult steps,
-                                              Optional<AnalyticsFunctions.HeartRateResult> heartRate,
-                                              Map<CheckinCategory, List<RatingPoint>> checkins,
-                                              List<Source> sources, Instant generatedAt) {
-        int mealsWithEnergy = (int) found.stream()
-                .filter(entry -> entry.type() == EntryType.MEAL)
-                .filter(entry -> AnalyticsFunctions.nutrition(List.of(calculationEntry(entry)), period)
-                        .energyKcal() != null)
-                .count();
-        NutritionCard nutritionCard = new NutritionCard(nutrition.energyKcal(), nutrition.proteinG(),
-                nutrition.fatG(), nutrition.carbsG(), nutrition.incomplete(), mealsWithEnergy);
-        Cards cards = new Cards(nutritionCard, new MealCountCard(nutrition.countedMeals()),
-                sleepCard(sleep), stepsCard(steps),
-                heartRate.map(result -> new HeartRateCard(result.value(), result.occurredAt(),
-                        result.localDate(), result.localTime(),
-                        result.qualifier() == null ? null : result.qualifier().name().toLowerCase(Locale.ROOT),
-                        UUID.fromString(result.entryId())))
-                        .orElse(new HeartRateCard(null, null, null, null, null, null)),
-                checkinCards(checkins));
-
-        List<Source> allSources = sources.stream().distinct()
-                .sorted(Comparator.comparing(Source::localDate).thenComparing(Source::entryId))
-                .toList();
-        Series series = new Series(nutritionSeries(found, period),
-                metricSeries(found, sleep, Metric.SLEEP_DURATION_MIN, period, "min"),
-                metricSeries(found, steps, Metric.STEPS, period, "count"),
-                checkinSeries(selectedCategory, checkins));
-        int daysWithData = (int) allSources.stream().map(Source::localDate).distinct().count();
-        Observations observations = new Observations(periodDays, daysWithData, generatedAt);
-        return new AnalyticsResponse(new PeriodResponse(periodKind, period.from(), period.to(),
-                period.zone().getId()), cards, series, observations, allSources);
-    }
-
-    private static SleepCard sleepCard(DailyResult result) {
-        return new SleepCard(wholeTotal(result.aggregate().total()), result.aggregate().average(),
-                result.aggregate().daysWithData());
-    }
-
-    private static StepsCard stepsCard(DailyResult result) {
-        return new StepsCard(wholeTotal(result.aggregate().total()), result.aggregate().average(),
-                result.aggregate().daysWithData());
-    }
-
-    private static Long wholeTotal(BigDecimal total) {
-        return total == null ? null : total.setScale(0, RoundingMode.HALF_UP).longValueExact();
-    }
-
-    private static CheckinCards checkinCards(Map<CheckinCategory, List<RatingPoint>> checkins) {
-        return new CheckinCards(ratingCard(checkins, CheckinCategory.SLEEP_QUALITY),
-                ratingCard(checkins, CheckinCategory.DIGESTION_COMFORT),
-                ratingCard(checkins, CheckinCategory.WELLBEING),
-                ratingCard(checkins, CheckinCategory.MOOD));
-    }
-
-    private static RatingCard ratingCard(Map<CheckinCategory, List<RatingPoint>> checkins,
-                                         CheckinCategory category) {
-        return checkins.getOrDefault(category, List.of()).stream().max(Comparator.comparing(RatingPoint::date))
-                .map(point -> new RatingCard(point.value(), point.date(), UUID.fromString(point.entryId())))
-                .orElse(new RatingCard(null, null, null));
-    }
-
-    private static List<NutritionPoint> nutritionSeries(List<Entry> found, Period period) {
-        Map<LocalDate, List<Entry>> byDate = new TreeMap<>();
-        for (Entry entry : found) {
-            if (entry.type() == EntryType.MEAL) {
-                LocalDate date = entry.occurredAt().atZone(period.zone()).toLocalDate();
-                byDate.computeIfAbsent(date, ignored -> new ArrayList<>()).add(entry);
-            }
-        }
-        return byDate.entrySet().stream().map(item -> {
-            Period day = new Period(item.getKey(), item.getKey(), period.zone());
-            List<AnalyticsFunctions.Entry> dayEntries = item.getValue().stream()
-                    .map(AnalyticsService::calculationEntry).toList();
-            BigDecimal energy = AnalyticsFunctions.nutrition(dayEntries, day).energyKcal();
-            List<Source> daySources = item.getValue().stream()
+        List<AnalyticsResponse.NutritionPoint> nutritionSeries = meals.entrySet().stream().map(item -> {
+            List<AnalyticsResponse.Source> pointSources = item.getValue().stream()
                     .map(entry -> source(entry, item.getKey())).toList();
-            return new NutritionPoint(item.getKey(), energy, daySources);
+            pointSources.forEach(source -> sources.put(source.entryId().toString(), source));
+            BigDecimal energy = AnalyticsFunctions.nutrition(
+                    item.getValue().stream().map(this::adapt).toList(),
+                    new AnalyticsFunctions.Period(item.getKey(), item.getKey(), zone)).energyKcal();
+            return new AnalyticsResponse.NutritionPoint(item.getKey(), energy, pointSources);
         }).toList();
-    }
+        List<AnalyticsResponse.MetricPoint> sleepSeries = metricSeries(
+                sleep, selectedSleep, "min", sources);
+        List<AnalyticsResponse.MetricPoint> stepsSeries = metricSeries(
+                steps, selectedSteps, "count", sources);
 
-    private static List<MetricPoint> metricSeries(List<Entry> found, DailyResult result, Metric metric,
-                                                  Period period, String unit) {
-        if (result.values().isEmpty()) return List.of();
-        Stream<LocalDate> dates = metric == Metric.SLEEP_DURATION_MIN
-                ? Stream.iterate(period.from(), date -> !date.isAfter(period.to()), date -> date.plusDays(1))
-                : result.values().keySet().stream().sorted();
-        return dates.map(date -> {
-            BigDecimal value = result.values().get(date);
-            if (value == null) return new MetricPoint(date, null, unit, null);
-            Entry selected = found.stream()
-                    .filter(entry -> isMetric(entry, metric))
-                    .filter(entry -> date.equals(metricDate(entry, metric, period.zone())))
-                    .filter(entry -> metricValue(entry) != null)
-                    .max(DAILY_METRIC_ORDER).orElseThrow();
-            return new MetricPoint(date, value, unit, source(selected, date));
-        }).toList();
-    }
-
-    private static CheckinSeries checkinSeries(CheckinCategory selectedCategory,
-                                               Map<CheckinCategory, List<RatingPoint>> checkins) {
-        List<RatingPointResponse> points = checkins.getOrDefault(selectedCategory, List.of()).stream()
-                .map(point -> new RatingPointResponse(point.date(), point.value(), "score_1_5",
-                        new Source(UUID.fromString(point.entryId()), "checkin", point.date())))
+        Map<String, AnalyticsResponse.Rating> ratingCards = new LinkedHashMap<>();
+        for (AnalyticsFunctions.CheckinCategory value : AnalyticsFunctions.CheckinCategory.values()) {
+            List<AnalyticsFunctions.RatingPoint> points = ratings.getOrDefault(value, List.of());
+            AnalyticsFunctions.RatingPoint latest = points.isEmpty() ? null : points.getLast();
+            ratingCards.put(code(value), latest == null
+                    ? new AnalyticsResponse.Rating(null, null, null)
+                    : new AnalyticsResponse.Rating(latest.value(), latest.date(), uuid(latest.entryId())));
+            points.forEach(point -> addCheckinSource(stored, point, sources));
+        }
+        List<AnalyticsResponse.MetricPoint> checkinPoints = ratings.getOrDefault(category, List.of()).stream()
+                .map(point -> new AnalyticsResponse.MetricPoint(point.date(), BigDecimal.valueOf(point.value()),
+                        "score_1_5", sources.get(point.entryId())))
                 .toList();
-        return new CheckinSeries(selectedCategory.name().toLowerCase(Locale.ROOT), points);
+
+        AnalyticsResponse.HeartRate heartCard = heart.map(value -> {
+            Entry entry = stored.stream().filter(item -> item.id().toString().equals(value.entryId()))
+                    .findFirst().orElseThrow();
+            AnalyticsResponse.Source source = source(entry, value.localDate());
+            sources.put(source.entryId().toString(), source);
+            return new AnalyticsResponse.HeartRate(value.value(), value.occurredAt(), value.localDate(),
+                    value.localTime(), code(value.qualifier()), uuid(value.entryId()));
+        }).orElseGet(() -> new AnalyticsResponse.HeartRate(null, null, null, null, null, null));
+
+        int mealsWithEnergy = (int) meals.values().stream().flatMap(List::stream)
+                .filter(entry -> AnalyticsFunctions.nutrition(List.of(adapt(entry)), period).energyKcal() != null)
+                .count();
+        Set<LocalDate> daysWithData = new LinkedHashSet<>();
+        sources.values().forEach(source -> daysWithData.add(source.localDate()));
+
+        return new AnalyticsResponse(
+                new AnalyticsResponse.Period(kind.code, from, to, zone.getId()),
+                new AnalyticsResponse.Cards(
+                        new AnalyticsResponse.Nutrition(nutrition.energyKcal(), nutrition.proteinG(),
+                                nutrition.fatG(), nutrition.carbsG(), nutrition.incomplete(), mealsWithEnergy),
+                        new AnalyticsResponse.MealCount(nutrition.countedMeals()),
+                        minutes(sleep.aggregate()), counts(steps.aggregate()), heartCard, Map.copyOf(ratingCards)),
+                new AnalyticsResponse.Series(nutritionSeries, sleepSeries, stepsSeries,
+                        new AnalyticsResponse.CheckinSeries(code(category), checkinPoints)),
+                new AnalyticsResponse.Observations(kind.days, daysWithData.size(), clock.instant()),
+                List.copyOf(sources.values()));
     }
 
-    private static List<Source> buildSources(List<Entry> found, Period period,
-                                             Map<CheckinCategory, List<RatingPoint>> checkins,
-                                             Optional<AnalyticsFunctions.HeartRateResult> heartRate) {
-        List<Source> result = new ArrayList<>();
-        for (Entry entry : found) {
-            if (entry.type() == EntryType.MEAL) {
-                result.add(source(entry, entry.occurredAt().atZone(period.zone()).toLocalDate()));
-            } else if (entry.type() == EntryType.METRICS && isMetric(entry, Metric.HEART_RATE)) {
-                if (heartRate.isPresent() && entry.id().toString().equals(heartRate.get().entryId())) {
-                    LocalDate date = metricDate(entry, Metric.HEART_RATE, period.zone());
-                    if (date != null) result.add(source(entry, date));
-                }
-            } else if (entry.type() == EntryType.METRICS
-                    && (isMetric(entry, Metric.STEPS) || isMetric(entry, Metric.SLEEP_DURATION_MIN))) {
-                Metric metric = isMetric(entry, Metric.STEPS) ? Metric.STEPS : Metric.SLEEP_DURATION_MIN;
-                LocalDate date = metricDate(entry, metric, period.zone());
-                if (metricValue(entry) != null && date != null
-                        && metricSeriesSourceIsSelected(entry, found, metric, date, period.zone())) {
-                    result.add(source(entry, date));
-                }
-            }
-        }
-        for (Map.Entry<CheckinCategory, List<RatingPoint>> category : checkins.entrySet()) {
-            category.getValue().forEach(point -> result.add(new Source(UUID.fromString(point.entryId()),
-                    "checkin", point.date())));
-        }
+    private AnalyticsFunctions.Entry adapt(Entry entry) {
+        Map<String, Object> payload = entry.payload();
+        String code = text(payload, "code");
+        AnalyticsFunctions.Metric metric = metric(code);
+        LocalDate localDate = date(payload, "local_date");
+        return new AnalyticsFunctions.Entry(entry.id().toString(), entry.type().code(),
+                AnalyticsFunctions.Status.CONFIRMED, entry.occurredAt(), entry.updatedAt(), entry.revision(),
+                localDate, metric == AnalyticsFunctions.Metric.SLEEP_DURATION_MIN ? localDate : null,
+                metric, decimal(payload.get("value")), qualifier(text(payload, "qualifier")),
+                checkinCategoryOrNull(text(payload, "category")), integer(payload.get("score")),
+                decimal(payload.get("mass_g")), nutrients(payload.get("nutrients")),
+                basis(text(payload, "nutrients_basis")), time(payload, "local_time"));
+    }
+
+    private static Map<LocalDate, List<Entry>> mealsByDate(List<Entry> stored, ZoneId zone) {
+        Map<LocalDate, List<Entry>> result = new java.util.TreeMap<>();
+        stored.stream().filter(entry -> entry.type() == EntryType.MEAL).forEach(entry -> result
+                .computeIfAbsent(entry.occurredAt().atZone(zone).toLocalDate(), ignored -> new ArrayList<>())
+                .add(entry));
         return result;
     }
 
-    private static boolean metricSeriesSourceIsSelected(Entry candidate, List<Entry> found, Metric metric,
-                                                         LocalDate date, ZoneId zone) {
-        return found.stream().filter(entry -> isMetric(entry, metric))
-                .filter(entry -> date.equals(metricDate(entry, metric, zone)))
-                .filter(entry -> metricValue(entry) != null)
-                .max(DAILY_METRIC_ORDER).map(entry -> entry.id().equals(candidate.id())).orElse(false);
+    private static Map<LocalDate, Entry> selectedMetrics(List<Entry> stored, String metricCode) {
+        Map<LocalDate, Entry> selected = new java.util.TreeMap<>();
+        stored.stream().filter(entry -> entry.type() == EntryType.METRICS)
+                .filter(entry -> metricCode.equals(entry.payload().get("code")))
+                .filter(entry -> date(entry.payload(), "local_date") != null)
+                .forEach(entry -> selected.merge(date(entry.payload(), "local_date"), entry,
+                        (first, second) -> ENTRY_ORDER.compare(first, second) <= 0 ? second : first));
+        return selected;
     }
 
-    private static Source source(Entry entry, LocalDate date) {
-        return new Source(entry.id(), entry.type().code(), date);
+    private static List<AnalyticsResponse.MetricPoint> metricSeries(
+            AnalyticsFunctions.DailyResult result, Map<LocalDate, Entry> selected, String unit,
+            Map<String, AnalyticsResponse.Source> sources) {
+        return result.values().entrySet().stream().sorted(Map.Entry.comparingByKey()).map(item -> {
+            AnalyticsResponse.Source source = source(selected.get(item.getKey()), item.getKey());
+            sources.put(source.entryId().toString(), source);
+            return new AnalyticsResponse.MetricPoint(item.getKey(), item.getValue(), unit, source);
+        }).toList();
     }
 
-    /** Steps, sleep and heart rate are all attributed to payload.local_date, never to occurred_at. */
-    private static LocalDate metricDate(Entry entry, Metric metric, ZoneId zone) {
-        return localDate(entry.payload().get("local_date"));
+    private static void addCheckinSource(List<Entry> stored, AnalyticsFunctions.RatingPoint point,
+                                         Map<String, AnalyticsResponse.Source> sources) {
+        stored.stream().filter(entry -> entry.id().toString().equals(point.entryId())).findFirst()
+                .ifPresent(entry -> sources.put(point.entryId(), source(entry, point.date())));
     }
 
-    private static boolean isMetric(Entry entry, Metric metric) {
-        if (entry.type() != EntryType.METRICS) return false;
-        return switch (metric) {
-            case STEPS -> "steps".equals(entry.payload().get("code"));
-            case SLEEP_DURATION_MIN -> "sleep_duration_min".equals(entry.payload().get("code"));
-            case HEART_RATE -> "heart_rate".equals(entry.payload().get("code"));
-        };
+    private static AnalyticsResponse.Source source(Entry entry, LocalDate date) {
+        return new AnalyticsResponse.Source(entry.id(), entry.type().code(), date);
     }
 
-    /**
-     * Metric value usable by analytics. Steps and sleep minutes are treated as non-negative numbers
-     * within a bounded range; malformed or out-of-bound values are ignored instead of failing the response.
-     */
-    private static BigDecimal metricValue(Entry entry) {
-        BigDecimal value;
-        try {
-            value = decimal(entry.payload().get("value"));
-        } catch (NumberFormatException invalid) {
-            return null;
-        }
-        if (value == null || entry.type() != EntryType.METRICS) return value;
-        if (!isMetric(entry, Metric.STEPS) && !isMetric(entry, Metric.SLEEP_DURATION_MIN)) return value;
-        if (value.signum() < 0 || value.compareTo(MAX_WHOLE_METRIC) > 0) {
-            return null;
-        }
-        return value;
+    private static AnalyticsResponse.AggregateMinutes minutes(AnalyticsFunctions.AggregateResult value) {
+        return new AnalyticsResponse.AggregateMinutes(value.total() == null ? null : value.total().intValueExact(),
+                value.average(), value.daysWithData());
     }
 
-    private static AnalyticsFunctions.Entry calculationEntry(Entry entry) {
-        String type = entry.type().code();
-        String code = text(entry.payload().get("code"));
-        Metric metric = switch (code) {
-            case "steps" -> Metric.STEPS;
-            case "sleep_duration_min" -> Metric.SLEEP_DURATION_MIN;
-            case "heart_rate" -> Metric.HEART_RATE;
-            default -> null;
-        };
-        CheckinCategory category = checkinCategory(entry).orElse(null);
-        Qualifier qualifier = switch (text(entry.payload().get("qualifier"))) {
-            case "instant" -> Qualifier.INSTANT;
-            case "resting" -> Qualifier.RESTING;
-            default -> null;
-        };
-        // local_time is passed through as stored; an unknown time stays null and is never replaced by
-        // the time of the message.
-        return new AnalyticsFunctions.Entry(entry.id().toString(), type, Status.CONFIRMED, entry.occurredAt(),
-                entry.updatedAt(), entry.revision(), localDate(entry.payload().get("local_date")),
-                entry.type() == EntryType.METRICS && metric == Metric.SLEEP_DURATION_MIN
-                        ? localDate(entry.payload().get("local_date")) : null,
-                metric, metricValue(entry), qualifier, category,
-                integer(entry.payload().get("score")), decimal(entry.payload().get("mass_g")),
-                nutrients(entry.payload().get("nutrients")), basis(entry.payload().get("nutrients_basis")),
-                localTime(entry.payload().get("local_time")));
+    private static AnalyticsResponse.AggregateCount counts(AnalyticsFunctions.AggregateResult value) {
+        return new AnalyticsResponse.AggregateCount(value.total() == null ? null : value.total().longValueExact(),
+                value.average(), value.daysWithData());
     }
 
-    private static Optional<CheckinCategory> checkinCategory(Entry entry) {
-        return entry.type() == EntryType.CHECKIN ? Optional.of(checkinCategory(text(entry.payload().get("category"))))
-                : Optional.empty();
-    }
-
-    private static CheckinCategory checkinCategory(String value) {
-        return switch (value) {
-            case "sleep_quality" -> CheckinCategory.SLEEP_QUALITY;
-            case "digestion_comfort" -> CheckinCategory.DIGESTION_COMFORT;
-            case "wellbeing" -> CheckinCategory.WELLBEING;
-            case "mood" -> CheckinCategory.MOOD;
-            default -> throw new IllegalArgumentException("Unknown check-in category");
-        };
-    }
-
-    private static Nutrients nutrients(Object value) {
-        if (!(value instanceof Map<?, ?> map)) return null;
-        return new Nutrients(decimal(map.get("energy_kcal")), decimal(map.get("protein_g")),
-                decimal(map.get("fat_g")), decimal(map.get("carbs_g")));
-    }
-
-    private static Basis basis(Object value) {
-        return switch (text(value)) {
-            case "per_100g" -> Basis.PER_100G;
-            case "per_serving" -> Basis.PER_SERVING;
-            default -> Basis.UNKNOWN;
-        };
-    }
-
-    private static LocalDate localDate(Object value) {
-        if (value instanceof LocalDate date) return date;
-        if (value instanceof String text) {
-            try {
-                return LocalDate.parse(text);
-            } catch (RuntimeException ignored) {
-                return null;
-            }
-        }
-        return null;
-    }
-
-    private static LocalTime localTime(Object value) {
-        if (value instanceof LocalTime time) return time;
-        if (value instanceof String text) {
-            try {
-                return LocalTime.parse(text);
-            } catch (RuntimeException ignored) {
-                return null;
-            }
-        }
-        return null;
+    private static AnalyticsFunctions.Nutrients nutrients(Object raw) {
+        if (!(raw instanceof Map<?, ?> values)) return null;
+        return new AnalyticsFunctions.Nutrients(decimal(values.get("energy_kcal")),
+                decimal(values.get("protein_g")), decimal(values.get("fat_g")), decimal(values.get("carbs_g")));
     }
 
     private static BigDecimal decimal(Object value) {
+        if (value == null) return null;
         if (value instanceof BigDecimal decimal) return decimal;
         if (value instanceof Number number) return new BigDecimal(number.toString());
-        return null;
+        return new BigDecimal(value.toString());
     }
 
     private static Integer integer(Object value) {
-        BigDecimal decimal = decimal(value);
-        return decimal == null ? null : decimal.intValueExact();
+        return value instanceof Number number ? number.intValue() : null;
     }
 
-    private static String text(Object value) {
-        return value instanceof String text ? text : "";
+    private static String text(Map<String, Object> payload, String field) {
+        return payload.get(field) instanceof String value ? value : null;
     }
 
-    public record AnalyticsResponse(PeriodResponse period, Cards cards, Series series,
-                                    Observations observations, List<Source> sources) {}
-    public record PeriodResponse(String kind, LocalDate from, LocalDate to, String timezone) {}
-    public record Cards(NutritionCard nutrition, MealCountCard mealCount, SleepCard sleep, StepsCard steps,
-                        HeartRateCard heartRate, CheckinCards checkins) {}
-    public record NutritionCard(BigDecimal energyKcal, BigDecimal proteinG, BigDecimal fatG, BigDecimal carbsG,
-                                boolean incomplete, int mealsWithEnergy) {}
-    public record MealCountCard(int count) {}
-    /** Serialized as total_minutes / average_minutes / days_with_data (analytics.json#/$defs/aggregateMinutes). */
-    public record SleepCard(Long totalMinutes, BigDecimal averageMinutes, int daysWithData) {}
-    /** Serialized as total / average / days_with_data (analytics.json#/$defs/aggregateCount). */
-    public record StepsCard(Long total, BigDecimal average, int daysWithData) {}
-    /**
-     * occurredAt is the original report timestamp; localDate/localTime describe the measurement
-     * (localTime is null when unknown).
-     */
-    public record HeartRateCard(BigDecimal valueBpm, Instant occurredAt, LocalDate localDate, LocalTime localTime,
-                                String qualifier, UUID entryId) {}
-    public record CheckinCards(RatingCard sleepQuality, RatingCard digestionComfort, RatingCard wellbeing,
-                               RatingCard mood) {}
-    public record RatingCard(Integer score, LocalDate date, UUID entryId) {}
-    public record Series(List<NutritionPoint> nutrition, List<MetricPoint> sleep, List<MetricPoint> steps,
-                         CheckinSeries checkin) {}
-    public record NutritionPoint(LocalDate date, BigDecimal energyKcal, List<Source> source) {}
-    public record MetricPoint(LocalDate date, BigDecimal value, String unit, Source source) {}
-    public record CheckinSeries(String category, List<RatingPointResponse> points) {}
-    public record RatingPointResponse(LocalDate date, Integer value, String unit, Source source) {}
-    public record Observations(int daysInPeriod, int daysWithAnyData, Instant generatedAt) {}
-    public record Source(UUID entryId, String type, LocalDate localDate) {}
+    private static LocalDate date(Map<String, Object> payload, String field) {
+        String value = text(payload, field);
+        return value == null ? null : LocalDate.parse(value);
+    }
+
+    private static LocalTime time(Map<String, Object> payload, String field) {
+        String value = text(payload, field);
+        return value == null ? null : LocalTime.parse(value);
+    }
+
+    private static AnalyticsFunctions.Metric metric(String code) {
+        if (code == null) return null;
+        return switch (code) {
+            case "steps" -> AnalyticsFunctions.Metric.STEPS;
+            case "sleep_duration_min" -> AnalyticsFunctions.Metric.SLEEP_DURATION_MIN;
+            case "heart_rate" -> AnalyticsFunctions.Metric.HEART_RATE;
+            default -> null;
+        };
+    }
+
+    private static AnalyticsFunctions.Qualifier qualifier(String code) {
+        if (code == null) return null;
+        return AnalyticsFunctions.Qualifier.valueOf(code.toUpperCase(java.util.Locale.ROOT));
+    }
+
+    private static AnalyticsFunctions.Basis basis(String code) {
+        if (code == null) return null;
+        return switch (code) {
+            case "per_100g" -> AnalyticsFunctions.Basis.PER_100G;
+            case "per_serving" -> AnalyticsFunctions.Basis.PER_SERVING;
+            default -> AnalyticsFunctions.Basis.UNKNOWN;
+        };
+    }
+
+    private static ZoneId zone(String name) {
+        try {
+            return ZoneId.of(name);
+        } catch (java.time.DateTimeException invalid) {
+            throw new IllegalArgumentException("Unsupported timezone", invalid);
+        }
+    }
+
+    private static AnalyticsFunctions.CheckinCategory checkinCategory(String code) {
+        return AnalyticsFunctions.CheckinCategory.valueOf(code.toUpperCase(java.util.Locale.ROOT));
+    }
+
+    private static AnalyticsFunctions.CheckinCategory checkinCategoryOrNull(String code) {
+        return code == null ? null : checkinCategory(code);
+    }
+
+    private static String code(Enum<?> value) {
+        return value == null ? null : value.name().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private static java.util.UUID uuid(String value) {
+        return java.util.UUID.fromString(value);
+    }
+
+    private enum PeriodKind {
+        TODAY("today", 1), DAYS_7("days_7", 7), DAYS_21("days_21", 21);
+
+        private final String code;
+        private final int days;
+
+        PeriodKind(String code, int days) {
+            this.code = code;
+            this.days = days;
+        }
+
+        private static PeriodKind from(String code) {
+            for (PeriodKind value : values()) if (value.code.equals(code)) return value;
+            throw new IllegalArgumentException("Unsupported analytics period");
+        }
+    }
 }
