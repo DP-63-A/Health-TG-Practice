@@ -18,3 +18,9 @@ tasks.register("validateContracts") {
     description = "Validate OpenAPI and JSON contract examples (BE1-01)"
     dependsOn(":contract-validator:test")
 }
+
+tasks.register("be1Acceptance") {
+    group = "verification"
+    description = "Runs the isolated BE1 acceptance suite against Testcontainers MongoDB"
+    dependsOn(":backend:api:be1Acceptance", ":backend:bot:be1Acceptance")
+}
