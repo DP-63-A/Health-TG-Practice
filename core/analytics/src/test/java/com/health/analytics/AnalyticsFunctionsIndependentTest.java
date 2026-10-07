@@ -869,8 +869,7 @@ class AnalyticsFunctionsIndependentTest {
             null
         );
     }
-    
-    ```java
+
     @Test
     void negativeMassIsRejected() {
         assertThrows(
