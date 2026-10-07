@@ -1,4 +1,4 @@
-import { apiClient } from './client'
+import { apiClient, apiMode } from './client'
 import { getSessionToken } from '../auth/session'
 import type { ApiClient, ApiQueryParams, ConfirmRequest, Entry, EntryFilters, EntryListResponse, EntryPatchRequest } from './types'
 
@@ -28,7 +28,7 @@ export function createEntriesApi(client: ApiClient = apiClient) {
 export const entriesApi = createEntriesApi()
 
 async function downloadFile(fileId: string, signal?: AbortSignal) {
-  if (import.meta.env.VITE_API_MODE !== 'live') {
+  if (apiMode === 'fixture') {
     return `blob:fixture/${encodeURIComponent(fileId)}`
   }
 
@@ -54,5 +54,6 @@ async function downloadFile(fileId: string, signal?: AbortSignal) {
 function buildUrl(baseUrl: string, path: string) {
   const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
   const normalizedPath = path.replace(/^\/+/, '')
-  return new URL(normalizedPath, normalizedBaseUrl).toString()
+  const resolvedBaseUrl = new URL(normalizedBaseUrl, window.location.origin)
+  return new URL(normalizedPath, resolvedBaseUrl).toString()
 }

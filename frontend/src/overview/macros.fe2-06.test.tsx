@@ -39,7 +39,7 @@ const cases = [
   },
 ] as const
 
-const labels = ['Белки', 'Жиры', 'Углеводы'] as const
+const labels = ['Protein', 'Fat', 'Carbs'] as const
 
 function element(
   root: ParentNode,
@@ -151,7 +151,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('FE2-06: проценты БЖУ — ожидания для review', () => {
+describe('FE2-06: проценты Macros — ожидания для review', () => {
   it.each(cases)(
     '$fixture: проценты легенды и tooltip всех трёх секторов',
     async ({ fixture, percentages }) => {
@@ -164,7 +164,7 @@ describe('FE2-06: проценты БЖУ — ожидания для review', (
       await flushFrames()
 
       const card = screen.getByRole('region', {
-        name: 'Калории и БЖУ',
+        name: 'Calories & macros',
       })
 
       const legend = element(

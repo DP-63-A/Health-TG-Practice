@@ -20,7 +20,7 @@ function formatPulse(
     return '—'
   }
 
-  return value.toLocaleString('ru-RU')
+  return value.toLocaleString('en-GB')
 }
 
 function formatMeasurementTime(
@@ -37,7 +37,7 @@ function formatMeasurementTime(
     return '—'
   }
 
-  return new Intl.DateTimeFormat('ru-RU', {
+  return new Intl.DateTimeFormat('en-GB', {
     dateStyle: 'short',
     timeStyle: 'short',
     ...(timeZone ? { timeZone } : {}),
@@ -48,11 +48,11 @@ function formatQualifier(
   qualifier: string | null | undefined,
 ): string | null {
   if (qualifier === 'resting') {
-    return 'В покое'
+    return 'At rest'
   }
 
   if (qualifier === 'instant') {
-    return 'Разовое измерение'
+    return 'Single measurement'
   }
 
   return null
@@ -68,12 +68,12 @@ export function HeartRateCard({
 
   return (
     <section
-      className="heart-rate-card"
-      aria-label="Аналитика пульса"
+      className="heart-rate-card paper-note"
+      aria-label="Heart rate analytics"
     >
       <div className="heart-rate-card__header">
         <h2 className="heart-rate-card__title">
-          Пульс
+          Heart rate
         </h2>
 
         <div
@@ -96,14 +96,14 @@ export function HeartRateCard({
       </div>
 
       <p className="heart-rate-card__label">
-        Последний сообщённый пульс
+        Latest reported heart rate
       </p>
 
       <div className="heart-rate-card__measurement">
         <p className="heart-rate-card__value">
           {formatPulse(heartRate?.value_bpm)}
 
-          <span>уд/мин</span>
+          <span>bpm</span>
         </p>
 
         <div
@@ -161,11 +161,11 @@ export function HeartRateCard({
             </svg>
           </div>
           <div>
-            <p className="heart-rate-card__label">Время измерения</p>
+            <p className="heart-rate-card__label">Measured at</p>
             <p className="heart-rate-card__time">
-              {heartRate?.local_date ?? 'неизвестно'} · {heartRate?.local_time ?? 'время неизвестно'}
+              {heartRate?.local_date ?? 'unknown'} · {heartRate?.local_time ?? 'time unknown'}
             </p>
-            <p className="heart-rate-card__label">Сообщено</p>
+            <p className="heart-rate-card__label">Reported at</p>
             <p className="heart-rate-card__time">
               {formatMeasurementTime(heartRate?.occurred_at, period?.timezone)}
             </p>

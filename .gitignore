@@ -1,4 +1,5 @@
 .gradle/
+.gradle-*/
 **/build/
 **/bin/
 .env
@@ -20,6 +21,10 @@
 **/node_modules/
 frontend/dist/
 frontend/coverage/
+
+# Local private file storage
+data/
+**/data/
 
 build-log.txt
 *.log

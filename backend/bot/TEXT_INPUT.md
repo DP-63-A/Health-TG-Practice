@@ -1,8 +1,8 @@
 # Разбор текста (BE2-02, #63)
 
-`TextInputParser.parse(String)` — автономная Java-функция. Она не подключена к обработчику
+`TextInputParser.parse(String)` — автономная Java-функция. Сам класс не обращается к
 Telegram, не создаёт запись и не обращается к хранилищу, внешней модели или часам компьютера.
-Это реализация части #7, а не всего сценария сохранённого диалога.
+Интеграция через `CoreBotFlow` и `TextDialogFlow` описана в [TEXT_DIALOG.md](TEXT_DIALOG.md).
 
 ## Границы и результат
 
@@ -21,8 +21,7 @@ Telegram, не создаёт запись и не обращается к хр�
 соответствуют существующим `contracts/schemas/payloads/`. Неизвестные поля отсутствуют.
 Неполный результат (например, только `code` без `value`) не является валидным серверным
 запросом. `PARSED` также не означает готовности к `createDraft` или подтверждению.
-Здесь нет `id`, владельца, `revision`, `occurredAt`. Вопрос заполнения `occurredAt`
-остаётся для интеграции родительской задачи.
+Здесь нет `id`, владельца, `revision`, `occurredAt`. Правила заполнения `occurredAt` находятся в интеграционном диалоге.
 
 ## Реализуемые правила
 
@@ -105,6 +104,7 @@ Telegram, не создаёт запись и не обращается к хр�
 как обычный Java main в IDEA, либо из корня проекта:
 
 ```powershell
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 & "$env:JAVA_HOME/bin/java.exe" -cp backend/bot/build/classes/java/main org.healthtg.bot.text.TextParserDemo
 ```
 

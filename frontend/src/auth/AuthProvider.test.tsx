@@ -5,7 +5,7 @@ import type { ApiClient, ApiMode } from '../api/client'
 import { fixtureApiClient } from '../api/fixtureClient'
 import { AuthGate } from './AuthGate'
 import { AuthProvider } from './AuthProvider'
-import { clearSessionToken, getSessionToken } from './session'
+import { clearSessionToken, getSessionToken, setSessionToken } from './session'
 
 describe('auth state screens', () => {
   beforeEach(() => {
@@ -64,6 +64,26 @@ describe('auth state screens', () => {
     ).toBeInTheDocument()
     expect(post).not.toHaveBeenCalled()
     expect(get).not.toHaveBeenCalled()
+  })
+
+  it('reauthenticates an expired in-memory session using Telegram initData', async () => {
+    setSessionToken('expired-session')
+    vi.stubGlobal('Telegram', { WebApp: { initData: 'telegram-test-payload' } })
+    const client = createClient()
+    vi.spyOn(client, 'get').mockRejectedValue(new ApiError({
+      code: 'UNAUTHORIZED', message: 'Session expired', request_id: 'reauth',
+    }, 401))
+    const post = vi.spyOn(client, 'post').mockResolvedValue({
+      session_token: 'renewed-session', user: {},
+    })
+
+    renderWithAuth(client, 'live')
+
+    expect(await screen.findByText('App')).toBeInTheDocument()
+    expect(post).toHaveBeenCalledExactlyOnceWith('/auth/telegram', {
+      body: { init_data: 'telegram-test-payload' },
+    })
+    expect(getSessionToken()).toBe('renewed-session')
   })
 
   it('shows authRequired when Telegram authentication fails', async () => {

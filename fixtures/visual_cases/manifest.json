@@ -1,0 +1,282 @@
+{
+  "version": "1.0.0",
+  "created_at": "2026-10-04T00:00:00Z",
+  "last_updated": "2026-10-06T00:00:00Z",
+  "commit_hash": "b63d6a668672a0cf38521bbf834775de1b6f8ed1",
+  "cases": [
+    {
+      "id": "F01",
+      "path": "food/F01.png",
+      "category": "food",
+      "source": {
+        "origin": "AI-generated educational food database - common food items",
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
+      },
+      "expected_fields": {
+        "dish_name": {"value": "Fried Pelmeni with Mayonnaise and Beer", "unit": null, "confidence": "certain"},
+        "portion_size": {"value": "300", "unit": "g", "confidence": "estimated"},
+        "calories": {"value": null, "unit": "kcal", "confidence": null}
+      },
+      "datetime": {"date": null, "time": null, "timezone": "Europe/Warsaw"},
+      "uncertainties": [
+        "Exact filling (pork, beef, or mixed) cannot be determined visually",
+        "Caloric impact of mayonnaise dipping sauce and beer needs clarification"
+      ],
+      "expected_action": "ask",
+      "ask_clarification": "Is the beer included in this meal entry, and what type of meat filling was used for the pelmeni?",
+      "personal_data_check": true
+    },
+    {
+      "id": "F02",
+      "path": "food/F02.png",
+      "category": "food",
+      "source": {
+        "origin": "AI-generated educational food database - common food items",
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
+      },
+      "expected_fields": {
+        "dish_name": {"value": "Buckwheat Groats with Beef Stew and Vegetables", "unit": null, "confidence": "certain"},
+        "portion_size": {"value": "250", "unit": "g", "confidence": "estimated"},
+        "calories": {"value": "420", "unit": "kcal", "confidence": "estimated"}
+      },
+      "datetime": {"date": null, "time": null, "timezone": "Europe/Warsaw"},
+      "uncertainties": [
+        "Exact amount of added butter or oil in buckwheat is unknown",
+        "Meat ratio to groats is estimated"
+      ],
+      "expected_action": "draft",
+      "personal_data_check": true
+    },
+    {
+      "id": "F03",
+      "path": "food/F03.png",
+      "category": "food",
+      "source": {
+        "origin": "AI-generated educational food database - common food items",
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
+      },
+      "expected_fields": {
+        "dish_name": {"value": "Club Sandwiches with Ham and Cheese, Juice, and Banana", "unit": null, "confidence": "certain"},
+        "portion_size": {"value": "350", "unit": "g", "confidence": "estimated"},
+        "calories": {"value": null, "unit": "kcal", "confidence": null}
+      },
+      "datetime": {"date": null, "time": null, "timezone": "Europe/Warsaw"},
+      "uncertainties": [
+        "Juice volume and sugar content unknown from package side view",
+        "Butter or sauce spread inside sandwiches is obscured"
+      ],
+      "expected_action": "ask",
+      "ask_clarification": "Would you like to log the orange juice and banana alongside the sandwiches?",
+      "personal_data_check": true
+    },
+    {
+      "id": "F04",
+      "path": "food/F04.png",
+      "category": "food",
+      "source": {
+        "origin": "AI-generated educational food database - common food items",
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
+      },
+      "expected_fields": {
+        "dish_name": {"value": "Grilled Chicken Breast with White Rice and Fresh Salad", "unit": null, "confidence": "certain"},
+        "portion_size": {"value": "350", "unit": "g", "confidence": "estimated"},
+        "calories": {"value": null, "unit": "kcal", "confidence": null}
+      },
+      "datetime": {"date": null, "time": null, "timezone": "Europe/Warsaw"},
+      "uncertainties": [
+        "Salad dressing (oil or vinegar type/amount) cannot be visually quantified",
+        "Cooked weight of rice vs raw cannot be precisely determined"
+      ],
+      "expected_action": "ask",
+      "ask_clarification": "Did you use olive oil or any dressing for the cucumber and tomato salad?",
+      "personal_data_check": true
+    },
+    {
+      "id": "H01",
+      "path": "health/H01.jpeg",
+      "category": "health",
+      "ui_variant": 1,
+      "source": {
+        "origin": "AI-generated educational health tracking application screenshot",
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
+      },
+      "datetime": {"date": "2026-10-05", "time": "10:17", "timezone": "Europe/Warsaw"},
+      "expected_fields": [
+        {"name": "steps", "value": 1230, "unit": "steps", "confidence": 1.0},
+        {"name": "heart_rate", "value": 48, "unit": "bpm", "confidence": 1.0, "qualifier": "instant"},
+        {"name": "sleep_duration_min", "value": 252, "unit": "min", "confidence": 1.0}
+      ],
+      "ignored_fields": [
+        {"name": "blood_pressure", "reason": "unsupported_by_core_metric_enum"},
+        {"name": "wellbeing", "reason": "unsupported_by_core_metric_enum"},
+        {"name": "mood", "reason": "unsupported_by_core_metric_enum"},
+        {"name": "temperature", "reason": "unsupported_by_core_metric_enum"}
+      ],
+      "uncertainties": [],
+      "expected_action": "draft",
+      "personal_data_check": true
+    },
+    {
+      "id": "H02",
+      "path": "health/H02.jpeg",
+      "category": "health",
+      "ui_variant": 1,
+      "source": {
+        "origin": "AI-generated educational health tracking application screenshot",
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
+      },
+      "datetime": {"date": "2026-10-04", "time": "22:56", "timezone": "Europe/Warsaw"},
+      "expected_fields": [
+        {"name": "steps", "value": 2300, "unit": "steps", "confidence": 1.0},
+        {"name": "heart_rate", "value": 78, "unit": "bpm", "confidence": 1.0, "qualifier": "instant"},
+        {"name": "sleep_duration_min", "value": 445, "unit": "min", "confidence": 1.0}
+      ],
+      "ignored_fields": [
+        {"name": "calories", "reason": "unsupported_by_core_metric_enum"},
+        {"name": "blood_pressure", "reason": "unsupported_by_core_metric_enum"},
+        {"name": "oxygen_level", "reason": "unsupported_by_core_metric_enum"},
+        {"name": "mood", "reason": "unsupported_by_core_metric_enum"},
+        {"name": "temperature", "reason": "unsupported_by_core_metric_enum"}
+      ],
+      "uncertainties": [],
+      "expected_action": "draft",
+      "personal_data_check": true
+    },
+    {
+      "id": "H03",
+      "path": "health/H03.jpeg",
+      "category": "health",
+      "ui_variant": 2,
+      "source": {
+        "origin": "AI-generated educational health tracking application screenshot (variant 2)",
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
+      },
+      "datetime": {"date": "2026-10-04", "time": "17:22", "timezone": "Europe/Warsaw"},
+      "expected_fields": [
+        {"name": "steps", "value": 5480, "unit": "steps", "confidence": 1.0},
+        {"name": "heart_rate", "value": 72, "unit": "bpm", "confidence": 1.0, "qualifier": "instant"},
+        {"name": "sleep_duration_min", "value": 390, "unit": "min", "confidence": 1.0}
+      ],
+      "ignored_fields": [
+        {"name": "calories", "reason": "unsupported_by_core_metric_enum"},
+        {"name": "temperature", "reason": "unsupported_by_core_metric_enum"}
+      ],
+      "uncertainties": [],
+      "expected_action": "draft",
+      "personal_data_check": true
+    },
+    {
+      "id": "H04",
+      "path": "health/H04.jpeg",
+      "category": "health",
+      "ui_variant": 2,
+      "source": {
+        "origin": "AI-generated educational health tracking application screenshot (variant 2)",
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
+      },
+      "datetime": {"date": "2026-10-03", "time": "10:33", "timezone": "Europe/Warsaw"},
+      "expected_fields": [
+        {"name": "steps", "value": 820, "unit": "steps", "confidence": 1.0},
+        {"name": "heart_rate", "value": 42, "unit": "bpm", "confidence": 1.0, "qualifier": "instant"},
+        {"name": "sleep_duration_min", "value": 190, "unit": "min", "confidence": 1.0}
+      ],
+      "ignored_fields": [
+        {"name": "calories", "reason": "unsupported_by_core_metric_enum"},
+        {"name": "temperature", "reason": "unsupported_by_core_metric_enum"}
+      ],
+      "uncertainties": [],
+      "expected_action": "draft",
+      "personal_data_check": true
+    },
+    {
+      "id": "W01",
+      "path": "watch/W01.jpeg",
+      "category": "watch",
+      "source": {
+        "origin": "AI-generated educational smartwatch/fitness tracker photo",
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
+      },
+      "datetime": {"date": "2026-10-02", "time": "14:07", "timezone": "Europe/Warsaw"},
+      "expected_fields": [
+        {"name": "steps", "value": 5320, "unit": "steps", "confidence": 1.0},
+        {"name": "heart_rate", "value": 75, "unit": "bpm", "confidence": 1.0, "qualifier": "instant"}
+      ],
+      "ignored_fields": [],
+      "uncertainties": [],
+      "expected_action": "draft",
+      "personal_data_check": true
+    },
+    {
+      "id": "W02",
+      "path": "watch/W02.jpeg",
+      "category": "watch",
+      "source": {
+        "origin": "AI-generated educational smartwatch/fitness tracker photo",
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Google Gemini AI for educational software testing; contains no personal or real medical data. Usage is regulated by Google Gemini terms of use."
+      },
+      "datetime": {"date": "2026-10-05", "time": "12:05", "timezone": "Europe/Warsaw"},
+      "expected_fields": [
+        {"name": "steps", "value": 7412, "unit": "steps", "confidence": 1.0},
+        {"name": "heart_rate", "value": 114, "unit": "bpm", "confidence": 1.0, "qualifier": "instant"},
+        {"name": "sleep_duration_min", "value": 378, "unit": "min", "confidence": 1.0}
+      ],
+      "ignored_fields": [
+        {"name": "fried_pelmeni_in_bowl", "reason": "background_food_ignored_for_watch_category"},
+        {"name": "skuf_beer_can", "reason": "background_item_ignored_for_watch_category"},
+        {"name": "tv_football_broadcast", "reason": "background_item_ignored_for_watch_category"}
+      ],
+      "uncertainties": [
+        "Background contains food (fried pelmeni) and beer, but target category is smartwatch display"
+      ],
+      "expected_action": "draft",
+      "personal_data_check": true
+    },
+    {
+      "id": "N01",
+      "path": "negative/N01.jpeg",
+      "category": "negative",
+      "source": {
+        "origin": "AI-generated intentionally unreadable test case",
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Microsoft Copilot AI and blurred in Paint.net app for educational software testing; contains no personal or real medical data. Usage is regulated by Microsoft Copilot AI terms of use."
+      },
+      "expected_fields": {},
+      "datetime": {"date": null, "time": null, "timezone": "Europe/Warsaw"},
+      "uncertainties": [
+        "Image is heavily blurred",
+        "Text is not reliably readable"
+      ],
+      "expected_action": "refuse",
+      "refuse_reason": "Image is too blurred/distorted to reliably extract health metrics. Please provide a clearer photo.",
+      "personal_data_check": true
+    },
+    {
+      "id": "N02",
+      "path": "negative/N02.jpeg",
+      "category": "negative",
+      "source": {
+        "origin": "AI-generated unsupported image type test case",
+        "license": "LicenseRef-AI-Generated",
+        "attribution": "Generated with Google Gemini AI for educational software testing; contains no personal or real medical data. Usage is regulated by Google Gemini terms of use."
+      },
+      "expected_fields": {},
+      "datetime": {"date": null, "time": null, "timezone": "Europe/Warsaw"},
+      "uncertainties": [
+        "Image content is not related to health metrics or food"
+      ],
+      "expected_action": "refuse",
+      "refuse_reason": "This image type is not supported. Please provide a photo of food, health metrics, or fitness tracker.",
+      "personal_data_check": true
+    }
+  ]
+}

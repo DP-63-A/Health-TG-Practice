@@ -1,0 +1,173 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Visual Test Cases Manifest",
+  "description": "Schema for validating the manifest.json file containing 12 visual test cases",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Dataset version (e.g., 1.0.0)"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Creation timestamp"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last update timestamp"
+    },
+    "commit_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "Full 40-char git commit SHA of the repository state the dataset is based on (the single source of dataset versioning; no separate dataset_hash)"
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "description": "Array containing exactly 12 visual test cases",
+      "items": {
+        "type": "object",
+        "required": ["id", "path", "category", "expected_action", "source", "expected_fields", "datetime", "uncertainties", "personal_data_check"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^(F0[1-4]|H0[1-4]|W0[1-2]|N0[1-2])$",
+            "description": "Unique case identifier"
+          },
+          "path": {
+            "type": "string",
+            "description": "Relative path to image file"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["food", "health", "watch", "negative"],
+            "description": "Visual case category"
+          },
+          "source": {
+            "type": "object",
+            "required": ["origin", "license", "attribution"],
+            "properties": {
+              "origin": {"type": "string", "description": "Source of the image"},
+              "license": {"type": "string", "description": "License type (CC0, CC-BY, etc.)"},
+              "attribution": {"type": "string", "description": "Attribution or copyright holder"}
+            }
+          },
+          "ui_variant": {
+            "type": "integer",
+            "description": "UI variant number (for health screenshots: 1 or 2)"
+          },
+          "expected_fields": {
+            "description": "Food/negative: object keyed by field name. Health/watch: array of {name, value, unit, confidence} objects.",
+            "if": {"type": "array"},
+            "then": {
+              "items": {
+                "type": "object",
+                "required": ["name", "value", "unit", "confidence"],
+                "properties": {
+                  "name": {"type": "string"},
+                  "value": {"type": ["number", "string"]},
+                  "unit": {"type": ["string", "null"]},
+                  "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                  "qualifier": {"type": "string"}
+                }
+              }
+            },
+            "else": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": ["value", "unit", "confidence"],
+                "properties": {
+                  "value": {"description": "Expected numeric or text value"},
+                  "unit": {"type": ["string", "null"]},
+                  "confidence": {
+                    "type": ["string", "null"],
+                    "enum": ["certain", "estimated", "uncertain", null]
+                  }
+                }
+              }
+            }
+          },
+          "ignored_fields": {
+            "type": "array",
+            "description": "Visible fields intentionally not extracted",
+            "items": {
+              "type": "object",
+              "required": ["name", "reason"],
+              "properties": {
+                "name": {"type": "string"},
+                "reason": {"type": "string"}
+              }
+            }
+          },
+          "datetime": {
+            "type": "object",
+            "description": "Expected date and time if visible",
+            "properties": {
+              "date": {
+                "type": ["string", "null"],
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "Date in YYYY-MM-DD format or null if not visible"
+              },
+              "time": {
+                "type": ["string", "null"],
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                "description": "Time in HH:MM format (24h, no seconds) or null if not visible"
+              },
+              "timezone": {
+                "type": "string",
+                "description": "Timezone (Europe/Warsaw by default)"
+              }
+            }
+          },
+          "uncertainties": {
+            "type": "array",
+            "description": "Known limitations or ambiguities in the image",
+            "items": {"type": "string"}
+          },
+          "expected_action": {
+            "type": "string",
+            "enum": ["draft", "ask", "refuse"],
+            "description": "Expected bot action: draft, ask (request clarification), refuse (not supported)"
+          },
+          "refuse_reason": {"type": "string"},
+          "ask_clarification": {"type": "string"},
+          "personal_data_check": {
+            "type": "boolean",
+            "description": "Confirmed no personal health data in image"
+          }
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"category": {"const": "food"}}, "required": ["category"]},
+            "then": {
+              "properties": {
+                "expected_fields": {
+                  "type": "object",
+                  "minProperties": 1,
+                  "additionalProperties": {"required": ["value", "unit", "confidence"]}
+                }
+              }
+            }
+          },
+          {
+            "if": {"properties": {"category": {"enum": ["health", "watch"]}}, "required": ["category"]},
+            "then": {"properties": {"expected_fields": {"type": "array", "minItems": 1}}}
+          },
+          {
+            "if": {"properties": {"expected_action": {"const": "ask"}}, "required": ["expected_action"]},
+            "then": {"required": ["ask_clarification"]}
+          },
+          {
+            "if": {"properties": {"expected_action": {"const": "refuse"}}, "required": ["expected_action"]},
+            "then": {"required": ["refuse_reason"]}
+          }
+        ]
+      }
+    }
+  },
+  "required": ["version", "created_at", "commit_hash", "cases"]
+}

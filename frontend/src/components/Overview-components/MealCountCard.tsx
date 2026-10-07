@@ -18,29 +18,11 @@ function formatCount(
     return '—'
   }
 
-  return value.toLocaleString('ru-RU')
+  return value.toLocaleString('en-GB')
 }
 
 function getMealWord(count: number): string {
-  const mod10 = count % 10
-  const mod100 = count % 100
-
-  if (
-    mod10 === 1 &&
-    mod100 !== 11
-  ) {
-    return 'приём пищи'
-  }
-
-  if (
-    mod10 >= 2 &&
-    mod10 <= 4 &&
-    (mod100 < 12 || mod100 > 14)
-  ) {
-    return 'приёма пищи'
-  }
-
-  return 'приёмов пищи'
+  return count === 1 ? 'meal' : 'meals'
 }
 
 export function MealCountCard({
@@ -63,12 +45,12 @@ export function MealCountCard({
 
   return (
     <section
-      className="meal-count-card"
-      aria-label="Количество приёмов пищи"
+      className="meal-count-card paper-note"
+      aria-label="Meal count"
     >
       <div className="meal-count-card__header">
         <h2 className="meal-count-card__title">
-          Приёмы пищи
+          Meals
         </h2>
 
         <div
@@ -97,7 +79,7 @@ export function MealCountCard({
       </div>
 
       <p className="meal-count-card__label">
-        За выбранный период
+        For the selected period
       </p>
 
       <div className="meal-count-card__value">

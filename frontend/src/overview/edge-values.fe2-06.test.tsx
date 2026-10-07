@@ -127,21 +127,21 @@ describe('FE2-06: дополнительные проверки отображе
     )
 
     const card = screen.getByRole('region', {
-      name: 'Калории и БЖУ',
+      name: 'Calories & macros',
     })
 
     expectText(
       card,
       '.nutrition-card__energy',
-      '847,5 ккал',
+      '847.5 kcal',
     )
 
     expect(
-      within(card).queryByText('848 ккал', { exact: true }),
+      within(card).queryByText('848 kcal', { exact: true }),
     ).not.toBeInTheDocument()
 
     expect(
-      within(card).queryByText('847 ккал', { exact: true }),
+      within(card).queryByText('847 kcal', { exact: true }),
     ).not.toBeInTheDocument()
   })
 
@@ -162,26 +162,26 @@ describe('FE2-06: дополнительные проверки отображе
     )
 
     const card = screen.getByRole('region', {
-      name: 'Калории и БЖУ',
+      name: 'Calories & macros',
     })
 
-    expectText(card, '.nutrition-card__energy', '300 ккал')
-    expectStat(card, 'Белки', '— г')
-    expectStat(card, 'Жиры', '0 г')
-    expectStat(card, 'Углеводы', '35 г')
+    expectText(card, '.nutrition-card__energy', '300 kcal')
+    expectStat(card, 'Protein', '— g')
+    expectStat(card, 'Fat', '0 g')
+    expectStat(card, 'Carbs', '35 g')
 
     const warning = within(card).getByRole('status')
 
     expect(warning).toBeVisible()
     expect(warning).toHaveTextContent(
-      'Данные о рационе неполные.',
+      'Nutrition data is incomplete.',
     )
     expect(warning).toHaveTextContent(
-      'Показаны только записанные показатели.',
+      'Only recorded values are shown.',
     )
 
-    // При неизвестном нутриенте проценты состава
-    // не должны изображать полный известный состав.
+    // При unknownм нутриенте проценты breakdownа
+    // не должны изображать полный известный breakdown.
     expect(
       card.querySelector('.nutrition-card__legend'),
     ).not.toBeInTheDocument()
@@ -207,23 +207,23 @@ describe('FE2-06: дополнительные проверки отображе
     )
 
     const card = screen.getByRole('region', {
-      name: 'Калории и БЖУ',
+      name: 'Calories & macros',
     })
 
-    expectText(card, '.nutrition-card__energy', '0 ккал')
-    expectStat(card, 'Белки', '0 г')
-    expectStat(card, 'Жиры', '0 г')
-    expectStat(card, 'Углеводы', '0 г')
+    expectText(card, '.nutrition-card__energy', '0 kcal')
+    expectStat(card, 'Protein', '0 g')
+    expectStat(card, 'Fat', '0 g')
+    expectStat(card, 'Carbs', '0 g')
 
     expect(
       within(card).queryByRole('status'),
     ).not.toBeInTheDocument()
 
     expect(
-      within(card).queryByText('— ккал', { exact: true }),
+      within(card).queryByText('— kcal', { exact: true }),
     ).not.toBeInTheDocument()
 
-    // У нулевого состава не должно быть выдуманных процентов.
+    // У нулевого breakdownа не должно быть выдуманных процентов.
     expect(
       card.querySelector('.nutrition-card__legend'),
     ).not.toBeInTheDocument()
@@ -245,12 +245,12 @@ describe('FE2-06: дополнительные проверки отображе
     )
 
     const card = screen.getByRole('region', {
-      name: 'Аналитика сна',
+      name: 'Sleep analytics',
     })
 
-    expectText(card, '.sleep-card__total', '0 мин')
-    expectStat(card, 'Среднее', '0 мин')
-    expectStat(card, 'Дней с данными', '1')
+    expectText(card, '.sleep-card__total', '0 min')
+    expectStat(card, 'Average', '0 min')
+    expectStat(card, 'Days recorded', '1')
 
     expectText(
       card,
@@ -259,7 +259,7 @@ describe('FE2-06: дополнительные проверки отображе
     )
   })
 
-  it('нулевые шаги остаются значением и сохраняют день с данными', () => {
+  it('нулевые steps остаются значением и сохраняют день с данными', () => {
     const period = readContractFixture('normal').period
 
     // Синтетический вход компонента.
@@ -275,7 +275,7 @@ describe('FE2-06: дополнительные проверки отображе
     )
 
     const card = screen.getByRole('region', {
-      name: 'Аналитика шагов',
+      name: 'Step analytics',
     })
 
     const total = element(card, '.steps-card__total')
@@ -284,17 +284,17 @@ describe('FE2-06: дополнительные проверки отображе
     expect(directText(total)).toBe('0')
 
     expect(
-      within(total).getByText('шагов', { exact: true }),
+      within(total).getByText('steps', { exact: true }),
     ).toBeVisible()
 
-    expectStat(card, 'Среднее', '0')
-    expectStat(card, 'Дней с данными', '1')
+    expectStat(card, 'Average', '0')
+    expectStat(card, 'Days recorded', '1')
 
     // Нулевое измерение учитывается как имеющиеся данные.
     expectText(
       card,
       '.steps-card__coverage-description',
-      'Данные записаны за 1 из 7 дней',
+      'Data recorded for 1 of 7 days',
     )
 
     expect(

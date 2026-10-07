@@ -30,12 +30,13 @@ public final class BotHandler {
             return List.of(); // Deny before dispatch, including future checkin calls.
         }
         if (update.kind() == BotUpdate.Kind.CALLBACK) return flow.handleCallback(update);
+        if (update.image() != null) return flow.handleMessage(update);
         String text = update.text();
         if (text == null) return List.of();
         String command = command(update);
         if ("/start".equals(command)) {
-            String welcome = "Это учебный демонстрационный дневник самочувствия. "
-                    + "Для демонстрации используются синтетические данные. "
+            String welcome = "Это учебный дневник самочувствия. "
+                    + "Дневник нового пользователя пуст. Добавляйте свои тестовые записи. "
                     + "Это не медицинский сервис. Не отправляйте реальные сведения о здоровье. "
                     + "Нажмите «Отметить состояние» или отправьте /state.";
             if (settings.miniAppUrl() == null) welcome += " Кабинет пока не подключён.";
