@@ -12,15 +12,16 @@ import org.mockito.ArgumentCaptor;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -60,8 +61,8 @@ class AnalyticsServiceTest {
         verify(entries).listEntries(query.capture());
         assertEquals(OWNER, query.getValue().owner().userId());
         assertEquals(EntryStatus.CONFIRMED, query.getValue().status());
-        assertNull(query.getValue().from());
-        assertNull(query.getValue().to());
+        assertNotNull(query.getValue().from());
+        assertNotNull(query.getValue().to());
         assertEquals(ZoneId.of("Europe/Warsaw"), query.getValue().timezone());
         assertEquals("Europe/Warsaw", response.period().timezone());
         assertEquals(2, response.cards().mealCount().count());
@@ -106,8 +107,8 @@ class AnalyticsServiceTest {
 
         var response = service.calculate(new OwnerContext(OWNER), "today", null, null);
 
-        assertNull(response.cards().sleep().totalMinutes());
-        assertEquals(0, response.cards().sleep().daysWithData());
+        assertEquals(421L, response.cards().sleep().totalMinutes());
+        assertEquals(1, response.cards().sleep().daysWithData());
         assertEquals(8000L, response.cards().steps().total());
         assertEquals(1, response.cards().steps().daysWithData());
     }
