@@ -88,6 +88,14 @@ Entry write. Cleanup preserves pins, bindings and any Entry reference, including
 cancelled/deleted entries and legacy uppercase UUID references. Existing
 idempotent Entry results remain readable without new reservation validation.
 
+If an Entry insert is rejected by a uniqueness conflict and the winning draft or
+Telegram update is found, the losing request releases only a pin it established
+itself. Under the same file lock it checks for any Entry reference and conditionally
+changes `PINNED` to `ACTIVE` only for owned metadata without `entryId`. The caller
+can then clean up the unused file through `discardUnreferenced`. A pre-existing pin
+is preserved because it may protect an earlier write whose outcome is unknown;
+unresolved conflicts and other write failures also remain protected.
+
 Deletion first records `DELETING`, removes the image bytes, then records
 `DELETED` and clears content metadata. A failed operation can be retried.
 The technical ID/owner/lifecycle/version tombstone remains permanently;

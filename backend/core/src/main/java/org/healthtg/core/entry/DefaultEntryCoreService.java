@@ -84,8 +84,9 @@ class DefaultEntryCoreService implements EntryCoreService {
 
         Instant now = persistedNow();
         Map<String, Object> sourceRef = new LinkedHashMap<>(command.sourceRef());
+        boolean newlyPinned = false;
         if(fileId!=null) {
-            fileLifecycle.pinForEntry(command.owner(),fileId);
+            newlyPinned = fileLifecycle.pinForEntry(command.owner(),fileId);
             sourceRef.put("file_id",fileId.toString());
         }
         sourceRef.putIfAbsent("telegram_update_id", command.updateKey().updateId());
@@ -97,11 +98,21 @@ class DefaultEntryCoreService implements EntryCoreService {
         } catch (DuplicateKeyException duplicate) {
             Optional<Entry> sameUpdate = store.findByTelegramUpdateKey(updateKey);
             if (sameUpdate.isPresent()) {
-                return new DraftCreationResult(owned(sameUpdate.get(), command.owner()),
-                        DraftCreationResult.Outcome.EXISTING_UPDATE);
+                Entry existing = owned(sameUpdate.get(), command.owner());
+                releaseRejectedFile(command.owner(), fileId, newlyPinned);
+                return new DraftCreationResult(existing, DraftCreationResult.Outcome.EXISTING_UPDATE);
             }
-            return new DraftCreationResult(store.findActiveDraft(command.owner().userId()).orElseThrow(() -> duplicate),
-                    DraftCreationResult.Outcome.ACTIVE_DRAFT_EXISTS);
+            Entry activeDraft = store.findActiveDraft(command.owner().userId()).orElseThrow(() -> duplicate);
+            releaseRejectedFile(command.owner(), fileId, newlyPinned);
+            return new DraftCreationResult(activeDraft, DraftCreationResult.Outcome.ACTIVE_DRAFT_EXISTS);
+        }
+    }
+
+    private void releaseRejectedFile(OwnerContext owner, UUID fileId, boolean newlyPinned) {
+        // The outer file lock covers both the reference check and the conditional state update.
+        // Only a resolved duplicate is compensated; uncertain writes and older pins stay protected.
+        if (newlyPinned && !store.hasFileReference(fileId)) {
+            fileLifecycle.releaseRejectedEntryPin(owner, fileId);
         }
     }
 

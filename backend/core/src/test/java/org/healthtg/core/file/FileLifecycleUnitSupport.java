@@ -25,7 +25,9 @@ final class FileLifecycleUnitSupport {
                             set.containsKey("entryId")?set.getString("entryId"):old.entryId(),old.relativePath(),
                             old.mediaType(),old.extension(),old.size(),old.width(),old.height(),old.sha256(),old.createdAt(),
                             old.version()==null?1:old.version()+1,set.containsKey("lifecycle")?set.getString("lifecycle"):old.lifecycle());
-                    database.put(id,changed);return changed;
+                    database.put(id,changed);
+                    FindAndModifyOptions options=call.getArgument(2);
+                    return options.isReturnNew()?changed:old;
                 });
         return new StoredFileLifecycle(mongo);
     }

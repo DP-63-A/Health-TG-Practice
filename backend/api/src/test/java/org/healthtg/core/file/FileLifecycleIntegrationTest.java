@@ -133,6 +133,67 @@ class FileLifecycleIntegrationTest {
             assertEquals(operation.equals("create"),Files.exists(path(id)));
         } finally {release.countDown();}
     }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void concurrentDraftLoserCanBeCleanedWithoutDeletingWinner(boolean sameUpdate) throws Exception {
+        // Different lock stripes ensure both requests reach Mongo before either insert completes.
+        UUID first=new UUID(0,1),second=new UUID(0,2);
+        upload(first);upload(second);
+        mongo.getCollection("entries").createIndex(new Document("ownerId",1),
+                new com.mongodb.client.model.IndexOptions().name("one_active_draft_per_owner").unique(true)
+                        .partialFilterExpression(new Document("status","draft")));
+        mongo.getCollection("entries").createIndex(new Document("telegramUpdateKey",1),
+                new com.mongodb.client.model.IndexOptions().name("telegramUpdateKey").unique(true));
+        var ready=new java.util.concurrent.CyclicBarrier(2);
+        doAnswer(i->{ready.await(10,java.util.concurrent.TimeUnit.SECONDS);return i.callRealMethod();})
+                .when(store).save(any());
+        try(var executor=java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var one=executor.submit(()->entries.createDraft(command(first.toString(),1)));
+            var two=executor.submit(()->entries.createDraft(command(second.toString(),sameUpdate?1:2)));
+            var results=List.of(one.get(15,java.util.concurrent.TimeUnit.SECONDS),two.get(15,java.util.concurrent.TimeUnit.SECONDS));
+            assertEquals(1,results.stream().filter(r->r.outcome()==DraftCreationResult.Outcome.CREATED).count());
+            assertEquals(1,results.stream().filter(r->r.outcome()==(sameUpdate
+                    ?DraftCreationResult.Outcome.EXISTING_UPDATE:DraftCreationResult.Outcome.ACTIVE_DRAFT_EXISTS)).count());
+            assertEquals(results.get(0).entry().id(),results.get(1).entry().id());
+            UUID winner=UUID.fromString((String)results.get(0).entry().sourceRef().get("file_id"));
+            UUID loser=winner.equals(first)?second:first;
+            assertEquals(1,mongo.getCollection("entries").countDocuments());
+            assertEquals("ACTIVE",metadata(loser).getString("lifecycle"));
+            assertEquals(FileStorageService.CleanupResult.DELETED,files.discardUnreferenced(owner,loser));
+            assertFalse(Files.exists(path(loser)));
+            assertEquals("DELETED",metadata(loser).getString("lifecycle"));
+            assertEquals(FileStorageService.CleanupResult.PROTECTED,files.discardUnreferenced(owner,winner));
+            assertArrayEquals(bytes,Files.readAllBytes(path(winner)));
+        }
+    }
+
+    @ParameterizedTest @ValueSource(strings={"olderPin","binding","reference"})
+    void rejectedDraftDoesNotReleaseExistingProtection(String protection) {
+        UUID id=UUID.randomUUID();upload(id);
+        if(protection.equals("olderPin")) {
+            // An earlier request may still complete after losing its Mongo acknowledgement.
+            mongo.getCollection("stored_files").updateOne(new Document("_id",id.toString()),
+                    new Document("$set",new Document("lifecycle","PINNED")));
+        } else if(protection.equals("binding")) {
+            mongo.getCollection("stored_files").updateOne(new Document("_id",id.toString()),
+                    new Document("$set",new Document("entryId",UUID.randomUUID().toString())));
+        } else {
+            mongo.getCollection("entries").insertOne(new Document("_id",UUID.randomUUID().toString())
+                    .append("ownerId",UUID.randomUUID().toString()).append("status","cancelled")
+                    .append("sourceRef",new Document("file_id",id.toString().toUpperCase(Locale.ROOT))));
+        }
+        doAnswer(i->{
+            doCallRealMethod().when(store).save(any());
+            entries.createDraft(new CreateDraftCommand(owner,EntryType.MEAL,SourceKind.TEXT,Map.of(),
+                    Instant.parse("2026-10-07T12:00:00Z"),Map.of("description","winner"),Map.of(),
+                    new TelegramUpdateKey("lifecycle",2)));
+            throw new org.springframework.dao.DuplicateKeyException("active draft won the race");
+        }).when(store).save(any());
+        assertEquals(DraftCreationResult.Outcome.ACTIVE_DRAFT_EXISTS,entries.createDraft(command(id.toString(),1)).outcome());
+        assertEquals("PINNED",metadata(id).getString("lifecycle"));
+        assertEquals(FileStorageService.CleanupResult.PROTECTED,files.discardUnreferenced(owner,id));
+        assertTrue(Files.exists(path(id)));
+    }
+
     @Test void reservationInsertCompletingAfterCancellationCannotReplaceTombstone() {
         UUID id=UUID.randomUUID();AtomicReference<MongoStoredFileDocument> pending=new AtomicReference<>();
         doAnswer(i->{if(pending.get()==null){pending.set(i.getArgument(0));throw new IllegalStateException("insert response unknown");}return mongo.insert((MongoStoredFileDocument)i.getArgument(0));})

@@ -31,13 +31,22 @@ public final class StoredFileLifecycle {
     private static Criteria owned(OwnerContext owner,UUID id) {
         return Criteria.where("_id").is(id.toString()).and("ownerId").is(owner.userId().toString());
     }
-    public void pinForEntry(OwnerContext owner,UUID id) {
+    /** Called under FileOperationGuard; true only when this operation establishes a new pin. */
+    public boolean pinForEntry(OwnerContext owner,UUID id) {
         var query=Query.query(new Criteria().andOperator(owned(owner,id),
                 new Criteria().orOperator(active(),Criteria.where("lifecycle").is(PINNED))));
-        var changed=mongo.findAndModify(query,new Update().set("lifecycle",PINNED).inc("version",1),
-                FindAndModifyOptions.options().returnNew(true),MongoStoredFileDocument.class);
-        if (changed==null) throw new StoredFileNotFoundException();
-        // Never unpin on an Entry write failure: that write may have succeeded in MongoDB.
+        var previous=mongo.findAndModify(query,new Update().set("lifecycle",PINNED).inc("version",1),
+                FindAndModifyOptions.options().returnNew(false),MongoStoredFileDocument.class);
+        if (previous==null) throw new StoredFileNotFoundException();
+        // A pre-existing pin may protect an earlier write with an unknown outcome.
+        return ACTIVE.equals(state(previous));
+    }
+
+    /** Caller must hold the file lock, own the new pin, and have ruled out all Entry references. */
+    public void releaseRejectedEntryPin(OwnerContext owner,UUID id) {
+        var query=Query.query(new Criteria().andOperator(owned(owner,id),
+                Criteria.where("lifecycle").is(PINNED),Criteria.where("entryId").is(null)));
+        mongo.updateFirst(query,new Update().set("lifecycle",ACTIVE).inc("version",1),MongoStoredFileDocument.class);
     }
     MongoStoredFileDocument bind(OwnerContext owner,UUID id,UUID entryId) {
         var query=Query.query(new Criteria().andOperator(owned(owner,id),
