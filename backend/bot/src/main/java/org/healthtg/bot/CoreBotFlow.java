@@ -37,6 +37,9 @@ public final class CoreBotFlow implements BotFlow {
     private final org.healthtg.bot.draft.DraftReviewFlow drafts;
     private final CheckinReceiptFlow checkinReceipts;
     private final org.healthtg.bot.text.TextDialogFlow textDialog;
+    private org.healthtg.bot.visual.FoodPhotoFlow photos;
+    public CoreBotFlow withPhotos(org.healthtg.bot.visual.FoodPhotoFlow photos) { this.photos = photos; return this; }
+
 
     public CoreBotFlow(UserService users, EntryCoreService entries, DialogStateService dialogs, Clock clock) {
         this(users, entries, dialogs, new TextInputParser(), new CheckinSelector(), clock, null);
@@ -64,11 +67,13 @@ public final class CoreBotFlow implements BotFlow {
     }
 
     @Override
-    public List<BotAction> beginCheckin(BotUpdate update) {
+    public synchronized List<BotAction> beginCheckin(BotUpdate update) {
         UserAccount user = users.findOrCreate(update.senderId());
         OwnerContext owner = new OwnerContext(user.id());
+        if (isStale(update, owner)) return staleResponse(update);
         var active = entries.findActiveDraft(owner);
         if (active.isPresent()) return drafts.card(update, active.get(), user.timezone(), "Завершите текущий черновик.");
+        if (photos != null) { var pendingPhoto = photos.guard(update, owner); if (pendingPhoto.isPresent()) return pendingPhoto.get(); }
         var pendingText = textDialog.guard(update, owner);
         if (pendingText.isPresent()) return pendingText.get();
         CheckinSelector proposed = new CheckinSelector();
@@ -94,9 +99,20 @@ public final class CoreBotFlow implements BotFlow {
 
     @Override
     public synchronized List<BotAction> handleMessage(BotUpdate update) {
-        if (update.text() == null || update.text().startsWith("/")) return List.of();
+        if (update.image() == null && (update.text() == null || update.text().startsWith("/"))) return List.of();
         UserAccount user = users.findOrCreate(update.senderId());
         OwnerContext owner = new OwnerContext(user.id());
+        if (isStale(update, owner)) return staleResponse(update);
+        if (photos != null && photos.hasPending(owner)) return photos.message(update, owner, user.timezone());
+        if (update.image() != null) {
+            var current = entries.findActiveDraft(owner);
+            if (current.isPresent()) return drafts.card(update, current.get(), user.timezone(), "Завершите текущий черновик.");
+            var pending = textDialog.guard(update, owner);
+            if (pending.isPresent()) return pending.get();
+            if (dialogs.find(owner).filter(s -> isActiveCheckin(s.step())).isPresent())
+                return List.of(new BotAction.SendInlineMessage(update.chatId(), "Завершите выбор состояния.", List.of()));
+            return photos == null ? List.of(new BotAction.SendInlineMessage(update.chatId(), "Распознавание фото не настроено.", List.of())) : photos.message(update, owner, user.timezone());
+        }
         var correction = drafts.message(update, owner, user.timezone());
         if (correction.isPresent()) return correction.get();
         var active = entries.findActiveDraft(owner);
@@ -117,6 +133,12 @@ public final class CoreBotFlow implements BotFlow {
         if (update.callbackId() == null || update.callbackData() == null) return List.of();
         UserAccount user = users.findOrCreate(update.senderId());
         OwnerContext owner = new OwnerContext(user.id());
+        if (isStale(update, owner)) return staleResponse(update);
+        if (photos != null) {
+            if (update.callbackData().startsWith("fp:")) return photos.callback(update, owner, user.timezone());
+            var pendingPhoto = photos.guard(update, owner);
+            if (pendingPhoto.isPresent()) return pendingPhoto.get();
+        }
         if (update.callbackData().startsWith("tx:")) return textDialog.callback(update, owner, user.timezone());
         if (update.callbackData().startsWith("dr:")) return drafts.callback(update, owner, user.timezone());
         if (update.callbackData().startsWith("cancel:")) return cancel(update, owner);
@@ -129,6 +151,17 @@ public final class CoreBotFlow implements BotFlow {
         }
     }
 
+    private boolean isStale(BotUpdate update, OwnerContext owner) {
+        return photos != null && dialogs.find(owner).filter(state -> update.updateId()
+                < org.healthtg.bot.visual.FoodPhotoFlow.observedUpdate(state)
+                || (state.context().get("last_photo_update") instanceof Number photo
+                && update.updateId() <= photo.longValue())).isPresent();
+    }
+    private static List<BotAction> staleResponse(BotUpdate update) {
+        return update.callbackId() == null
+                ? List.of(new BotAction.SendInlineMessage(update.chatId(), "Сообщение устарело. Продолжите текущий диалог.", List.of()))
+                : List.of(new BotAction.AnswerCallback(update.callbackId(), "Кнопка устарела"));
+    }
     private List<BotAction> handleCheckinCallback(BotUpdate update, OwnerContext owner, ZoneId zone) {
         if (!restoreSelector(update.senderId(), owner, update.updateId())) {
             return List.of(new BotAction.AnswerCallback(update.callbackId(), "Кнопка устарела"));

@@ -12,6 +12,8 @@ repositories { mavenCentral() }
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:3.5.6"))
     implementation("org.springframework.boot:spring-boot-starter")
+    implementation("com.fasterxml.jackson.core:jackson-databind")
+    implementation("com.networknt:json-schema-validator:1.5.6")
     implementation(project(":backend:core"))
     implementation("org.telegram:telegrambots-client:9.2.0")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -31,3 +33,10 @@ tasks.test {
     systemProperty("contracts.root", rootProject.projectDir.resolve("contracts").absolutePath)
 }
 springBoot { mainClass.set("org.healthtg.bot.BotApplication") }
+
+tasks.register<JavaExec>("recognizeFood") {
+    group = "application"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("org.healthtg.bot.recognition.FoodRecognitionDemo")
+    workingDir = rootProject.projectDir
+}
