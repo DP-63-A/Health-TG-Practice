@@ -1,6 +1,7 @@
 package org.healthtg.bot;
 
 import java.util.List;
+import java.time.Instant;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.menubutton.SetChatMenuButton;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -42,7 +43,9 @@ public final class TelegramAdapter {
             } else if (action instanceof BotAction.SendInlineMessage message) {
                 List<InlineKeyboardRow> rows = message.rows().stream().map(row -> new InlineKeyboardRow(
                         row.stream().map(button -> InlineKeyboardButton.builder().text(button.text())
-                                .callbackData(button.callbackData()).build()).toList())).toList();
+                                .callbackData(button.callbackData())
+                                .webApp(button.webAppUrl() == null ? null : new WebAppInfo(button.webAppUrl().toString()))
+                                .build()).toList())).toList();
                 client.execute(SendMessage.builder().chatId(message.chatId()).text(message.text())
                         .replyMarkup(InlineKeyboardMarkup.builder().keyboard(rows).build()).build());
             } else if (action instanceof BotAction.AnswerCallback answer) {
@@ -87,6 +90,7 @@ public final class TelegramAdapter {
                 : message.getEntities().stream().filter(e -> e != null && e.getOffset() != null && e.getLength() != null)
                 .map(e -> new BotUpdate.Entity(e.getType(), e.getOffset(), e.getLength())).toList();
         return new BotUpdate(update.getUpdateId(), BotUpdate.Kind.MESSAGE, type, message.getChatId(),
-                message.getFrom().getId(), message.getFrom().getIsBot(), message.getText(), entities, null, null);
+                message.getFrom().getId(), message.getFrom().getIsBot(), message.getText(), entities, null, null,
+                message.getDate() == null ? null : Instant.ofEpochSecond(message.getDate()));
     }
 }

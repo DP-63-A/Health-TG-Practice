@@ -45,7 +45,8 @@ class Pr76StateRegressionTest {
     OwnerContext owner(long user) { return new OwnerContext(users.findOrCreate(user).id()); }
     DialogState state(long user) { return dialogs.find(owner(user)).orElseThrow(); }
     static BotUpdate msg(long user, long update, String text) {
-        return new BotUpdate(update, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE, user, user, false, text, List.of(), null, null);
+        return new BotUpdate(update, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE, user, user, false, text, List.of(), null, null,
+                java.time.Instant.parse("2026-09-25T08:00:00Z"));
     }
     static BotUpdate cb(long user, long update, String data) {
         return new BotUpdate(update, BotUpdate.Kind.CALLBACK, BotUpdate.ChatType.PRIVATE, user, user, false, null, List.of(), "cb"+update, data);
@@ -57,7 +58,10 @@ class Pr76StateRegressionTest {
     static String token(String button) { return button.substring(2, 34); }
     static String storedToken(DialogState state) { return state.context().get("selector_id").toString().replace("-", ""); }
     String draft(CoreBotFlow flow, long user, long update) {
-        return button(flow.handleMessage(msg(user, update, "24.09.2026 за день прошёл 8000 шагов")));
+        flow.handleMessage(msg(user, update, "24.09.2026 за день прошёл 8000 шагов"));
+        Entry draft = entries.findActiveDraft(owner(user)).orElseThrow();
+        // These regressions exercise cancellation buttons sent before draft-review was introduced.
+        return "cancel:" + draft.id() + ":" + draft.revision();
     }
 
     @Test void repeatedStartAcrossTwoContextRestartsKeepsUsableButtons() {

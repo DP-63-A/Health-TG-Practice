@@ -17,6 +17,8 @@ import java.util.Map;
 @Repository
 @ConditionalOnProperty(name = "health-tg.core.storage.enabled", matchIfMissing = true)
 class MongoEntryStore implements EntryStore {
+    private static final char MAP_KEY_ESCAPE = '\uFF0E';
+
     private final MongoEntryRepository repository;
     private final MongoTemplate mongoTemplate;
 
@@ -69,8 +71,8 @@ class MongoEntryStore implements EntryStore {
                 .set("occurredAt", replacement.occurredAt())
                 .set("updatedAt", replacement.updatedAt())
                 .set("revision", replacement.revision())
-                .set("payload", replacement.payload())
-                .set("fieldOrigins", replacement.fieldOrigins())
+                .set("payload", encodeNumbers(replacement.payload()))
+                .set("fieldOrigins", encodeMapKeys(replacement.fieldOrigins()))
                 .set("submissionId", replacement.submissionId())
                 .push("history").slice(-10).each(snapshot(current));
         MongoEntryDocument changed = mongoTemplate.findAndModify(query, update,
@@ -84,8 +86,8 @@ class MongoEntryStore implements EntryStore {
         snapshot.put("status", entry.status().code());
         snapshot.put("occurredAt", entry.occurredAt());
         snapshot.put("updatedAt", entry.updatedAt());
-        snapshot.put("payload", entry.payload());
-        snapshot.put("fieldOrigins", entry.fieldOrigins());
+        snapshot.put("payload", encodeNumbers(entry.payload()));
+        snapshot.put("fieldOrigins", encodeMapKeys(entry.fieldOrigins()));
         snapshot.put("submissionId", entry.submissionId());
         return snapshot;
     }
@@ -93,7 +95,7 @@ class MongoEntryStore implements EntryStore {
     private static MongoEntryDocument toDocument(Entry entry) {
         return new MongoEntryDocument(entry.id().toString(), entry.ownerId().toString(), entry.type().code(),
                 entry.status().code(), entry.sourceKind().code(), entry.sourceRef(), entry.occurredAt(),
-                entry.createdAt(), entry.updatedAt(), entry.revision(), entry.payload(), entry.fieldOrigins(),
+                entry.createdAt(), entry.updatedAt(), entry.revision(), encodeNumbers(entry.payload()), encodeMapKeys(entry.fieldOrigins()),
                 entry.submissionId(), entry.telegramUpdateKey(), List.of());
     }
 
@@ -101,7 +103,77 @@ class MongoEntryStore implements EntryStore {
         return new Entry(UUID.fromString(document.id()), UUID.fromString(document.ownerId()),
                 EntryType.fromCode(document.type()), EntryStatus.fromCode(document.status()),
                 SourceKind.fromCode(document.sourceKind()), document.sourceRef(), document.occurredAt(),
-                document.createdAt(), document.updatedAt(), document.revision(), document.payload(),
-                document.fieldOrigins(), document.submissionId(), document.telegramUpdateKey());
+                document.createdAt(), document.updatedAt(), document.revision(), decodeNumbers(document.payload()),
+                decodeMapKeys(document.fieldOrigins()), document.submissionId(), document.telegramUpdateKey());
+    }
+
+    // Untyped Mongo maps otherwise return BigDecimal as String (or BSON Decimal128).
+    // Only contract numeric fields are decoded; free text such as "12.5" remains text.
+    private static Map<String, Object> encodeNumbers(Map<String, Object> payload) {
+        Map<String, Object> result = new LinkedHashMap<>(payload);
+        result.replaceAll((key, value) -> value instanceof java.math.BigDecimal decimal ? decimal.toString() : value);
+        if (payload.get("nutrients") instanceof Map<?, ?> map) {
+            Map<String, Object> nutrients = new LinkedHashMap<>();
+            map.forEach((key, value) -> nutrients.put(key.toString(),
+                    value instanceof java.math.BigDecimal decimal ? decimal.toString() : value));
+            result.put("nutrients", nutrients);
+        }
+        return result;
+    }
+
+    private static Map<String, Object> decodeNumbers(Map<String, Object> payload) {
+        Map<String, Object> result = new LinkedHashMap<>(payload);
+        for (String key : List.of("value", "mass_g")) {
+            if (result.containsKey(key)) result.put(key, decimal(result.get(key)));
+        }
+        if (payload.get("nutrients") instanceof Map<?, ?> map) {
+            Map<String, Object> nutrients = new LinkedHashMap<>();
+            map.forEach((key, value) -> nutrients.put(key.toString(), decimal(value)));
+            result.put("nutrients", nutrients);
+        }
+        return result;
+    }
+
+    private static Object decimal(Object value) {
+        if (value instanceof org.bson.types.Decimal128 decimal) return decimal.bigDecimalValue();
+        if (value instanceof String text) return new java.math.BigDecimal(text);
+        return value;
+    }
+
+    private static Map<String, String> encodeMapKeys(Map<String, String> values) {
+        Map<String, String> encoded = new LinkedHashMap<>();
+        values.forEach((key, value) -> {
+            StringBuilder safeKey = new StringBuilder(key.length());
+            for (int index = 0; index < key.length(); index++) {
+                char character = key.charAt(index);
+                if (character == MAP_KEY_ESCAPE) safeKey.append(MAP_KEY_ESCAPE).append(MAP_KEY_ESCAPE);
+                else if (character == '.') safeKey.append(MAP_KEY_ESCAPE);
+                else safeKey.append(character);
+            }
+            encoded.put(safeKey.toString(), value);
+        });
+        return encoded;
+    }
+
+    private static Map<String, String> decodeMapKeys(Map<String, String> values) {
+        Map<String, String> decoded = new LinkedHashMap<>();
+        values.forEach((key, value) -> {
+            StringBuilder originalKey = new StringBuilder(key.length());
+            for (int index = 0; index < key.length(); index++) {
+                char character = key.charAt(index);
+                if (character == MAP_KEY_ESCAPE) {
+                    if (index + 1 < key.length() && key.charAt(index + 1) == MAP_KEY_ESCAPE) {
+                        originalKey.append(MAP_KEY_ESCAPE);
+                        index++;
+                    } else {
+                        originalKey.append('.');
+                    }
+                } else {
+                    originalKey.append(character);
+                }
+            }
+            decoded.put(originalKey.toString(), value);
+        });
+        return decoded;
     }
 }

@@ -47,7 +47,10 @@
         }
       }
     },
-    "occurred_at": { "$ref": "common.json#/$defs/DateTimeUtc" },
+    "occurred_at": {
+      "$ref": "common.json#/$defs/DateTimeUtc",
+      "description": "For steps, sleep_duration_min and heart_rate: immutable full timestamp of the original report, not the metric date or measurement time. Telegram uses the original message date, never processing or clarification time. Meal semantics are unchanged."
+    },
     "created_at": { "$ref": "common.json#/$defs/DateTimeUtc" },
     "updated_at": { "$ref": "common.json#/$defs/DateTimeUtc" },
     "revision": { "$ref": "common.json#/$defs/Revision" },

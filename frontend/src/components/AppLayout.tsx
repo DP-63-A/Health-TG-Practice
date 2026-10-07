@@ -1,10 +1,25 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { apiMode } from '../api/client'
 import { Badge, Button } from './ui'
 import { useRefresh } from '../refresh/RefreshProvider'
 
 function AppLayout() {
   const { requestRefresh } = useRefresh()
+
+  const location = useLocation()
+  const navigationState = location.state as
+    | { overviewReturnTo?: unknown }
+    | null
+
+  const overviewReturnTo =
+    typeof navigationState?.overviewReturnTo ===
+    'string' &&
+    /^\/overview(?:\?[^#]*)?$/.test(
+      navigationState.overviewReturnTo,
+    )
+      ? navigationState.overviewReturnTo
+      : '/overview'
+
 
   return (
     <div className="app-shell">
@@ -19,8 +34,22 @@ function AppLayout() {
             Обновить
           </Button>
           <nav className="app-nav" aria-label="Основная навигация">
-            <NavLink to="/diary">Дневник</NavLink>
-            <NavLink to="/overview">Обзор</NavLink>
+
+            {/* <NavLink to="/diary">Дневник</NavLink> */}
+
+            <NavLink
+  to="/diary"
+  state={{
+    overviewReturnTo:
+      location.pathname === '/overview'
+        ? `${location.pathname}${location.search}`
+        : overviewReturnTo,
+  }}
+>
+  Дневник
+</NavLink>
+
+            <NavLink to={overviewReturnTo}>Обзор</NavLink>
           </nav>
         </div>
       </header>

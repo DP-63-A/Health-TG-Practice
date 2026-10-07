@@ -22,6 +22,35 @@ import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class TelegramAdapterTest {
+    @Test void draftButtonOpensWebAppInsteadOfCallback() throws Exception {
+        BotFlow flow = mock(BotFlow.class);
+        when(flow.handleMessage(any())).thenReturn(List.of(new BotAction.SendInlineMessage(1001L,
+                "Печёное яблоко 🍎", List.of(List.of(new BotAction.InlineButton("Открыть в Mini App", null,
+                URI.create("https://example.test/diary/123")))))));
+        new TelegramAdapter(client, new BotHandler(new BotSettings(Set.of(1001L), "test_bot", null), id -> "", flow))
+                .accept(message("яблоко"));
+        var sent = ArgumentCaptor.forClass(SendMessage.class);
+        verify(client).execute(sent.capture());
+        var keyboard = (org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup) sent.getValue().getReplyMarkup();
+        var button = keyboard.getKeyboard().getFirst().getFirst();
+        assertNull(button.getCallbackData());
+        assertEquals("https://example.test/diary/123", button.getWebApp().getUrl());
+        assertEquals("Печёное яблоко 🍎", sent.getValue().getText());
+    }
+    @Test void forwardsOriginalMessageTimestampWithoutInventingMissingDate() throws Exception {
+        BotFlow flow = mock(BotFlow.class);
+        when(flow.handleMessage(any())).thenReturn(List.of());
+        var subject = new TelegramAdapter(client, new BotHandler(
+                new BotSettings(Set.of(1001L), "test_bot", null), id -> "", flow));
+        var dated = message("04.10.2026 за день прошёл 9000 шагов");
+        dated.getMessage().setDate(1791183600);
+        subject.accept(dated);
+        subject.accept(message("04.10.2026 за день прошёл 8000 шагов"));
+        var captured = ArgumentCaptor.forClass(BotUpdate.class);
+        verify(flow, times(2)).handleMessage(captured.capture());
+        assertEquals(java.time.Instant.ofEpochSecond(1791183600), captured.getAllValues().get(0).messageSentAt());
+        assertNull(captured.getAllValues().get(1).messageSentAt());
+    }
     private static final String EXPIRED_QUERY =
             "Bad Request: query is too old and response timeout expired or query ID is invalid";
     private final TelegramClient client = mock(TelegramClient.class);

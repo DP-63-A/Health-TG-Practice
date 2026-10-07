@@ -1,6 +1,6 @@
 {
   "period":{"kind":"today","from":"2026-09-19","to":"2026-09-19","timezone":"Europe/Warsaw"},
-  "cards":{"nutrition":{"energy_kcal":null,"protein_g":null,"fat_g":null,"carbs_g":null,"incomplete":false,"meals_with_energy":0},"meal_count":{"count":0},"sleep":{"total_minutes":null,"average_minutes":null,"days_with_data":0},"steps":{"total":null,"average":null,"days_with_data":0},"heart_rate":{"value_bpm":null,"occurred_at":null,"qualifier":null,"entry_id":null},"checkins":{"sleep_quality":{"score":null,"date":null,"entry_id":null},"digestion_comfort":{"score":null,"date":null,"entry_id":null},"wellbeing":{"score":null,"date":null,"entry_id":null},"mood":{"score":null,"date":null,"entry_id":null}}},
+  "cards":{"nutrition":{"energy_kcal":null,"protein_g":null,"fat_g":null,"carbs_g":null,"incomplete":false,"meals_with_energy":0},"meal_count":{"count":0},"sleep":{"total_minutes":null,"average_minutes":null,"days_with_data":0},"steps":{"total":null,"average":null,"days_with_data":0},"heart_rate":{"local_date":null,"local_time":null,"value_bpm":null,"occurred_at":null,"qualifier":null,"entry_id":null},"checkins":{"sleep_quality":{"score":null,"date":null,"entry_id":null},"digestion_comfort":{"score":null,"date":null,"entry_id":null},"wellbeing":{"score":null,"date":null,"entry_id":null},"mood":{"score":null,"date":null,"entry_id":null}}},
   "series":{"nutrition":[],"sleep":[],"steps":[],"checkin":{"category":"mood","points":[]}},
   "observations":{"days_in_period":1,"days_with_any_data":0,"generated_at":"2026-09-19T20:05:00Z"},"sources":[]
 }

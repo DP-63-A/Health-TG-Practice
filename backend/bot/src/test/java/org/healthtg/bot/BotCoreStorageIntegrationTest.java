@@ -108,7 +108,7 @@ class BotCoreStorageIntegrationTest {
 
             var activeDraft = (BotAction.SendInlineMessage) flow.handleMessage(
                     message(1001, 12, "новая запись")).getFirst();
-            String cancel = activeDraft.rows().getFirst().getFirst().callbackData();
+            String cancel = activeDraft.rows().get(1).getFirst().callbackData();
             flow.handleCallback(callback(1001, 13, cancel));
             assertFalse(entries.findActiveDraft(new OwnerContext(draftOwner)).isPresent());
             assertEquals(EntryStatus.CANCELLED,
@@ -180,7 +180,8 @@ class BotCoreStorageIntegrationTest {
 
     private static BotUpdate message(long user, long updateId, String text) {
         return new BotUpdate(updateId, BotUpdate.Kind.MESSAGE, BotUpdate.ChatType.PRIVATE,
-                user, user, false, text, List.of(), null, null);
+                user, user, false, text, List.of(), null, null,
+                java.time.Instant.parse("2026-09-25T08:00:00Z"));
     }
 
     private static BotUpdate callback(long user, long updateId, String data) {

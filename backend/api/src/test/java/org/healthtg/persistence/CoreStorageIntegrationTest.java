@@ -56,8 +56,65 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
+@org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 @Testcontainers(disabledWithoutDocker = true)
 class CoreStorageIntegrationTest {
+    @Autowired org.springframework.test.web.servlet.MockMvc mockMvc;
+    @org.springframework.test.context.bean.override.mockito.MockitoBean org.healthtg.session.SessionService sessions;
+
+    @Test void pulseHttpPatchAndConfirmEnforceNonnegativeValueThroughRealCore() throws Exception {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        org.mockito.Mockito.when(sessions.authenticate("pulse-test")).thenReturn(owner.userId());
+        Entry pulse = entries.createDraft(new CreateDraftCommand(owner, EntryType.METRICS, SourceKind.TEXT,
+                Map.of(), Instant.parse("2026-10-06T12:00:00Z"),
+                Map.of("code", "heart_rate", "value", 72, "unit", "bpm", "local_date", "2026-10-06"),
+                Map.of(), new TelegramUpdateKey("main", 910))).entry();
+        for (String value : List.of("-1", "-0.0001", "-1E-400", "1E100000000", "1E-100000000")) {
+            mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/entries/{id}", pulse.id())
+                    .header("Authorization", "Bearer pulse-test").contentType("application/json")
+                    .content("{\"expected_revision\":1,\"payload\":{\"value\":" + value + "}}"))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isUnprocessableEntity())
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code").value("VALIDATION_ERROR"));
+            assertEquals(pulse, entries.requireEntry(owner, pulse.id()));
+        }
+        // Fault injection only in this test container: confirm must validate persisted data too.
+        mongoTemplate.updateFirst(org.springframework.data.mongodb.core.query.Query.query(
+                org.springframework.data.mongodb.core.query.Criteria.where("_id").is(pulse.id().toString())),
+                org.springframework.data.mongodb.core.query.Update.update("payload.value", -1), "entries");
+        assertThrows(EntryValidationException.class, () -> entries.confirm(new ConfirmEntryCommand(owner, pulse.id(), "bad-pulse", 1)));
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/entries/{id}/confirm", pulse.id())
+                .header("Authorization", "Bearer pulse-test").contentType("application/json")
+                .content("{\"expected_revision\":1,\"submission_id\":\"bad-pulse-http\"}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isUnprocessableEntity());
+        assertEquals(EntryStatus.DRAFT, entries.requireEntry(owner, pulse.id()).status());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/entries/{id}", pulse.id())
+                .header("Authorization", "Bearer pulse-test").contentType("application/json")
+                .content("{\"expected_revision\":1,\"payload\":{\"value\":0}}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.payload.value").value(0));
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/entries/{id}/confirm", pulse.id())
+                .header("Authorization", "Bearer pulse-test").contentType("application/json")
+                .content("{\"expected_revision\":2,\"submission_id\":\"zero-pulse-http\"}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.status").value("confirmed"));
+    }
+
+    @Test void pulseRejectsNegativeCreateAndPatchWithoutLosingValidZero() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Instant sent = Instant.parse("2026-10-06T12:00:00Z");
+        for (Number value : List.of(-1, new java.math.BigDecimal("-1E-400"))) {
+            assertThrows(EntryValidationException.class, () -> entries.createDraft(new CreateDraftCommand(
+                    owner, EntryType.METRICS, SourceKind.TEXT, Map.of(), sent,
+                    Map.of("code", "heart_rate", "value", value), Map.of(), new TelegramUpdateKey("main", 901))));
+        }
+        Entry zero = entries.createDraft(new CreateDraftCommand(owner, EntryType.METRICS, SourceKind.TEXT,
+                Map.of(), sent, Map.of("code", "heart_rate", "value", 0, "unit", "bpm", "local_date", "2026-10-06"),
+                Map.of(), new TelegramUpdateKey("main", 902))).entry();
+        assertThrows(EntryValidationException.class, () -> entries.patch(new PatchEntryCommand(owner,
+                zero.id(), zero.revision(), null, Map.of("value", -1), Map.of())));
+        assertEquals(zero, entries.requireEntry(owner, zero.id()));
+    }
+
     @Container
     static final MongoDBContainer MONGO = new MongoDBContainer(
             DockerImageName.parse("mongodb/mongodb-community-server:8.0-ubi9-slim")
@@ -78,6 +135,63 @@ class CoreStorageIntegrationTest {
     void clearCollections() {
         mongoTemplate.getDb().getCollection("entries").deleteMany(new org.bson.Document());
         mongoTemplate.getDb().getCollection("dialog_states").deleteMany(new org.bson.Document());
+    }
+
+    @Test void numericBoundsAlsoProtectConfirmationOfPersistedDraft() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Entry meal = entries.createDraft(new CreateDraftCommand(owner, EntryType.MEAL, SourceKind.TEXT,
+                Map.of(), Instant.parse("2026-10-07T00:00:00Z"), Map.of("description", "meal", "mass_g", 100),
+                Map.of(), new TelegramUpdateKey("numeric-confirm", 1))).entry();
+        for (String value : List.of("1E+100000000", "1E-100000000", "-1E-400")) {
+            // Fault injection in the disposable test database only: simulate pre-existing invalid data.
+            mongoTemplate.updateFirst(org.springframework.data.mongodb.core.query.Query.query(
+                    org.springframework.data.mongodb.core.query.Criteria.where("_id").is(meal.id().toString())),
+                    org.springframework.data.mongodb.core.query.Update.update("payload.mass_g", value), "entries");
+            assertThrows(EntryValidationException.class, () -> entries.confirm(new ConfirmEntryCommand(
+                    owner, meal.id(), "numeric-confirm", meal.revision())));
+            Entry unchanged = entries.requireEntry(owner, meal.id());
+            assertEquals(EntryStatus.DRAFT, unchanged.status());
+            assertEquals(meal.revision(), unchanged.revision());
+        }
+    }
+
+    @Test void numericSafetyCoversCreateHttpPatchReadAndHistory() throws Exception {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        org.mockito.Mockito.when(sessions.authenticate("numeric-test")).thenReturn(owner.userId());
+        Instant now = Instant.parse("2026-10-07T00:00:00Z");
+        for (String value : List.of("1E100000000", "1E-100000000", "-1E-400")) {
+            assertThrows(EntryValidationException.class, () -> entries.createDraft(new CreateDraftCommand(owner,
+                    EntryType.MEAL, SourceKind.TEXT, Map.of(), now,
+                    Map.of("description", "meal", "mass_g", new java.math.BigDecimal(value)), Map.of(), new TelegramUpdateKey("numeric", 1))));
+            assertTrue(entries.findActiveDraft(owner).isEmpty());
+        }
+        Entry meal = entries.createDraft(new CreateDraftCommand(owner, EntryType.MEAL, SourceKind.TEXT,
+                Map.of(), now, Map.of("description", "Печёное яблоко 🍎", "mass_g", new java.math.BigDecimal("125.7500")),
+                Map.of(), new TelegramUpdateKey("numeric", 2))).entry();
+        for (String field : List.of("mass_g", "energy_kcal", "protein_g", "fat_g", "carbs_g")) {
+            for (String value : List.of("1E100000000", "1E-100000000", "1E309", "-1E-400")) {
+                String payload = field.equals("mass_g") ? "{\"mass_g\":" + value + "}"
+                        : "{\"nutrients\":{\"" + field + "\":" + value + "}}";
+                mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/entries/{id}", meal.id())
+                        .header("Authorization", "Bearer numeric-test").contentType("application/json")
+                        .content("{\"expected_revision\":1,\"payload\":" + payload + "}"))
+                        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isUnprocessableEntity())
+                        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code").value("VALIDATION_ERROR"));
+                assertEquals(meal, entries.requireEntry(owner, meal.id()));
+            }
+        }
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/entries/{id}", meal.id())
+                .header("Authorization", "Bearer numeric-test").contentType("application/json")
+                .content("{\"expected_revision\":1,\"payload\":{\"mass_g\":1E-400,\"nutrients\":{\"energy_kcal\":12.34567890123456789}}}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+        Entry changed = entries.requireEntry(owner, meal.id());
+        assertEquals(new java.math.BigDecimal("1E-400"), changed.payload().get("mass_g"));
+        assertEquals(new java.math.BigDecimal("12.34567890123456789"), ((Map<?, ?>) changed.payload().get("nutrients")).get("energy_kcal"));
+        org.bson.Document raw = mongoTemplate.getCollection("entries").find(new org.bson.Document("_id", meal.id().toString())).first();
+        assertEquals("1E-400", raw.get("payload", org.bson.Document.class).getString("mass_g"));
+        assertEquals("125.7500", raw.getList("history", org.bson.Document.class).getFirst()
+                .get("payload", org.bson.Document.class).getString("mass_g"));
+        assertEquals("Печёное яблоко 🍎", changed.payload().get("description"));
     }
 
     @Test
@@ -354,14 +468,14 @@ class CoreStorageIntegrationTest {
                 Instant.parse("2026-09-19T09:00:00Z"), Map.of("text", "cancelled")));
         entryStore.save(stored(owner, EntryStatus.DELETED, EntryType.NOTE, "deleted-506",
                 Instant.parse("2026-09-19T10:00:00Z"), Map.of("text", "deleted")));
-        entryStore.save(stored(owner, EntryStatus.CONFIRMED, EntryType.METRICS,
+        Entry steps = entryStore.save(stored(owner, EntryStatus.CONFIRMED, EntryType.METRICS,
                 "metric-507", Instant.parse("2026-09-10T10:00:00Z"),
                 Map.of("code", "steps", "value", 3000, "unit", "count", "local_date", "2026-09-19")));
 
         List<Entry> allTypes = entries.listConfirmedEntries(new ListConfirmedEntriesQuery(owner,
                 LocalDate.of(2026, 9, 19), LocalDate.of(2026, 9, 19), warsaw, Set.of()));
 
-        assertEquals(List.of(boundary.id()), allTypes.stream().map(Entry::id).toList());
+        assertEquals(List.of(steps.id(), boundary.id()), allTypes.stream().map(Entry::id).toList());
         assertTrue(allTypes.stream().allMatch(entry -> entry.ownerId().equals(owner.userId())));
         assertTrue(allTypes.stream().allMatch(entry -> entry.status() == EntryStatus.CONFIRMED));
 
@@ -598,6 +712,66 @@ class CoreStorageIntegrationTest {
         }
         assertEquals(1, mongoTemplate.getCollection("entries")
                 .countDocuments(new org.bson.Document("submissionId", "shared-submit")));
+    }
+
+    @Test
+    void stepsUseReportedDayForBothQueriesAndKeepUnknownDayOnlyInUnfilteredDiary() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        LocalDate day = LocalDate.of(2026, 10, 4);
+        Instant messageTime = Instant.parse("2026-10-05T06:00:00Z");
+        Entry reported = entryStore.save(stored(owner, EntryStatus.CONFIRMED, EntryType.METRICS,
+                "steps-reported", messageTime, Map.of("code", "steps", "value", 9000, "local_date", day.toString())));
+        Entry unknown = entryStore.save(stored(owner, EntryStatus.CONFIRMED, EntryType.METRICS,
+                "steps-unknown", messageTime, metrics("steps", 99999)));
+        for (EntryStatus status : List.of(EntryStatus.DRAFT, EntryStatus.CANCELLED, EntryStatus.DELETED)) {
+            entryStore.save(stored(owner, status, EntryType.METRICS, "inactive-" + status,
+                    messageTime, Map.of("code", "steps", "value", 99000, "local_date", day.toString())));
+        }
+        OwnerContext stranger = new OwnerContext(UUID.randomUUID());
+        entryStore.save(stored(stranger, EntryStatus.CONFIRMED, EntryType.METRICS,
+                "stranger-steps", messageTime, Map.of("code", "steps", "value", 99000, "local_date", day.toString())));
+        for (String zone : List.of("Europe/Vilnius", "Pacific/Kiritimati", "America/Los_Angeles")) {
+            ZoneId tz = ZoneId.of(zone);
+            assertEquals(List.of(reported.id()), entries.listEntries(new ListEntriesQuery(owner,
+                    EntryStatus.CONFIRMED, null, day, day, tz)).stream().map(Entry::id).toList());
+            assertEquals(List.of(reported.id()), entries.listConfirmedEntries(new ListConfirmedEntriesQuery(
+                    owner, day, day, tz, Set.of())).stream().map(Entry::id).toList());
+            assertTrue(entries.listEntries(new ListEntriesQuery(owner, EntryStatus.CONFIRMED,
+                    null, day.plusDays(1), day.plusDays(1), tz)).isEmpty());
+            assertTrue(entries.listConfirmedEntries(new ListConfirmedEntriesQuery(owner,
+                    day.plusDays(1), day.plusDays(1), tz, Set.of())).isEmpty());
+        }
+        assertEquals(Set.of(reported.id(), unknown.id()), new HashSet<>(entries.listEntries(
+                new ListEntriesQuery(owner, EntryStatus.CONFIRMED, null, null, null, ZoneId.of("UTC")))
+                .stream().map(Entry::id).toList()));
+    }
+
+    @Test
+    void stepsDatePatchPreservesMessageTimeAndRejectsTamperingWithTimeCodeOwnerOrRevision() {
+        OwnerContext owner = new OwnerContext(UUID.randomUUID());
+        Entry original = entries.createDraft(draft(owner, 1100,
+                Map.of("code", "steps", "value", 8000, "unit", "count", "local_date", "2026-10-04"))).entry();
+        Entry changed = entries.patch(new PatchEntryCommand(owner, original.id(), 1, null,
+                Map.of("local_date", "2026-10-03"), Map.of("local_date", "reported")));
+        assertEquals(original.occurredAt(), changed.occurredAt());
+        assertEquals("2026-10-03", changed.payload().get("local_date"));
+        assertThrows(EntryVersionConflictException.class, () -> entries.patch(new PatchEntryCommand(
+                owner, original.id(), 1, null, Map.of("local_date", "2026-10-02"), null)));
+        assertThrows(EntryNotFoundException.class, () -> entries.patch(new PatchEntryCommand(
+                new OwnerContext(UUID.randomUUID()), original.id(), 2, null, Map.of("local_date", "2026-10-02"), null)));
+        assertThrows(EntryValidationException.class, () -> entries.patch(new PatchEntryCommand(
+                owner, original.id(), 2, original.occurredAt().plusSeconds(1), Map.of(), null)));
+        assertThrows(EntryValidationException.class, () -> entries.patch(new PatchEntryCommand(
+                owner, original.id(), 2, null, Map.of("code", "heart_rate"), null)));
+        assertEquals(changed, entries.requireEntry(owner, original.id()));
+        OwnerContext another = new OwnerContext(UUID.randomUUID());
+        Entry pulse = entries.createDraft(draft(another, 1101,
+                Map.of("code", "heart_rate", "value", 72, "unit", "bpm", "local_date", "2026-10-04"))).entry();
+        assertThrows(EntryValidationException.class, () -> entries.patch(new PatchEntryCommand(
+                another, pulse.id(), 1, null, Map.of("code", "steps", "unit", "count"), null)));
+        assertThrows(EntryValidationException.class, () -> entries.patch(new PatchEntryCommand(another, pulse.id(), 1,
+                pulse.occurredAt().plusSeconds(60), Map.of(), null)));
+        assertEquals(pulse.occurredAt(), entries.requireEntry(another, pulse.id()).occurredAt());
     }
 
     private static CreateDraftCommand draft(OwnerContext owner, long updateId, Map<String, Object> payload) {

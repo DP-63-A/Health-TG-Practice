@@ -36,6 +36,7 @@ class EntriesHttpValidationTest {
     private static final UUID ENTRY = UUID.randomUUID();
 
     @Autowired MockMvc mockMvc;
+    @Autowired com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     @MockitoBean SessionService sessions;
     @MockitoBean UserService users;
     @MockitoBean EntryCoreService entries;
@@ -79,6 +80,31 @@ class EntriesHttpValidationTest {
                         .content("{\"expected_revision\":1,\"field_origins\":{\"mass_g\":null}}"))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test void payloadDecimalsReachCoreExactlyWithoutChangingOtherJsonNumbers() throws Exception {
+        mockMvc.perform(patch("/api/v1/entries/{id}", ENTRY)
+                        .header("Authorization", "Bearer test-session").contentType("application/json")
+                        .content("{\"expected_revision\":1,\"payload\":{\"value\":-1E-400,\"score\":3,\"nutrients\":{\"energy_kcal\":12.34567890123456789}}}"))
+                .andExpect(status().isOk());
+        var command = org.mockito.ArgumentCaptor.forClass(org.healthtg.core.entry.PatchEntryCommand.class);
+        org.mockito.Mockito.verify(entries).patch(command.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(new java.math.BigDecimal("-1E-400"), command.getValue().payload().get("value"));
+        org.junit.jupiter.api.Assertions.assertEquals(3, command.getValue().payload().get("score"));
+        org.junit.jupiter.api.Assertions.assertEquals(new java.math.BigDecimal("12.34567890123456789"),
+                ((Map<?, ?>) command.getValue().payload().get("nutrients")).get("energy_kcal"));
+        org.junit.jupiter.api.Assertions.assertInstanceOf(Double.class, objectMapper.readValue("{\"value\":1.25}", Map.class).get("value"));
+    }
+
+    @Test void exponentOutsideBigDecimalRangeReturnsValidationErrorBeforeCore() throws Exception {
+        for (String value : java.util.List.of("1E9999999999", "1E-9999999999")) {
+            mockMvc.perform(patch("/api/v1/entries/{id}", ENTRY)
+                            .header("Authorization", "Bearer test-session").contentType("application/json")
+                            .content("{\"expected_revision\":1,\"payload\":{\"mass_g\":" + value + "}}"))
+                    .andExpect(status().isUnprocessableEntity())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+        }
+        org.mockito.Mockito.verify(entries, org.mockito.Mockito.never()).patch(any());
     }
 
     private static Entry entryWithNullMass() {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../api/client'
 import { entriesApi } from '../api/entries'
@@ -116,8 +116,16 @@ export default function EntryPage() {
   const mutationLockRef = useRef(false)
   const submissionRef = useRef<{ entryId: string; value: string } | null>(null)
   const dateInputRef = useRef<HTMLInputElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  const metricDateInputRef = useRef<HTMLInputElement>(null)
   const activeIdRef = useRef(id)
   const mountedRef = useRef(true)
+
+  useEffect(() => {
+    if (busyAction === null && !acceptingFresh && Object.keys(fieldErrors).length > 0) {
+      formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
+    }
+  }, [acceptingFresh, busyAction, fieldErrors])
 
   useEffect(() => {
     activeIdRef.current = id
@@ -509,7 +517,8 @@ export default function EntryPage() {
       <section className="source-card" aria-label="Источник записи">
         <h3>Источник</h3>
         <p>{entry.source_ref.label ?? entry.source_kind}</p>
-        <p>Дата записи: {formatNullableDate(entry.occurred_at, timezone)}</p>
+        <p>{isMetricEntry(entry) ? 'Время сообщения итога' : 'Дата записи'}: {formatNullableDate(entry.occurred_at, timezone)}</p>
+        {isMetricEntry(entry) && <p>{metricDateLabel(entry)}: {(entry.payload as MetricsPayload).local_date || 'неизвестно'}</p>}
         {entry.source_ref.telegram_message_id && <p>Telegram message: {entry.source_ref.telegram_message_id}</p>}
         {entry.source_ref.file_id && (sourceFile.fileId !== entry.source_ref.file_id || (!sourceFile.url && !sourceFile.error)) && (
           <p role="status">Загружаем исходный файл через защищённый API...</p>
@@ -543,7 +552,7 @@ export default function EntryPage() {
           {conflictEntry ? (
             <>
               <p>Статус: {conflictEntry.status}. Ревизия: {conflictEntry.revision}. Локальный ввод ниже не заменён.</p>
-              <pre>{JSON.stringify(conflictEntry.payload, null, 2)}</pre>
+              <pre tabIndex={0} aria-label="Данные свежей серверной версии">{JSON.stringify(conflictEntry.payload, null, 2)}</pre>
               {!replaceRequested ? (
                 <Button onClick={() => setReplaceRequested(true)} variant="secondary">Использовать серверную версию</Button>
               ) : (
@@ -562,20 +571,19 @@ export default function EntryPage() {
         </section>
       )}
 
-      <form className="entry-form" onSubmit={(event) => void save(event)} noValidate>
+      <form ref={formRef} className="entry-form" aria-label="Редактирование записи" onSubmit={(event) => void save(event)} noValidate>
         <fieldset className="entry-edit-fields" disabled={isBusy || !canEdit}>
-        <FormField label="Дата и время" hint={`Timezone: ${timezone}. Пустое поле не заменяется текущим временем.`}>
+        <FormField label={isMetricEntry(entry) ? 'Время сообщения итога' : 'Дата и время'} hint={isMetricEntry(entry) ? `Часовой пояс: ${timezone}. Сохраняется исходное время сообщения. ` : `Timezone: ${timezone}. Пустое поле не заменяется текущим временем.`} error={errorFor(fieldErrors, 'occurred_at')}>
           <input
+            readOnly={isMetricEntry(entry)}
             ref={dateInputRef}
-            aria-invalid={Boolean(errorFor(fieldErrors, 'occurred_at'))}
             type="datetime-local"
             value={form.occurredAt}
             onChange={(event) => updateForm({ occurredAt: event.target.value })}
           />
-          <FieldError errors={fieldErrors} field="occurred_at" />
         </FormField>
 
-        {renderPayloadForm(entry, form, fieldErrors, updateForm)}
+        {renderPayloadForm(entry, form, fieldErrors, updateForm, metricDateInputRef)}
         </fieldset>
 
         {message && (
@@ -592,7 +600,7 @@ export default function EntryPage() {
           )}
           {entry.status === 'draft' && (
             <>
-              <Button disabled={isBusy} onClick={() => dateInputRef.current?.focus()} variant="secondary">
+              <Button disabled={isBusy} onClick={() => (isMetricEntry(entry) ? metricDateInputRef : dateInputRef).current?.focus()} variant="secondary">
                 Изменить
               </Button>
               <Button disabled={actionsBlocked} isLoading={busyAction === 'confirm'} onClick={() => void confirmDraft()} variant="secondary">
@@ -628,24 +636,23 @@ function renderPayloadForm(
   form: EntryFormState,
   errors: FieldErrors,
   updateForm: (patch: Partial<EntryFormState>) => void,
+  metricDateInputRef: RefObject<HTMLInputElement | null>,
 ) {
   if (entry.type === 'meal') {
     return (
       <fieldset className="entry-fieldset">
         <legend>Питание</legend>
-        <FormField label="Описание" hint={originHint(entry, 'description')}>
+        <FormField label="Описание" hint={originHint(entry, 'description')} error={errorFor(errors, 'payload.description')}>
           <input value={form.description} onChange={(event) => updateForm({ description: event.target.value })} />
-          <FieldError errors={errors} field="payload.description" />
         </FormField>
         <NumberField entry={entry} errors={errors} field="mass_g" label="Масса" unit="г" value={form.mass_g} onChange={(value) => updateForm({ mass_g: value })} />
-        <FormField label="Основа нутриентов" hint={originHint(entry, 'nutrients_basis')}>
+        <FormField label="Основа нутриентов" hint={originHint(entry, 'nutrients_basis')} error={errorFor(errors, 'payload.nutrients_basis')}>
           <select value={form.nutrients_basis} onChange={(event) => updateForm({ nutrients_basis: event.target.value as EntryFormState['nutrients_basis'] })}>
             <option value="">Неизвестно</option>
             <option value="per_100g">На 100 г</option>
             <option value="per_serving">На порцию</option>
             <option value="unknown">Unknown</option>
           </select>
-          <FieldError errors={errors} field="payload.nutrients_basis" />
         </FormField>
         <div className="entry-form-grid">
           <NumberField entry={entry} errors={errors} field="nutrients.energy_kcal" label="Ккал" unit="kcal" value={form.energy_kcal} onChange={(value) => updateForm({ energy_kcal: value })} />
@@ -661,38 +668,33 @@ function renderPayloadForm(
     return (
       <fieldset className="entry-fieldset">
         <legend>Метрика</legend>
-        <FormField label="Показатель" hint={originHint(entry, 'code')}>
-          <select value={form.metric_code} onChange={(event) => updateForm({ metric_code: event.target.value as EntryFormState['metric_code'] })}>
+        <FormField label="Показатель" hint={originHint(entry, 'code')} error={errorFor(errors, 'payload.code')}>
+          <select disabled={isMetricEntry(entry)} value={form.metric_code} onChange={(event) => updateForm({ metric_code: event.target.value as EntryFormState['metric_code'] })}>
             <option value="">Выберите показатель</option>
-            {Object.entries(metricLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            {Object.entries(metricLabels).map(([value, label]) => <option disabled={value === 'steps' && !isMetricEntry(entry)} key={value} value={value}>{label}</option>)}
           </select>
-          <FieldError errors={errors} field="payload.code" />
         </FormField>
         <NumberField entry={entry} errors={errors} field="value" label="Значение" unit={form.metric_unit || 'ед.'} nullable={false} value={form.metric_value} onChange={(value) => updateForm({ metric_value: value })} />
-        <FormField label="Единица" hint={`${originHint(entry, 'unit')} Пустое поле = unknown для draft.`}>
+        <FormField label="Единица" hint={`${originHint(entry, 'unit')} Пустое поле = unknown для draft.`} error={errorFor(errors, 'payload.unit')}>
           <input maxLength={32} value={form.metric_unit} onChange={(event) => updateForm({ metric_unit: event.target.value })} />
           <UnknownMark value={form.metric_unit} />
-          <FieldError errors={errors} field="payload.unit" />
         </FormField>
         <div className="entry-form-grid">
-          <FormField label="Локальная дата" hint={`${originHint(entry, 'local_date')} Пустое поле = unknown для draft.`}>
-            <input type="date" value={form.metric_local_date} onChange={(event) => updateForm({ metric_local_date: event.target.value })} />
+          <FormField label={isMetricEntry(entry) ? metricDateLabel(entry) : 'Локальная дата'} hint={`${originHint(entry, 'local_date')} Пустое поле = unknown для draft.`} error={errorFor(errors, 'payload.local_date')}>
+            <input ref={metricDateInputRef} type="date" value={form.metric_local_date} onChange={(event) => updateForm({ metric_local_date: event.target.value })} />
             <UnknownMark value={form.metric_local_date} />
-            <FieldError errors={errors} field="payload.local_date" />
           </FormField>
-          <FormField label="Локальное время" hint={`${originHint(entry, 'local_time')} Пустое поле = unknown.`}>
+          {(entry.payload as MetricsPayload).code !== 'steps' && <FormField label="Локальное время" hint={`${originHint(entry, 'local_time')} Пустое поле = unknown.`} error={errorFor(errors, 'payload.local_time')}>
             <input type="time" value={form.metric_local_time} onChange={(event) => updateForm({ metric_local_time: event.target.value })} />
             <UnknownMark value={form.metric_local_time} />
-            <FieldError errors={errors} field="payload.local_time" />
-          </FormField>
+          </FormField>}
         </div>
-        <FormField label="Уточнение пульса" hint={originHint(entry, 'qualifier')}>
+        <FormField label="Уточнение пульса" hint={originHint(entry, 'qualifier')} error={errorFor(errors, 'payload.qualifier')}>
           <select value={form.metric_qualifier} onChange={(event) => updateForm({ metric_qualifier: event.target.value as EntryFormState['metric_qualifier'] })}>
             <option value="">Unknown</option>
             <option value="instant">Instant</option>
             <option value="resting">Resting</option>
           </select>
-          <FieldError errors={errors} field="payload.qualifier" />
         </FormField>
       </fieldset>
     )
@@ -702,16 +704,14 @@ function renderPayloadForm(
     return (
       <fieldset className="entry-fieldset">
         <legend>Оценка</legend>
-        <FormField label="Категория" hint={originHint(entry, 'category')}>
+        <FormField label="Категория" hint={originHint(entry, 'category')} error={errorFor(errors, 'payload.category')}>
           <select value={form.checkin_category} onChange={(event) => updateForm({ checkin_category: event.target.value as EntryFormState['checkin_category'] })}>
             <option value="">Выберите категорию</option>
             {Object.entries(checkinLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
-          <FieldError errors={errors} field="payload.category" />
         </FormField>
-        <FormField label="Оценка" hint={`${originHint(entry, 'score')} Значение 1-5 по контракту.`}>
+        <FormField label="Оценка" hint={`${originHint(entry, 'score')} Значение 1-5 по контракту.`} error={errorFor(errors, 'payload.score')}>
           <input inputMode="numeric" value={form.checkin_score} onChange={(event) => updateForm({ checkin_score: event.target.value })} />
-          <FieldError errors={errors} field="payload.score" />
         </FormField>
       </fieldset>
     )
@@ -720,9 +720,8 @@ function renderPayloadForm(
   return (
     <fieldset className="entry-fieldset">
       <legend>Заметка</legend>
-      <FormField label="Текст" hint={originHint(entry, 'text')}>
+      <FormField label="Текст" hint={originHint(entry, 'text')} error={errorFor(errors, 'payload.text')}>
         <textarea rows={6} value={form.note_text} onChange={(event) => updateForm({ note_text: event.target.value })} />
-        <FieldError errors={errors} field="payload.text" />
       </FormField>
     </fieldset>
   )
@@ -749,15 +748,13 @@ function NumberField({
 }) {
   const path = `payload.${field}`
   return (
-    <FormField label={label} hint={`${unit}. ${originHint(entry, field)}${nullable ? ' Пустое поле = unknown.' : ''}`}>
+    <FormField label={label} hint={`${unit}. ${originHint(entry, field)}${nullable ? ' Пустое поле = unknown.' : ''}`} error={errorFor(errors, path)}>
       <input
-        aria-invalid={Boolean(errorFor(errors, path))}
         inputMode="decimal"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
       {nullable && <UnknownMark value={value} />}
-      <FieldError errors={errors} field={path} />
     </FormField>
   )
 }
@@ -765,12 +762,6 @@ function NumberField({
 function UnknownMark({ value }: { value: string }) {
   if (value !== '') return null
   return <span className="unknown-value">Неизвестно</span>
-}
-
-function FieldError({ errors, field }: { errors: FieldErrors; field: string }) {
-  const message = errorFor(errors, field)
-  if (!message) return null
-  return <small className="field-error" role="alert">{message}</small>
 }
 
 function createForm(entry: Entry, timezone: string): EntryFormState {
@@ -811,6 +802,10 @@ function createForm(entry: Entry, timezone: string): EntryFormState {
   return form
 }
 
+function isMetricEntry(entry: Entry) {
+  return entry.type === 'metrics'
+}
+
 function buildPatchBody(entry: Entry, form: EntryFormState, timezone: string) {
   const errors: FieldErrors = {}
   const payload = buildPayload(entry.type, form, errors)
@@ -823,7 +818,7 @@ function buildPatchBody(entry: Entry, form: EntryFormState, timezone: string) {
     if (!form.metric_unit.trim()) errors['payload.unit'] = 'Единица обязательна для подтверждённой метрики.'
     if (!form.metric_local_date) errors['payload.local_date'] = 'Дата обязательна для подтверждённой метрики.'
   }
-  const dateChanged = form.occurredAt !== original.occurredAt
+  const dateChanged = !isMetricEntry(entry) && form.occurredAt !== original.occurredAt
   const occurredAt = dateChanged && form.occurredAt ? localInputToUtc(form.occurredAt, timezone) : undefined
 
   if (dateChanged && !occurredAt) {
@@ -911,7 +906,7 @@ function buildPayload(type: EntryType, form: EntryFormState, errors: FieldErrors
     }
 
     const value = parseRequiredNumber(form.metric_value, 'payload.value', errors)
-    if ((form.metric_code === 'steps' || form.metric_code === 'sleep_duration_min') && value !== null && value < 0) {
+    if (value !== null && value < 0) {
       errors['payload.value'] = 'Значение не может быть отрицательным по контракту.'
     }
 
@@ -951,6 +946,10 @@ function parseNullableNumber(value: string, field: string, errors: FieldErrors) 
     errors[field] = 'Введите число или оставьте поле пустым.'
     return null
   }
+  if (underflowsToZero(value, parsed)) {
+    errors[field] = 'Число слишком мало: при отправке оно превратится в ноль.'
+    return null
+  }
   if (parsed < 0) {
     errors[field] = 'Значение не может быть отрицательным по контракту.'
   }
@@ -968,7 +967,16 @@ function parseRequiredNumber(value: string, field: string, errors: FieldErrors) 
     errors[field] = 'Введите число.'
     return null
   }
+  if (underflowsToZero(value, parsed)) {
+    errors[field] = 'Число слишком мало: при отправке оно превратится в ноль.'
+    return null
+  }
   return parsed
+}
+
+function underflowsToZero(value: string, parsed: number) {
+  // Inspect only the coefficient: 0e-400 is zero, but 1e-400 is not.
+  return parsed === 0 && /[1-9]/.test(value.split(/[eE]/)[0])
 }
 
 function parseRequiredInteger(value: string, field: string, errors: FieldErrors) {
@@ -1097,4 +1105,9 @@ function handleError(cause: unknown, expire: () => void, setMessage: (value: str
   }
 
   setMessage(cause instanceof Error ? cause.message : 'Произошла ошибка.')
+}
+
+function metricDateLabel(entry: Entry) {
+  const code = (entry.payload as MetricsPayload).code
+  return code === 'steps' ? 'День итога шагов' : code === 'sleep_duration_min' ? 'Дата пробуждения' : 'Дата измерения'
 }
