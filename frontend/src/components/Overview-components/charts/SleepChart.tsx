@@ -47,17 +47,17 @@ export function SleepChart({
 
   return (
     <section
-      className="sleep-chart"
+      className="sleep-chart paper-note"
       aria-labelledby={titleId}
     >
       <div className="sleep-chart__header">
         <div>
           <h2 id={titleId}>
-            Сон
+            Sleep
           </h2>
 
           <p className="sleep-chart__description">
-            Продолжительность сна по дате пробуждения
+            Sleep duration by wake date
           </p>
         </div>
 
@@ -93,13 +93,13 @@ export function SleepChart({
           </span>
 
           <p>
-            Нет данных о сне за выбранный период.
+            No sleep data for the selected period.
           </p>
         </div>
       ) : (
         <>
           <div className="sleep-chart__unit">
-            продолжительность сна
+            sleep duration
           </div>
 
           <div className="sleep-chart__plot">
@@ -207,7 +207,7 @@ export function SleepChart({
 
                 <Bar
                   dataKey="value"
-                  name="Продолжительность сна"
+                  name="Sleep duration"
                   fill="var(--sleep-chart-color)"
                   radius={[8, 8, 3, 3]}
                   maxBarSize={34}
@@ -248,8 +248,7 @@ export function SleepChart({
 
           {onSelectDay && (
             <p className="sleep-chart__hint">
-              Нажмите на столбец, чтобы открыть
-              записи за выбранный день
+              Tap a bar to open entries for the selected day
             </p>
           )}
         </>
@@ -258,24 +257,23 @@ export function SleepChart({
       {series.length > 0 && (
         <details className="sleep-chart__details">
           <summary>
-            Значения по дням
+            Daily values
           </summary>
 
           <div className="sleep-chart__table-wrapper">
             <table>
               <caption>
-                Продолжительность сна по датам
-                пробуждения
+                Sleep duration by wake dates
               </caption>
 
               <thead>
                 <tr>
                   <th scope="col">
-                    Дата
+                    Date
                   </th>
 
                   <th scope="col">
-                    Сон
+                    Sleep
                   </th>
                 </tr>
               </thead>
@@ -293,13 +291,13 @@ export function SleepChart({
                             )
                           }
                           aria-label={[
-                            'Выбрать день',
+                            'Select day',
                             formatTooltipDate(
                               point.date,
                             ),
-                            'сон:',
+                            'sleep:',
                             point.value === null
-                              ? 'Нет данных'
+                              ? 'No data'
                               : formatSleep(
                                   point.value,
                                 ),
@@ -318,7 +316,7 @@ export function SleepChart({
 
                     <td>
                       {point.value === null
-                        ? 'Нет данных'
+                        ? 'No data'
                         : formatSleep(
                             point.value,
                           )}

@@ -111,15 +111,15 @@ it(
 
     try {
       await screen.findByRole('region', {
-        name: 'Состояние',
+        name: 'Wellbeing',
       })
 
       expect(
-        screen.getByLabelText('Период'),
+        screen.getByLabelText('Period'),
       ).toHaveValue('days_7')
 
       fireEvent.change(
-        screen.getByLabelText('Период'),
+        screen.getByLabelText('Period'),
         {
           target: { value: 'days_21' },
         },
@@ -136,28 +136,28 @@ it(
       })
 
       await screen.findByRole('region', {
-        name: 'Состояние',
+        name: 'Wellbeing',
       })
 
       expect(
-        screen.getByLabelText('Период'),
-      ).toHaveDisplayValue('21 день')
+        screen.getByLabelText('Period'),
+      ).toHaveDisplayValue('21 days')
 
       const navigation = () =>
         within(
           screen.getByRole('navigation', {
-            name: 'Основная навигация',
+            name: 'Main navigation',
           }),
         )
 
       fireEvent.click(
         navigation().getByRole('link', {
-          name: 'Дневник',
+          name: 'Diary',
         }),
       )
 
-      await screen.findByRole('heading', {
-        name: 'Дневник',
+      await screen.findByRole('region', {
+        name: 'Diary',
       })
 
       expect(router.state.location.pathname).toBe('/diary')
@@ -169,7 +169,7 @@ it(
 
       const overviewLink =
         navigation().getByRole('link', {
-          name: 'Обзор',
+          name: 'Overview',
         })
 
       expect(overviewLink).toHaveAttribute(
@@ -180,7 +180,7 @@ it(
       fireEvent.click(overviewLink)
 
       await screen.findByRole('region', {
-        name: 'Состояние',
+        name: 'Wellbeing',
       })
 
       expect(router.state.location.pathname).toBe('/overview')
@@ -190,15 +190,15 @@ it(
       )
 
       expect(
-        screen.getByLabelText('Период'),
+        screen.getByLabelText('Period'),
       ).toHaveValue('days_21')
 
       expect(
-        screen.getByLabelText('Период'),
-      ).toHaveDisplayValue('21 день')
+        screen.getByLabelText('Period'),
+      ).toHaveDisplayValue('21 days')
 
       expect(
-        screen.getByLabelText('Категория'),
+        screen.getByLabelText('Category'),
       ).toHaveValue('wellbeing')
 
       expect(

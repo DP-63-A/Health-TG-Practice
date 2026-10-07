@@ -34,26 +34,26 @@ interface CategoryOracle {
 const cases: CategoryOracle[] = [
   {
     category: 'sleep_quality',
-    label: 'Качество сна',
-    value: '4 из 5',
+    label: 'Sleep quality',
+    value: '4 out of 5',
     date: '19.09.2026',
   },
   {
     category: 'digestion_comfort',
-    label: 'Комфорт пищеварения',
-    value: '5 из 5',
+    label: 'Digestive comfort',
+    value: '5 out of 5',
     date: '19.09.2026',
   },
   {
     category: 'wellbeing',
-    label: 'Самочувствие',
-    value: '3 из 5',
+    label: 'Wellbeing',
+    value: '3 out of 5',
     date: '19.09.2026',
   },
   {
     category: 'mood',
-    label: 'Настроение',
-    value: '4 из 5',
+    label: 'Mood',
+    value: '4 out of 5',
     date: '19.09.2026',
   },
 ]
@@ -94,7 +94,7 @@ async function flushFrames() {
       iterations += 1
 
       if (iterations > 50) {
-        throw new Error('Отрисовка графика не завершилась')
+        throw new Error('Отрисовка gрафика не завершилась')
       }
 
       const callbacks = [...frames.values()]
@@ -178,7 +178,7 @@ describe('FE2-06: отображение всех категорий состо�
         )
       }
 
-      // Одиночный компонентный ряд из готовой оценки BE3.
+      // Одиночный компонентный ряд из gотовой оценки BE3.
       // Агрегаты и дневные ряды backend здесь не рассчитываются.
       // Это не новый полный AnalyticsResponse.
       render(
@@ -204,15 +204,15 @@ describe('FE2-06: отображение всех категорий состо�
       await flushFrames()
 
       const chart = screen.getByRole('region', {
-        name: 'Состояние',
+        name: 'Wellbeing',
       })
 
       expect(
-        within(chart).getByLabelText('Категория'),
+        within(chart).getByLabelText('Category'),
       ).toHaveValue(oracle.category)
 
       expect(
-        within(chart).getByLabelText('Категория'),
+        within(chart).getByLabelText('Category'),
       ).toHaveDisplayValue(oracle.label)
 
       await waitFor(() => {
@@ -273,11 +273,11 @@ describe('FE2-06: отображение всех категорий состо�
       })
 
       fireEvent.click(
-        within(chart).getByText('Значения по дням'),
+        within(chart).getByText('Daily values'),
       )
 
       const table = within(chart).getByRole('table', {
-        name: `${oracle.label}: оценки по дням`,
+        name: `${oracle.label}: daily scores`,
       })
 
       expect(table).toBeVisible()

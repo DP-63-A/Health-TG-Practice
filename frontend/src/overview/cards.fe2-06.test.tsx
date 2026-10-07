@@ -41,7 +41,7 @@ interface CardOracle {
   checkins: readonly [string, string, string, string]
 }
 
-// Ручные ожидания отображения готовых ответов BE3.
+// Ручные ожидания отображения gотовых ответов BE3.
 // В тестах нет расчёта сумм, средних или production-formatter.
 //
 // coverage — отдельное ожидание UI.
@@ -49,22 +49,22 @@ interface CardOracle {
 const cases: CardOracle[] = [
   {
     fixture: 'normal',
-    nutrition: ['930 ккал', '50 г', '30 г', '110 г'],
+    nutrition: ['930 kcal', '50 g', '30 g', '110 g'],
     meals: '2',
-    mealUnit: 'приёма пищи',
-    sleep: ['15 ч', '7 ч 30 мин', '2'],
-    steps: ['5 000', '5 000', '1'],
+    mealUnit: 'meals',
+    sleep: ['15 h', '7 h 30 min', '2'],
+    steps: ['5,000', '5,000', '1'],
     period: '13.09.2026 — 19.09.2026',
     periodDays: '7',
     coverage: '14',
     pulse: '72',
-    checkins: ['4 из 5', '5 из 5', '3 из 5', '4 из 5'],
+    checkins: ['4 out of 5', '5 out of 5', '3 out of 5', '4 out of 5'],
   },
   {
     fixture: 'empty',
-    nutrition: ['— ккал', '— г', '— г', '— г'],
+    nutrition: ['— kcal', '— g', '— g', '— g'],
     meals: '0',
-    mealUnit: 'приёмов пищи',
+    mealUnit: 'meals',
     sleep: ['—', '—', '0'],
     steps: ['—', '—', '0'],
     period: '19.09.2026 — 19.09.2026',
@@ -75,10 +75,10 @@ const cases: CardOracle[] = [
   },
   {
     fixture: 'gaps',
-    nutrition: ['— ккал', '— г', '— г', '— г'],
+    nutrition: ['— kcal', '— g', '— g', '— g'],
     meals: '0',
-    mealUnit: 'приёмов пищи',
-    sleep: ['15 ч', '7 ч 30 мин', '2'],
+    mealUnit: 'meals',
+    sleep: ['15 h', '7 h 30 min', '2'],
     steps: ['—', '—', '0'],
     period: '13.09.2026 — 19.09.2026',
     periodDays: '7',
@@ -88,11 +88,11 @@ const cases: CardOracle[] = [
   },
   {
     fixture: 'dedup',
-    nutrition: ['600 ккал', '30 г', '20 г', '70 г'],
+    nutrition: ['600 kcal', '30 g', '20 g', '70 g'],
     meals: '1',
-    mealUnit: 'приём пищи',
+    mealUnit: 'meal',
     sleep: ['—', '—', '0'],
-    steps: ['5 000', '5 000', '1'],
+    steps: ['5,000', '5,000', '1'],
     period: '19.09.2026 — 19.09.2026',
     periodDays: '1',
     coverage: '100',
@@ -101,9 +101,9 @@ const cases: CardOracle[] = [
   },
   {
     fixture: 'filtered',
-    nutrition: ['300 ккал', '15 г', '10 г', '35 г'],
+    nutrition: ['300 kcal', '15 g', '10 g', '35 g'],
     meals: '1',
-    mealUnit: 'приём пищи',
+    mealUnit: 'meal',
     sleep: ['—', '—', '0'],
     steps: ['—', '—', '0'],
     period: '19.09.2026 — 19.09.2026',
@@ -174,7 +174,7 @@ function expectStat(
 
 beforeEach(() => {
   // Здесь проверяем текст карточек.
-  // Настоящее отображение графика и tooltip проверим отдельно.
+  // Настоящее отображение gрафика и tooltip проверим отдельно.
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -200,7 +200,7 @@ describe.each(cases)(
       )
 
       const card = screen.getByRole('region', {
-        name: 'Калории и БЖУ',
+        name: 'Calories & macros',
       })
 
       expectText(
@@ -209,9 +209,9 @@ describe.each(cases)(
         oracle.nutrition[0],
       )
 
-      expectStat(card, 'Белки', oracle.nutrition[1])
-      expectStat(card, 'Жиры', oracle.nutrition[2])
-      expectStat(card, 'Углеводы', oracle.nutrition[3])
+      expectStat(card, 'Protein', oracle.nutrition[1])
+      expectStat(card, 'Fat', oracle.nutrition[2])
+      expectStat(card, 'Carbs', oracle.nutrition[3])
 
       // Все пять текущих полных ответов имеют incomplete=false.
       expect(
@@ -227,7 +227,7 @@ describe.each(cases)(
       )
 
       const card = screen.getByRole('region', {
-        name: 'Количество приёмов пищи',
+        name: 'Meal count',
       })
 
       expectText(
@@ -243,7 +243,7 @@ describe.each(cases)(
       ).toBeVisible()
     })
 
-    it('сон: общий итог, среднее, дни с данными и период', () => {
+    it('sleep: общий итог, среднее, дни с данными и период', () => {
       const data = readContractFixture(oracle.fixture)
 
       render(
@@ -254,7 +254,7 @@ describe.each(cases)(
       )
 
       const card = screen.getByRole('region', {
-        name: 'Аналитика сна',
+        name: 'Sleep analytics',
       })
 
       expectText(
@@ -263,11 +263,11 @@ describe.each(cases)(
         oracle.sleep[0],
       )
 
-      expectStat(card, 'Среднее', oracle.sleep[1])
-      expectStat(card, 'Дней с данными', oracle.sleep[2])
+      expectStat(card, 'Average', oracle.sleep[1])
+      expectStat(card, 'Days recorded', oracle.sleep[2])
 
       expect(
-        within(card).getByText('за день с данными', {
+        within(card).getByText('per recorded day', {
           exact: true,
         }),
       ).toBeVisible()
@@ -279,7 +279,7 @@ describe.each(cases)(
       )
     })
 
-    it('шаги: итог, среднее, дни, единицы, покрытие и период', () => {
+    it('steps: итог, среднее, дни, единицы, покрытие и период', () => {
       const data = readContractFixture(oracle.fixture)
 
       render(
@@ -290,7 +290,7 @@ describe.each(cases)(
       )
 
       const card = screen.getByRole('region', {
-        name: 'Аналитика шагов',
+        name: 'Step analytics',
       })
 
       const total = element(card, '.steps-card__total')
@@ -299,20 +299,20 @@ describe.each(cases)(
       expect(directText(total)).toBe(oracle.steps[0])
 
       expect(
-        within(total).getByText('шагов', { exact: true }),
+        within(total).getByText('steps', { exact: true }),
       ).toBeVisible()
 
-      expectStat(card, 'Среднее', oracle.steps[1])
-      expectStat(card, 'Дней с данными', oracle.steps[2])
+      expectStat(card, 'Average', oracle.steps[1])
+      expectStat(card, 'Days recorded', oracle.steps[2])
 
       expect(
-        within(card).getByText('шагов в день', {
+        within(card).getByText('steps per day', {
           exact: true,
         }),
       ).toBeVisible()
 
       expect(
-        within(card).getByText(`из ${oracle.periodDays}`, {
+        within(card).getByText(`of ${oracle.periodDays}`, {
           exact: true,
         }),
       ).toBeVisible()
@@ -326,12 +326,12 @@ describe.each(cases)(
       expectText(
         card,
         '.steps-card__coverage-description',
-        `Данные записаны за ${oracle.steps[2]} из ${oracle.periodDays} дней`,
+        `Data recorded for ${oracle.steps[2]} of ${oracle.periodDays} days`,
       )
 
       const progress = within(card).getByRole(
         'progressbar',
-        { name: 'Покрытие периода данными о шагах' },
+        { name: 'Step data coverage' },
       )
 
       expect(progress).toHaveAttribute(
@@ -357,7 +357,7 @@ describe.each(cases)(
       )
 
       const card = screen.getByRole('region', {
-        name: 'Аналитика пульса',
+        name: 'Heart rate analytics',
       })
 
       const value = element(
@@ -369,12 +369,12 @@ describe.each(cases)(
       expect(directText(value)).toBe(oracle.pulse)
 
       expect(
-        within(value).getByText('уд/мин', { exact: true }),
+        within(value).getByText('bpm', { exact: true }),
       ).toBeVisible()
 
       if (oracle.fixture === 'normal') {
-        expectText(card, '.heart-rate-card__time', '2026-09-19 · время неизвестно')
-        expect(within(card).getByText('Сообщено', { exact: true })).toBeVisible()
+        expectText(card, '.heart-rate-card__time', '2026-09-19 · time unknown')
+        expect(within(card).getByText('Reported at', { exact: true })).toBeVisible()
         const time = card.querySelectorAll('.heart-rate-card__time')[1]
 
         expect(time).toBeVisible()
@@ -383,12 +383,12 @@ describe.each(cases)(
         // 10:15 UTC отображается как 12:15 Europe/Warsaw.
         // Intl/production-formatter в ожидании не вызывается.
         expect(normalize(time.textContent))
-          .toContain('19.09.2026')
+          .toContain('19/09/2026')
         expect(normalize(time.textContent))
           .toContain('12:15')
 
         expect(
-          within(card).getByText('В покое', {
+          within(card).getByText('At rest', {
             exact: true,
           }),
         ).toBeVisible()
@@ -396,7 +396,7 @@ describe.each(cases)(
         expectText(
           card,
           '.heart-rate-card__time',
-          'неизвестно · время неизвестно',
+          'unknown · time unknown',
         )
 
         expect(
@@ -413,14 +413,14 @@ describe.each(cases)(
       )
 
       const card = screen.getByRole('region', {
-        name: 'Субъективные оценки состояния',
+        name: 'Subjective wellbeing scores',
       })
 
       const labels = [
-        'Качество сна',
-        'Комфорт пищеварения',
-        'Самочувствие',
-        'Настроение',
+        'Sleep quality',
+        'Digestive comfort',
+        'Wellbeing',
+        'Mood',
       ]
 
       for (const [index, label] of labels.entries()) {

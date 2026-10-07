@@ -48,17 +48,17 @@ export function StepsChart({
 
   return (
     <section
-      className="steps-chart"
+      className="steps-chart paper-note"
       aria-labelledby={titleId}
     >
       <div className="steps-chart__header">
         <div>
           <h2 id={titleId}>
-            Шаги
+            Steps
           </h2>
 
           <p className="steps-chart__description">
-            Дневные итоги шагов
+            Daily step totals
           </p>
         </div>
 
@@ -97,14 +97,13 @@ export function StepsChart({
           </span>
 
           <p>
-            Нет данных о шагах за выбранный
-            период.
+            No step data for the selected period.
           </p>
         </div>
       ) : (
         <>
           <div className="steps-chart__unit">
-            шаги
+            steps
           </div>
 
           <div className="steps-chart__plot">
@@ -212,7 +211,7 @@ export function StepsChart({
 
                 <Bar
                   dataKey="value"
-                  name="Шаги"
+                  name="Steps"
                   fill="var(--steps-chart-color)"
                   radius={[8, 8, 3, 3]}
                   maxBarSize={34}
@@ -253,8 +252,7 @@ export function StepsChart({
 
           {onSelectDay && (
             <p className="steps-chart__hint">
-              Нажмите на столбец, чтобы открыть
-              записи за выбранный день
+              Tap a bar to open entries for the selected day
             </p>
           )}
         </>
@@ -263,24 +261,23 @@ export function StepsChart({
       {series.length > 0 && (
         <details className="steps-chart__details">
           <summary>
-            Значения по дням
+            Daily values
           </summary>
 
           <div className="steps-chart__table-wrapper">
             <table>
               <caption>
-                Дневные итоги шагов по локальным
-                датам
+                Daily step totals by local date
               </caption>
 
               <thead>
                 <tr>
                   <th scope="col">
-                    Дата
+                    Date
                   </th>
 
                   <th scope="col">
-                    Шаги
+                    Steps
                   </th>
                 </tr>
               </thead>
@@ -298,12 +295,12 @@ export function StepsChart({
                             )
                           }
                           aria-label={[
-                            'Выбрать день',
+                            'Select day',
                             formatTooltipDate(
                               point.date,
                             ),
                             point.value === null
-                              ? 'Нет данных'
+                              ? 'No data'
                               : formatSteps(
                                   point.value,
                                 ),
@@ -322,7 +319,7 @@ export function StepsChart({
 
                     <td>
                       {point.value === null
-                        ? 'Нет данных'
+                        ? 'No data'
                         : formatSteps(
                             point.value,
                           )}

@@ -18,7 +18,7 @@ function formatScore(
     return '—'
   }
 
-  return `${value.toLocaleString('ru-RU')} из 5`
+  return `${value.toLocaleString('en-GB')} out of 5`
 }
 
 export function CheckinCard({
@@ -28,22 +28,22 @@ export function CheckinCard({
   const scores = [
     {
       key: 'sleep_quality',
-      label: 'Качество сна',
+      label: 'Sleep quality',
       value: checkins?.sleep_quality.score,
     },
     {
       key: 'digestion_comfort',
-      label: 'Комфорт пищеварения',
+      label: 'Digestive comfort',
       value: checkins?.digestion_comfort.score,
     },
     {
       key: 'wellbeing',
-      label: 'Самочувствие',
+      label: 'Wellbeing',
       value: checkins?.wellbeing.score,
     },
     {
       key: 'mood',
-      label: 'Настроение',
+      label: 'Mood',
       value: checkins?.mood.score,
     },
   ]
@@ -51,17 +51,17 @@ export function CheckinCard({
      
   return (
     <section
-      className="checkin-card"
-      aria-label="Субъективные оценки состояния"
+      className="checkin-card paper-note"
+      aria-label="Subjective wellbeing scores"
     >
       <div className="checkin-card__header">
         <div>
           <h2 className="checkin-card__title">
-            Оценки
+            Scores
           </h2>
 
           <p className="checkin-card__description">
-            Последние записанные оценки
+            Latest recorded scores
           </p>
         </div>
 

@@ -21,7 +21,7 @@ function renderText(component: ReactElement): string {
 }
 
 describe('NutritionCard', () => {
-  it('отображает калории и БЖУ из ответа BE3', () => {
+  it('отображает калории и Macros из ответа BE3', () => {
     const text = renderText(
       <NutritionCard
         nutrition={analyticsFixture.cards.nutrition}
@@ -29,10 +29,10 @@ describe('NutritionCard', () => {
     )
 
     
-  expect(text).toContain('930 ккал')
-  expect(text).toContain('Белки 50 г')
-  expect(text).toContain('Жиры 30 г')
-  expect(text).toContain('Углеводы 110 г')
+  expect(text).toContain('930 kcal')
+  expect(text).toContain('Protein 50 g')
+  expect(text).toContain('Fat 30 g')
+  expect(text).toContain('Carbs 110 g')
   })
 
   it('показывает прочерки при отсутствии данных', () => {
@@ -40,10 +40,10 @@ describe('NutritionCard', () => {
       <NutritionCard nutrition={null} />,
     )
 
-    expect(text).toContain('— ккал')
-    expect(text).toContain('Белки — г')
-    expect(text).toContain('Жиры — г')
-    expect(text).toContain('Углеводы — г')
+    expect(text).toContain('— kcal')
+    expect(text).toContain('Protein — g')
+    expect(text).toContain('Fat — g')
+    expect(text).toContain('Carbs — g')
   })
 
   it('показывает ноль как число, а не как прочерк', () => {
@@ -56,7 +56,7 @@ describe('NutritionCard', () => {
       />,
     )
 
-    expect(text).toContain('Белки 0 г')
+    expect(text).toContain('Protein 0 g')
   })
 
   it('показывает предупреждение о неполном рационе', () => {
@@ -69,7 +69,7 @@ describe('NutritionCard', () => {
       />,
     )
 
-    expect(text).toContain('Данные о рационе неполные')
+    expect(text).toContain('Nutrition data is incomplete')
   })
 
   it('не показывает предупреждение при полном рационе', () => {
@@ -79,19 +79,19 @@ describe('NutritionCard', () => {
       />,
     )
 
-    expect(text).not.toContain('Данные о рационе неполные')
+    expect(text).not.toContain('Nutrition data is incomplete')
   })
 })
 
 describe('MealCountCard', () => {
-  it('отображает количество приёмов пищи', () => {
+  it('отображает количество meals', () => {
     const text = renderText(
       <MealCountCard
         mealCount={analyticsFixture.cards.meal_count}
       />,
     )
 
-    expect(text).toContain('За выбранный период 2 приёма пищи')
+    expect(text).toContain('For the selected period 2 meals')
   })
 
   it('показывает прочерк при отсутствии данных', () => {
@@ -99,7 +99,7 @@ describe('MealCountCard', () => {
       <MealCountCard mealCount={null} />,
     )
 
-    expect(text).toContain('За выбранный период —')
+    expect(text).toContain('For the selected period —')
   })
 
   it('показывает ноль при нулевом количестве', () => {
@@ -107,12 +107,12 @@ describe('MealCountCard', () => {
       <MealCountCard mealCount={{ count: 0 }} />,
     )
 
-    expect(text).toContain('За выбранный период 0 приёмов пищи')
+    expect(text).toContain('For the selected period 0 meals')
   })
 })
 
 describe('SleepCard', () => {
-  it('отображает общую и среднюю продолжительность сна', () => {
+  it('отображает общую и среднюю sleep duration', () => {
     const text = renderText(
       <SleepCard
         sleep={analyticsFixture.cards.sleep}
@@ -120,8 +120,8 @@ describe('SleepCard', () => {
       />,
     )
 
-    expect(text).toContain('7 ч 30 мин')
-    expect(text).toContain('Дней с данными 2')
+    expect(text).toContain('7 h 30 min')
+    expect(text).toContain('Days recorded 2')
     expect(text).toContain('13.09.2026')
     expect(text).toContain('19.09.2026')
   })
@@ -134,9 +134,9 @@ describe('SleepCard', () => {
       />,
     )
 
-    expect(text).toContain('Всего за период —')
-    expect(text).toContain('Среднее — за день с данными')
-    expect(text).toContain('Дней с данными —')
+    expect(text).toContain('Period total —')
+    expect(text).toContain('Average — per recorded day')
+    expect(text).toContain('Days recorded —')
     expect(text).toMatch(/—$/)
   })
 
@@ -152,13 +152,13 @@ describe('SleepCard', () => {
       />,
     )
 
-    expect(text).toContain('0 мин')
-    expect(text).toContain('Дней с данными 0')
+    expect(text).toContain('0 min')
+    expect(text).toContain('Days recorded 0')
   })
 })
 
 describe('StepsCard', () => {
-  it('отображает шаги из ответа BE3', () => {
+  it('отображает steps из ответа BE3', () => {
     const text = renderText(
       <StepsCard
         steps={analyticsFixture.cards.steps}
@@ -166,8 +166,8 @@ describe('StepsCard', () => {
       />,
     )
 
-    expect(text).toContain('5 000')
-    expect(text).toContain('Дней с данными 1')
+    expect(text).toContain('5,000')
+    expect(text).toContain('Days recorded 1')
   })
 
   it('показывает прочерки при отсутствии данных', () => {
@@ -178,9 +178,9 @@ describe('StepsCard', () => {
       />,
     )
 
-    expect(text).toContain('Всего за период — шагов')
-    expect(text).toContain('Среднее — шагов в день')
-    expect(text).toContain('Дней с данными —')
+    expect(text).toContain('Period total — steps')
+    expect(text).toContain('Average — steps per day')
+    expect(text).toContain('Days recorded —')
     expect(text).toMatch(/—$/)
   })
 
@@ -196,19 +196,19 @@ describe('StepsCard', () => {
       />,
     )
 
-    expect(text).toContain('Всего за период 0')
-    expect(text).toContain('Дней с данными 0')
+    expect(text).toContain('Period total 0')
+    expect(text).toContain('Days recorded 0')
   })
 })
 
 describe('HeartRateCard', () => {
-  it('отделяет неизвестное время измерения от известного времени сообщения', () => {
+  it('отделяет unknownе время измерения от известного времени сообщения', () => {
     const text = renderText(<HeartRateCard heartRate={{ value_bpm: 72,
       occurred_at: '2026-10-07T23:50:00Z', local_date: '2026-10-05', local_time: null, qualifier: null, entry_id: null }}
       period={analyticsFixture.period} />)
-    expect(text).toContain('2026-10-05 · время неизвестно')
-    expect(text).toContain('Сообщено')
-    expect(text).toContain('Последний сообщённый пульс')
+    expect(text).toContain('2026-10-05 · time unknown')
+    expect(text).toContain('Reported at')
+    expect(text).toContain('Latest reported heart rate')
   })
 
   it('отображает последнее измерение пульса', () => {
@@ -220,12 +220,12 @@ describe('HeartRateCard', () => {
     )
 
     expect(text).toContain('72')
-    expect(text).toContain('уд/мин')
-    expect(text).toContain('19.09.2026')
+    expect(text).toContain('bpm')
+    expect(text).toContain('19/09/2026')
     expect(text).toContain('12:15')
     expect(text).toContain('2026-09-19 · 12:10')
-    expect(text).toContain('Сообщено')
-    expect(text).toContain('В покое')
+    expect(text).toContain('Reported at')
+    expect(text).toContain('At rest')
   })
 
   it('показывает прочерки при отсутствии пульса', () => {
@@ -236,9 +236,9 @@ describe('HeartRateCard', () => {
       />,
     )
 
-    expect(text).toContain('— уд/мин')
-    expect(text).toContain('Время измерения неизвестно')
-    expect(text).not.toContain('В покое')
+    expect(text).toContain('— bpm')
+    expect(text).toContain('Measured at unknown')
+    expect(text).not.toContain('At rest')
   })
 
  
@@ -258,8 +258,8 @@ it('не придумывает контекст отсутствующего и
   )
 
   expect(text).toContain('62')
-  expect(text).not.toContain('В покое')
-  expect(text).not.toContain('Разовое измерение')
+  expect(text).not.toContain('At rest')
+  expect(text).not.toContain('Single measurement')
 })
 
 describe('CheckinCard', () => {
@@ -270,10 +270,10 @@ describe('CheckinCard', () => {
       />,
     )
 
-    expect(text).toContain('Качество сна 4')
-    expect(text).toContain('Комфорт пищеварения 5')
-    expect(text).toContain('Самочувствие 3')
-    expect(text).toContain('Настроение 4')
+    expect(text).toContain('Sleep quality 4')
+    expect(text).toContain('Digestive comfort 5')
+    expect(text).toContain('Wellbeing 3')
+    expect(text).toContain('Mood 4')
   })
 
   it('показывает прочерки при отсутствии всех оценок', () => {
@@ -281,10 +281,10 @@ describe('CheckinCard', () => {
       <CheckinCard checkins={null} />,
     )
 
-    expect(text).toContain('Качество сна —')
-    expect(text).toContain('Комфорт пищеварения —')
-    expect(text).toContain('Самочувствие —')
-    expect(text).toContain('Настроение —')
+    expect(text).toContain('Sleep quality —')
+    expect(text).toContain('Digestive comfort —')
+    expect(text).toContain('Wellbeing —')
+    expect(text).toContain('Mood —')
   })
 
   it('отображает ноль как число', () => {
@@ -300,7 +300,7 @@ describe('CheckinCard', () => {
       />,
     )
 
-    expect(text).toContain('Настроение 0')
+    expect(text).toContain('Mood 0')
   })
 })
 })

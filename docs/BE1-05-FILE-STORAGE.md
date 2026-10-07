@@ -43,16 +43,23 @@ and creates an in-memory blob URL. The bearer token is never placed in the URL.
 
 ## Storage and lifecycle
 
-`FILE_STORAGE_ROOT` selects the private root (`./data/files` by default). Files are
-placed below UUID-derived shard directories and use a `.bin` physical suffix.
-The BE1-07 Compose stack mounts `/var/lib/health-tg/files` as the persistent
-`file-data` volume for both API and bot and does not publish the directory.
+`FILE_STORAGE_ROOT` selects the private root. Without an override, both applications
+use `${user.home}/.health-tg/files`, which is independent of the Gradle module working
+directory. `.env.example` leaves the override disabled; a custom local value must be
+the same absolute path for every API and bot process. Files are placed below
+UUID-derived shard directories and use a `.bin` physical suffix. BE1-07 must mount
+`/var/lib/health-tg/files` as the same persistent `file-data` volume for API and bot
+without publishing the directory; that Compose configuration is a dependency and is
+not part of this branch.
 
 Logical cancellation/deletion of an Entry does not remove its original. No expiry
 or background cleanup is implemented because the retention period is an open
-BE1/BE2/BE3 decision. BE3-05 must delete Mongo metadata and physical files only
-through its protected training reset; `docker compose down --volumes` is not the
-product reset operation.
+BE1/BE2/BE3 decision. The current BE3-05 reset removes only tagged synthetic
+entries and therefore must not delete the shared file catalogue or `file-data`
+volume: real bot entries would remain while their originals disappeared. A future
+protected reset of user-owned training data must remove matching Entry records,
+file metadata and physical files as one coordinated operation. `docker compose
+down --volumes` is not the product reset operation.
 
 ## Verification
 
@@ -64,12 +71,21 @@ product reset operation.
 
 Automated tests cover JPEG/PNG detection, corrupt and unsupported content, 5 MiB
 and 12 MP limits, owner isolation, source-reference binding, unchanged original
-bytes, corruption detection and safe HTTP headers.
+bytes, corruption detection, HTTP authentication/error contracts, Mongo metadata
+persistence and optimistic locking.
 
-The following acceptance evidence still requires the dependent branches and a
-real training environment:
+The current dependent implementations are:
+
+- `feature/be2-03-food-integration-9` for Telegram download, retry-safe storage,
+  Entry creation and binding;
+- `develop` for authorized Mini App retrieval through an in-memory blob URL;
+- `issue-5-BE1-07-compose-ci` for the shared private `file-data` volume.
+
+The following acceptance evidence still requires those branches to be merged and
+a real training environment:
 
 - Telegram download through BE2 -> store -> Entry -> bind;
 - Mini App retrieval through the real session;
 - ordinary BE1-07 Compose restart with the same image;
-- protected BE3-05 reset and review by another participant.
+- a separately agreed protected reset for user-owned training data and review by
+  another participant.
