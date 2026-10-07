@@ -18,7 +18,7 @@ class HealthWatchRecognitionTest {
     ObjectNode metric(ObjectNode n){return (ObjectNode)n.path("metrics").get(0);}
     void number(ObjectNode n,String value){metric(n).put("value",new BigDecimal(value));}
     void invalid(ObjectNode n){assertEquals(RecognitionException.Code.INVALID_RESPONSE,assertThrows(RecognitionException.class,()->parser.parse(n.toString())).code());}
-    @ParameterizedTest @CsvSource({"health_screenshot,steps,0,count,0,count","watch_photo,heart_rate,78,bpm,78,bpm","health_screenshot,sleep_duration_min,7.5,h,450,min","watch_photo,sleep_duration_min,3.25,часа,195,min","health_screenshot,steps,1230.5,шагов,1230.5,count"})
+    @ParameterizedTest @CsvSource({"health_screenshot,steps,0,count,0,count","watch_photo,heart_rate,78,bpm,78,bpm","health_screenshot,sleep_duration_min,7.5,h,450,min","watch_photo,sleep_duration_min,3.25,часа,195,min","health_screenshot,steps,1230.0,шагов,1230.0,count"})
     void independentNormalizationOracles(String kind,String code,String value,String unit,String expected,String canonical) throws Exception {
         var result=parser.parse(document(kind,code,value,unit).toString());var m=result.metrics().getFirst();var p=(java.util.Map<?,?>)m.context().get("payload");
         assertEquals(0,new BigDecimal(expected).compareTo(new BigDecimal(p.get("value").toString())));assertEquals(canonical,p.get("unit"));assertEquals(kind,result.imageClass());

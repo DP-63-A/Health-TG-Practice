@@ -11,6 +11,7 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 
 import java.time.Clock;
 
+@org.springframework.context.annotation.Import({org.healthtg.core.file.FileOperationGuard.class, org.healthtg.core.file.StoredFileLifecycle.class})
 @TestConfiguration(proxyBeanMethods = false)
 @ComponentScan(basePackages = {"org.healthtg.core.entry", "org.healthtg.core.dialog", "org.healthtg.user"})
 @EnableMongoRepositories(basePackages = {"org.healthtg.core.entry", "org.healthtg.core.dialog", "org.healthtg.user"})

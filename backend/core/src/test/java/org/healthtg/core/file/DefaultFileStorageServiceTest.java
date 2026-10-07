@@ -49,7 +49,7 @@ class DefaultFileStorageServiceTest {
         assertEquals("image/png", stored.mediaType());
         assertEquals(3, stored.width());
         assertEquals(2, stored.height());
-        assertEquals(1, Files.walk(root).filter(Files::isRegularFile).count());
+        assertEquals(1, Files.walk(root).filter(Files::isRegularFile).filter(p -> p.toString().endsWith(".bin")).count());
         assertThrows(StoredFileNotFoundException.class, () -> service.open(owner, stored.id()));
 
         UUID entryId = UUID.randomUUID();
@@ -97,7 +97,7 @@ class DefaultFileStorageServiceTest {
         when(entries.requireEntry(owner, entryId)).thenReturn(entry(entryId, ownerId, stored.id()));
         service.bindToEntry(owner, stored.id(), entryId);
 
-        Path physical = Files.walk(root).filter(Files::isRegularFile).findFirst().orElseThrow();
+        Path physical = Files.walk(root).filter(Files::isRegularFile).filter(p -> p.toString().endsWith(".bin")).findFirst().orElseThrow();
         assertTrue(physical.getFileName().toString().endsWith(".bin"));
         Files.write(physical, new byte[]{9, 8, 7});
         assertThrows(StoredFileUnavailableException.class, () -> service.open(owner, stored.id()));
@@ -122,14 +122,14 @@ class DefaultFileStorageServiceTest {
     private DefaultFileStorageService service(EntryCoreService entries,
                                               Map<String, MongoStoredFileDocument> database) {
         MongoStoredFileRepository repository = mock(MongoStoredFileRepository.class);
-        when(repository.save(any())).thenAnswer(call -> {
+        when(repository.insert(any(MongoStoredFileDocument.class))).thenAnswer(call -> {
             MongoStoredFileDocument value = call.getArgument(0);
             database.put(value.id(), value);
             return value;
         });
         when(repository.findByIdAndOwnerId(any(), any())).thenAnswer(call -> Optional.ofNullable(database.get(call.getArgument(0)))
                 .filter(file -> file.ownerId().equals(call.getArgument(1))));
-        return new DefaultFileStorageService(repository, entries, Clock.fixed(NOW, ZoneOffset.UTC), root.toString());
+        return new DefaultFileStorageService(repository, entries, Clock.fixed(NOW, ZoneOffset.UTC), root.toString(), new FileOperationGuard(root.toString()), FileLifecycleUnitSupport.lifecycle(database), mock(org.healthtg.core.entry.EntryStore.class));
     }
 
     private static Entry entry(UUID id, UUID ownerId, UUID fileId) {

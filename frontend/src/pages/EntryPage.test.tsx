@@ -365,7 +365,7 @@ describe('FE1-04 entry review and correction', () => {
     expect(screen.getByLabelText(/Масса/)).toHaveValue('150')
     expect(screen.getByLabelText('Масса')).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByLabelText('Масса')).toHaveAccessibleDescription(/mass must be >= 0/)
-    expect(screen.getByLabelText('Масса')).toHaveFocus()
+    await waitFor(() => expect(screen.getByLabelText('Масса')).toHaveFocus())
     expect(screen.queryByText('Изменения сохранены.')).not.toBeInTheDocument()
   })
 

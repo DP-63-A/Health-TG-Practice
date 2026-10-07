@@ -1,5 +1,6 @@
 package org.healthtg.core.entry;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.Collection;
@@ -22,6 +23,8 @@ final class EntryPayloadValidator {
     private static final Set<String> NUTRIENT_BASES = Set.of("per_100g", "per_serving", "unknown");
     private static final Set<String> HEART_RATE_QUALIFIERS = Set.of("instant", "resting");
     private static final Set<String> FIELD_ORIGINS = Set.of("reported", "extracted", "estimated", "computed");
+    /** The bound keeps multi-day sums inside long; only steps must be whole numbers. */
+    private static final BigDecimal MAX_WHOLE_METRIC = BigDecimal.valueOf(1_000_000_000L);
 
     private EntryPayloadValidator() {
     }
@@ -77,14 +80,30 @@ final class EntryPayloadValidator {
         rejectUnknown(payload, METRICS_FIELDS);
         String code = requireEnum(payload, "code", METRIC_CODES);
         Number value = requireNumber(payload, "value");
-        if (new java.math.BigDecimal(value.toString()).signum() < 0) {
+        if (new BigDecimal(value.toString()).signum() < 0) {
             throw invalid("value must be non-negative for " + code);
         }
+        requireBoundedMetric(code, value);
 
         validateOptionalText(payload, "unit", 32);
         validateLocalDate(payload.get("local_date"));
         validateLocalTime(payload.get("local_time"));
         validateEnum(payload, "qualifier", HEART_RATE_QUALIFIERS, true);
+    }
+
+    private static void requireBoundedMetric(String code, Number value) {
+        BigDecimal decimal;
+        try {
+            decimal = new BigDecimal(value.toString());
+        } catch (NumberFormatException exception) {
+            throw invalid("value must be a finite number for " + code);
+        }
+        if (decimal.compareTo(MAX_WHOLE_METRIC) > 0) {
+            throw invalid("value must not be greater than 1000000000 for " + code);
+        }
+        if ("steps".equals(code) && decimal.stripTrailingZeros().scale() > 0) {
+            throw invalid("value must be a whole number for steps");
+        }
     }
 
     private static void validateCheckin(Map<String, Object> payload) {
@@ -149,7 +168,7 @@ final class EntryPayloadValidator {
         if (!payload.containsKey(field)) return;
         Object value = payload.get(field);
         if (value == null && nullable) return;
-        if (!(value instanceof Number number) || new java.math.BigDecimal(number.toString()).signum() < 0) {
+        if (!(value instanceof Number number) || new BigDecimal(number.toString()).signum() < 0) {
             throw invalid(field + " must be a non-negative number or null");
         }
     }
@@ -178,15 +197,14 @@ final class EntryPayloadValidator {
             throw invalid("Numeric values must be finite");
         }
         if (value instanceof Number number) {
-            java.math.BigDecimal decimal;
+            BigDecimal decimal;
             try {
-                decimal = new java.math.BigDecimal(number.toString());
+                decimal = new BigDecimal(number.toString());
             } catch (NumberFormatException exception) {
                 throw invalid("Invalid numeric value");
             }
             if (decimal.precision() > MAX_NUMERIC_DIGITS
-                    || decimal.scale() < -MAX_NUMERIC_DIGITS
-                    || decimal.scale() > MAX_NUMERIC_DIGITS) {
+                    || Math.abs((long) decimal.scale()) > MAX_NUMERIC_DIGITS) {
                 throw invalid("Numeric precision and absolute scale must not exceed " + MAX_NUMERIC_DIGITS);
             }
             // API consumers use IEEE-754 numbers. Keep their finite range without

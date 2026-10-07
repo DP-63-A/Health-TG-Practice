@@ -121,5 +121,3 @@ class DateTimePickerStorageTest extends HealthWatchTestSupport {
         assertEquals("2026-10-06",sleep.payload().get("local_date"));assertEquals("07:30",sleep.payload().get("local_time"));assertEquals(NOW,sleep.occurredAt());
         assertEquals("reported",sleep.fieldOrigins().get("local_date"));assertEquals("extracted",sleep.fieldOrigins().get("local_time"));assertEquals(EntryStatus.DRAFT,sleep.status());
     }}
-
-

@@ -4,6 +4,8 @@
 - [Стек и команды текущей сборки](../README.md)
 - [API-контракты и примеры](../contracts/README.md)
 - [Приватное хранение изображений BE1-05](BE1-05-FILE-STORAGE.md)
+- [Матрица backend-приёмки BE1-06](BE1-06-TEST-MATRIX.md)
+- [Отчёт backend-приёмки BE1-06](BE1-06-ACCEPTANCE-REPORT.md)
 - [Рабочий процесс](../WORKFLOW.md)
 - [Зависимости задач](../DEPENDENCIES.md)
 - [Проектные решения](../DECISIONS.md)

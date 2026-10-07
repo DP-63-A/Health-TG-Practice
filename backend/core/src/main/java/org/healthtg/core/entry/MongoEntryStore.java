@@ -17,7 +17,8 @@ import java.util.Map;
 @Repository
 @ConditionalOnProperty(name = "health-tg.core.storage.enabled", matchIfMissing = true)
 class MongoEntryStore implements EntryStore {
-    private static final char MAP_KEY_ESCAPE = '\uFF0E';
+    private static final int FIELD_ORIGINS_ENCODING_VERSION = 2;
+    private static final char MAP_KEY_ESCAPE = '\uFF0F';
 
     private final MongoEntryRepository repository;
     private final MongoTemplate mongoTemplate;
@@ -25,6 +26,12 @@ class MongoEntryStore implements EntryStore {
     MongoEntryStore(MongoEntryRepository repository, MongoTemplate mongoTemplate) {
         this.repository = repository;
         this.mongoTemplate = mongoTemplate;
+    }
+
+    @Override
+    public boolean hasFileReference(UUID fileId) {
+        return mongoTemplate.exists(Query.query(Criteria.where("sourceRef.file_id")
+                .regex("^"+java.util.regex.Pattern.quote(fileId.toString())+"$","i")),MongoEntryDocument.class);
     }
 
     @Override
@@ -73,6 +80,7 @@ class MongoEntryStore implements EntryStore {
                 .set("revision", replacement.revision())
                 .set("payload", encodeNumbers(replacement.payload()))
                 .set("fieldOrigins", encodeMapKeys(replacement.fieldOrigins()))
+                .set("fieldOriginsEncodingVersion", FIELD_ORIGINS_ENCODING_VERSION)
                 .set("submissionId", replacement.submissionId())
                 .push("history").slice(-10).each(snapshot(current));
         MongoEntryDocument changed = mongoTemplate.findAndModify(query, update,
@@ -88,6 +96,7 @@ class MongoEntryStore implements EntryStore {
         snapshot.put("updatedAt", entry.updatedAt());
         snapshot.put("payload", encodeNumbers(entry.payload()));
         snapshot.put("fieldOrigins", encodeMapKeys(entry.fieldOrigins()));
+        snapshot.put("fieldOriginsEncodingVersion", FIELD_ORIGINS_ENCODING_VERSION);
         snapshot.put("submissionId", entry.submissionId());
         return snapshot;
     }
@@ -96,7 +105,7 @@ class MongoEntryStore implements EntryStore {
         return new MongoEntryDocument(entry.id().toString(), entry.ownerId().toString(), entry.type().code(),
                 entry.status().code(), entry.sourceKind().code(), entry.sourceRef(), entry.occurredAt(),
                 entry.createdAt(), entry.updatedAt(), entry.revision(), encodeNumbers(entry.payload()), encodeMapKeys(entry.fieldOrigins()),
-                entry.submissionId(), entry.telegramUpdateKey(), List.of());
+                FIELD_ORIGINS_ENCODING_VERSION, entry.submissionId(), entry.telegramUpdateKey(), List.of());
     }
 
     private static Entry toDomain(MongoEntryDocument document) {
@@ -104,7 +113,8 @@ class MongoEntryStore implements EntryStore {
                 EntryType.fromCode(document.type()), EntryStatus.fromCode(document.status()),
                 SourceKind.fromCode(document.sourceKind()), document.sourceRef(), document.occurredAt(),
                 document.createdAt(), document.updatedAt(), document.revision(), decodeNumbers(document.payload()),
-                decodeMapKeys(document.fieldOrigins()), document.submissionId(), document.telegramUpdateKey());
+                decodeMapKeys(document.fieldOrigins(), document.fieldOriginsEncodingVersion()),
+                document.submissionId(), document.telegramUpdateKey());
     }
 
     // Untyped Mongo maps otherwise return BigDecimal as String (or BSON Decimal128).
@@ -146,8 +156,9 @@ class MongoEntryStore implements EntryStore {
             StringBuilder safeKey = new StringBuilder(key.length());
             for (int index = 0; index < key.length(); index++) {
                 char character = key.charAt(index);
-                if (character == MAP_KEY_ESCAPE) safeKey.append(MAP_KEY_ESCAPE).append(MAP_KEY_ESCAPE);
-                else if (character == '.') safeKey.append(MAP_KEY_ESCAPE);
+                if (character == MAP_KEY_ESCAPE) safeKey.append(MAP_KEY_ESCAPE).append('e');
+                else if (character == '.') safeKey.append(MAP_KEY_ESCAPE).append('d');
+                else if (character == '\uFF0E') safeKey.append(MAP_KEY_ESCAPE).append('f');
                 else safeKey.append(character);
             }
             encoded.put(safeKey.toString(), value);
@@ -155,19 +166,26 @@ class MongoEntryStore implements EntryStore {
         return encoded;
     }
 
-    private static Map<String, String> decodeMapKeys(Map<String, String> values) {
+    private static Map<String, String> decodeMapKeys(Map<String, String> values, Integer version) {
         Map<String, String> decoded = new LinkedHashMap<>();
+        if (version == null || version == 1) {
+            values.forEach((key, value) -> decoded.put(decodeLegacyMapKey(key), value));
+            return decoded;
+        }
+        if (version != FIELD_ORIGINS_ENCODING_VERSION) {
+            throw new IllegalStateException("Unsupported fieldOrigins encoding version: " + version);
+        }
         values.forEach((key, value) -> {
             StringBuilder originalKey = new StringBuilder(key.length());
             for (int index = 0; index < key.length(); index++) {
                 char character = key.charAt(index);
                 if (character == MAP_KEY_ESCAPE) {
-                    if (index + 1 < key.length() && key.charAt(index + 1) == MAP_KEY_ESCAPE) {
-                        originalKey.append(MAP_KEY_ESCAPE);
-                        index++;
-                    } else {
-                        originalKey.append('.');
-                    }
+                    if (index + 1 >= key.length()) throw new IllegalArgumentException("Invalid fieldOrigins key");
+                    char escaped = key.charAt(++index);
+                    if (escaped == 'e') originalKey.append(MAP_KEY_ESCAPE);
+                    else if (escaped == 'd') originalKey.append('.');
+                    else if (escaped == 'f') originalKey.append('\uFF0E');
+                    else throw new IllegalArgumentException("Invalid fieldOrigins key");
                 } else {
                     originalKey.append(character);
                 }
@@ -175,5 +193,23 @@ class MongoEntryStore implements EntryStore {
             decoded.put(originalKey.toString(), value);
         });
         return decoded;
+    }
+
+    private static String decodeLegacyMapKey(String key) {
+        StringBuilder originalKey = new StringBuilder(key.length());
+        for (int index = 0; index < key.length(); index++) {
+            char character = key.charAt(index);
+            if (character == '\uFF0E') {
+                if (index + 1 < key.length() && key.charAt(index + 1) == '\uFF0E') {
+                    originalKey.append('\uFF0E');
+                    index++;
+                } else {
+                    originalKey.append('.');
+                }
+            } else {
+                originalKey.append(character);
+            }
+        }
+        return originalKey.toString();
     }
 }

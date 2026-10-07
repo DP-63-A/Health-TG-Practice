@@ -119,7 +119,3 @@ class DateTimePickerFailureTest extends HealthWatchTestSupport {
         var exact=flow().handleMessage(selection(12,accepted));
         assertEquals(saved,dialogs.find(owner()).orElseThrow());assertTrue(text(exact).contains(nextQuestion));assertTrue(entries.findActiveDraft(owner()).isEmpty());
     }}
-
-
-
-

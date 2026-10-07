@@ -33,4 +33,3 @@ export function readPickerContext(fragment: string): PickerContext | null {
   if ((dateLocked && !date) || (timeLocked && (!withTime || !time))) return null
   return { token, revision, zone, label, date, time, withTime, dateLocked, timeLocked }
 }
-

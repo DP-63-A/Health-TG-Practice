@@ -20,6 +20,23 @@ class ContractValidatorTest {
 
     @TempDir Path tempDir;
 
+    @Test void metricSchemaRequiresWholeStepsButAllowsFractionalSleepAndPulse() throws Exception {
+        Path contracts=copyContracts();Path example=contracts.resolve("examples/valid/entry-metrics.json");
+        ObjectNode entry=(ObjectNode)JSON.readTree(example.toFile());ObjectNode payload=(ObjectNode)entry.path("payload");
+        for(String code:List.of("steps","sleep_duration_min","heart_rate")) {
+            payload.put("code",code);payload.put("unit",code.equals("steps")?"count":code.equals("heart_rate")?"bpm":"min");
+            payload.put("value",new java.math.BigDecimal("7.5"));JSON.writeValue(example.toFile(),entry);
+            var failures=new ContractValidator(contracts).validateAll();
+            if(code.equals("steps"))assertTrue(failures.stream().anyMatch(f->f.contains("entry-metrics.json")),failures.toString());
+            else assertTrue(failures.isEmpty(),failures.toString());
+        }
+        payload.put("code","steps");payload.put("unit","count");
+        for(String value:List.of("0","1230.0","1000000000")) {
+            payload.put("value",new java.math.BigDecimal(value));JSON.writeValue(example.toFile(),entry);
+            assertTrue(new ContractValidator(contracts).validateAll().isEmpty(),value);
+        }
+    }
+
     @Test
     void openApiAndExamplesPassContractChecks() throws Exception {
         Path contracts = resolveContractsRoot();

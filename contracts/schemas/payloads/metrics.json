@@ -8,14 +8,21 @@
     "code",
     "value"
   ],
+  "allOf": [
+    {
+      "if": { "properties": { "code": { "const": "steps" } }, "required": ["code"] },
+      "then": { "properties": { "value": { "type": "integer" } } }
+    }
+  ],
   "properties": {
     "code": {
       "$ref": "../common.json#/$defs/MetricCode"
     },
     "value": {
       "type": "number",
-      "description": "Must be >= 0 for steps, sleep_duration_min and heart_rate. Unknown is not represented as negative.",
-      "minimum": 0
+      "description": "Must be >= 0 and <= 1000000000 for all metric codes. Steps must be mathematically integral (1230.0 is valid); sleep and heart rate may be fractional. Unknown is not represented as negative.",
+      "minimum": 0,
+      "maximum": 1000000000
     },
     "unit": {
       "type": [

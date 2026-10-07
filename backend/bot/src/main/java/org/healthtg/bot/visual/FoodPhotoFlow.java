@@ -98,12 +98,18 @@ public final class FoodPhotoFlow {
                     case "value" -> {
                         var parsed=new CorrectionInputParser().parseNumber(input);
                         if(!(parsed instanceof CorrectionResult.Success<?> success)) throw new IllegalArgumentException();
-                        checkedNumber(success.value()); payload.put("value",success.value().toString()); origins.put("value","reported");
+                        checkedNumber(success.value());
+                        MetricCandidate.validateValue((String)payload.get("code"),new BigDecimal(success.value().toString()));
+                        if ("sleep_duration_min".equals(payload.get("code")) && payload.get("value")==null) {
+                            payload.put("unit",null); origins.remove("unit"); data.remove("reported_unit");
+                        }
+                        payload.put("value",success.value().toString()); origins.put("value","reported");
                     }
                     case "unit" -> {
                         var normalized=MetricCandidate.normalize((String)payload.get("code"),
                                 payload.get("value")==null?null:new BigDecimal(payload.get("value").toString()),input);
                         if(normalized.unit()==null) throw new IllegalArgumentException();
+                        if(normalized.value()!=null) MetricCandidate.validateValue((String)payload.get("code"),normalized.value());
                         payload.put("unit",normalized.unit()); origins.put("unit",input.equals(normalized.unit())?"reported":"computed");
                         if(normalized.value()!=null) payload.put("value",normalized.value().toPlainString());
                         if(normalized.converted()) origins.put("value","computed");
@@ -292,8 +298,18 @@ public final class FoodPhotoFlow {
                 // Concurrent confirm/cancel is terminal: keep that result, discard only the remaining queue.
             }
         }
+        boolean protectedFile=false;
+        if(data.get("reserved_file_id") instanceof String reserved) {
+            try {
+                var cleanup=Objects.requireNonNull(files.discardUnreferenced(owner,UUID.fromString(reserved)));
+                protectedFile=cleanup==FileStorageService.CleanupResult.PROTECTED;
+            } catch(RuntimeException incomplete) {
+                return response(u,"Отмена ещё не завершена. Очистка фотографии будет повторена при следующем обращении.",List.of());
+            }
+        }
         finish(owner,u);
-        return response(u,"Ввод фотографии и оставшиеся показатели отменены. Уже подтверждённые записи сохранены.",List.of());
+        return response(u,"Ввод фотографии и оставшиеся показатели отменены. Уже подтверждённые записи сохранены."
+                +(protectedFile?" Файл сохранён: он связан с записью или результат её сохранения ещё неизвестен.":""),List.of());
     }
 
     private List<BotAction> cancellationConflict(BotUpdate u,OwnerContext owner,Map<String,Object> original,
@@ -349,6 +365,8 @@ public final class FoodPhotoFlow {
     }
     private List<BotAction> commit(BotUpdate u,OwnerContext owner,DialogState s,ZoneId zone) {
         var data=new LinkedHashMap<>(s.context());
+        if(isMetric(data) && !expected(data).isEmpty() && !data.containsKey("entry_id"))
+            return prompt(u,save(owner,null,"food_clarify",data,u,"clarify-value"),"Уточните показатель перед сохранением.");
         if(isMetric(data) && !data.containsKey("message_sent_at"))
             return prompt(u,s,"В исходном сообщении нет времени отправки. Отмените ввод и пришлите фотографию заново.");
         Instant occurred;
@@ -463,7 +481,7 @@ public final class FoodPhotoFlow {
             question=switch(expected(s.context())) {
                 case "image_class" -> "Что вы вводите: еда, здоровье или часы?";
                 case "code" -> "Какой показатель ввести вручную: шаги, сон или пульс?";
-                case "value" -> "Введите числовое значение показателя"+(map(s.context().get("payload")).get("unit")==null?".":" в "+map(s.context().get("payload")).get("unit")+".");
+                case "value" -> valueQuestion(s.context());
                 case "unit" -> "Укажите единицу исходного числа: count/шаги, min/мин/ч или bpm/уд/мин.";
                 case "metric_date" -> "Введите дату ДД.ММ.ГГГГ: для шагов — день итога, для сна — дата пробуждения, для пульса — дата измерения.";
                 case "description" -> "Что на фото? Введите описание еды.";
@@ -494,6 +512,12 @@ public final class FoodPhotoFlow {
         if(isMetric(data)) {
             if(p.get("code")==null) return "code";
             if(p.get("value")==null) return "value";
+            try { MetricCandidate.validateValue((String)p.get("code"),new BigDecimal(p.get("value").toString())); }
+            catch (IllegalArgumentException invalid) { return "value"; }
+            // Old persisted states could have normalized a missing model value's hours to minutes.
+            if ("sleep_duration_min".equals(p.get("code")) && data.get("raw_metric") instanceof Map<?,?> raw
+                    && raw.get("value")==null && "reported".equals(origins(data).get("value"))
+                    && !data.containsKey("reported_unit")) return "unit";
             if(p.get("unit")==null) return "unit";
             if(p.get("local_date")==null) return "metric_date";
             return "";
@@ -505,6 +529,13 @@ public final class FoodPhotoFlow {
         }
         if(p.get("mass_g")==null && !Boolean.TRUE.equals(data.get("mass_asked"))) return "mass";
         return "";
+    }
+    private static String valueQuestion(Map<String,Object> data) {
+        var payload=map(data.get("payload"));
+        if ("steps".equals(payload.get("code"))) return "Введите целое количество шагов от 0 до 1000000000.";
+        if ("sleep_duration_min".equals(payload.get("code")) && payload.get("value")==null)
+            return "Введите длительность сна числом. Следом уточним, это часы или минуты.";
+        return "Введите числовое значение показателя"+(payload.get("unit")==null?".":" в "+payload.get("unit")+".");
     }
     private static Map<String,Object> emptyPayload() {
         var p=new LinkedHashMap<String,Object>();p.put("description",null);p.put("mass_g",null);

@@ -49,10 +49,10 @@ abstract class HealthWatchTestSupport {
     }
     void reopen(){
         context=new AnnotationConfigApplicationContext();
-        TestPropertyValues.of("test.mongo.uri="+MONGO.getReplicaSetUrl(),"test.mongo.database="+database).applyTo(context);
+        TestPropertyValues.of("test.mongo.uri="+MONGO.getReplicaSetUrl(),"test.mongo.database="+database,"health-tg.files.root="+root).applyTo(context);
         context.register(BotCoreStorageTestConfiguration.class); context.refresh();
         entries=context.getBean(EntryCoreService.class); dialogs=context.getBean(DialogStateService.class); users=context.getBean(UserService.class);
-        files=FoodPhotoFileTestSupport.create(context.getBean(MongoTemplate.class),entries,root.toString());
+        files=FoodPhotoFileTestSupport.create(context.getBean(MongoTemplate.class),entries,root.toString(),context.getBean(EntryStore.class));
     }
     @AfterEach void close(){context.getBean(MongoTemplate.class).getDb().drop(); context.close();}
     OwnerContext owner(){return new OwnerContext(users.findOrCreate(1001).id());}

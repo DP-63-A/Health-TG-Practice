@@ -28,4 +28,3 @@ class DateTimePickerTransportTest {
     }
     BotUpdate update(BotUpdate.Kind k,BotUpdate.ChatType t,long chat,Long sender,boolean bot){return new BotUpdate(10,k,t,chat,sender,bot,null,List.of(),null,null,null,null,"{}");}
 }
-
