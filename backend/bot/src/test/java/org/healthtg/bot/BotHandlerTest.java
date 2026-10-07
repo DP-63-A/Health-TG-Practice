@@ -36,7 +36,7 @@ class BotHandlerTest {
         assertEquals(USER, menu.chatId()); assertEquals(URL, menu.url());
         assertFalse(menu.label().isBlank()); assertEquals(USER, message.chatId());
         assertTrue(message.text().contains("учебный"));
-        assertTrue(message.text().contains("синтетические данные"));
+        assertTrue(message.text().contains("Дневник нового пользователя пуст"));
         assertTrue(message.text().contains("не медицинский сервис"));
         assertTrue(message.text().contains("Не отправляйте реальные сведения"));
         assertEquals(List.of("Отметить состояние"), message.keyboard().buttons());

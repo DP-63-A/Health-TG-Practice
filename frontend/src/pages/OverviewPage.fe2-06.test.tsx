@@ -106,7 +106,7 @@ function analyticsRequest(period: 'today' | 'days_7') {
 }
 
 function changePeriod(period: 'today' | 'days_7') {
-  fireEvent.change(screen.getByLabelText('Период'), {
+  fireEvent.change(screen.getByLabelText('Period'), {
     target: { value: period },
   })
 }
@@ -114,12 +114,12 @@ function changePeriod(period: 'today' | 'days_7') {
 function expectLoading() {
   expect(
     screen.getByRole('heading', {
-      name: 'Загрузка аналитики',
+      name: 'Loading analytics',
     }),
   ).toBeVisible()
 
   expect(
-    screen.queryByRole('heading', { name: 'Нет данных' }),
+    screen.queryByRole('heading', { name: 'No data' }),
   ).not.toBeInTheDocument()
 
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -130,10 +130,10 @@ async function chartTable(name: string) {
   const details = chart.querySelector('details')
 
   if (!details) {
-    throw new Error(`В блоке "${name}" отсутствует таблица дней`)
+    throw new Error(`В блоке "${name}" отсутствует таблица days`)
   }
 
-  fireEvent.click(within(chart).getByText('Значения по дням'))
+  fireEvent.click(within(chart).getByText('Daily values'))
 
   expect(details).toHaveAttribute('open')
 
@@ -145,52 +145,52 @@ async function chartTable(name: string) {
 
 function expectNormalOverview() {
   expect(
-    screen.getByRole('heading', { name: 'Обзор' }),
+    screen.getByRole('region', { name: 'Statistics' }),
   ).toBeVisible()
 
-  expect(screen.getByLabelText('Период')).toHaveValue('days_7')
+  expect(screen.getByLabelText('Period')).toHaveValue('days_7')
   expect(
-    screen.getByLabelText('Период'),
-  ).toHaveDisplayValue('7 дней')
+    screen.getByLabelText('Period'),
+  ).toHaveDisplayValue('7 days')
 
   const nutrition = within(
-    screen.getByRole('region', { name: 'Калории и БЖУ' }),
+    screen.getByRole('region', { name: 'Calories & macros' }),
   )
 
-  expect(nutrition.getByText('930 ккал')).toBeVisible()
+  expect(nutrition.getByText('930 kcal')).toBeVisible()
 
   const meals = within(
     screen.getByRole('region', {
-      name: 'Количество приёмов пищи',
+      name: 'Meal count',
     }),
   )
 
   expect(meals.getByText('2', { exact: true })).toBeVisible()
 
   const sleep = within(
-    screen.getByRole('region', { name: 'Аналитика сна' }),
+    screen.getByRole('region', { name: 'Sleep analytics' }),
   )
 
   // Буквальные ожидания отображения, без production-formatter.
-  expect(sleep.getByText('15 ч', { exact: true })).toBeVisible()
+  expect(sleep.getByText('15 h', { exact: true })).toBeVisible()
   expect(
-    sleep.getByText('7 ч 30 мин', { exact: true }),
+    sleep.getByText('7 h 30 min', { exact: true }),
   ).toBeVisible()
   expect(
     sleep.getByText('13.09.2026 — 19.09.2026'),
   ).toBeVisible()
 
-  for (const name of ['Питание', 'Сон', 'Шаги', 'Состояние']) {
+  for (const name of ['Nutrition', 'Sleep', 'Steps', 'Wellbeing']) {
     expect(screen.getByRole('region', { name })).toBeVisible()
   }
 
   expect(
-    screen.queryByRole('heading', { name: 'Нет данных' }),
+    screen.queryByRole('heading', { name: 'No data' }),
   ).not.toBeInTheDocument()
 
   expect(
     screen.queryByRole('heading', {
-      name: 'Загрузка аналитики',
+      name: 'Loading analytics',
     }),
   ).not.toBeInTheDocument()
 
@@ -271,7 +271,7 @@ describe('FE2-06: обязательные сценарии обзора', () =>
     const router = renderOverview('today')
 
     expect(
-      await screen.findByRole('heading', { name: 'Нет данных' }),
+      await screen.findByRole('heading', { name: 'No data' }),
     ).toBeVisible()
 
     expect(get).toHaveBeenNthCalledWith(
@@ -295,7 +295,7 @@ describe('FE2-06: обязательные сценарии обзора', () =>
     )
 
     expectLoading()
-    expect(screen.queryByText('930 ккал')).not.toBeInTheDocument()
+    expect(screen.queryByText('930 kcal')).not.toBeInTheDocument()
 
     await act(async () => {
       next.resolve(response('normal'))
@@ -317,27 +317,27 @@ describe('FE2-06: обязательные сценарии обзора', () =>
     })
 
     expect(
-      screen.getByRole('heading', { name: 'Нет данных' }),
+      screen.getByRole('heading', { name: 'No data' }),
     ).toBeVisible()
 
     expect(
       screen.queryByRole('heading', {
-        name: 'Загрузка аналитики',
+        name: 'Loading analytics',
       }),
     ).not.toBeInTheDocument()
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 
     const nutrition = within(
-      screen.getByRole('region', { name: 'Калории и БЖУ' }),
+      screen.getByRole('region', { name: 'Calories & macros' }),
     )
 
-    expect(nutrition.getByText('— ккал')).toBeVisible()
+    expect(nutrition.getByText('— kcal')).toBeVisible()
     expect(
-      nutrition.queryByText('0 ккал'),
+      nutrition.queryByText('0 kcal'),
     ).not.toBeInTheDocument()
 
-    for (const name of ['Питание', 'Сон', 'Шаги', 'Состояние']) {
+    for (const name of ['Nutrition', 'Sleep', 'Steps', 'Wellbeing']) {
       const chart = screen.getByRole('region', { name })
 
       expect(chart).toBeVisible()
@@ -357,26 +357,26 @@ describe('FE2-06: обязательные сценарии обзора', () =>
 
     renderOverview()
 
-    const sleepTable = await chartTable('Сон')
+    const sleepTable = await chartTable('Sleep')
 
     const missingRow = sleepTable.getByRole('row', {
       name: /15\.09\.2026/,
     })
 
     expect(
-      within(missingRow).getByRole('cell', { name: 'Нет данных' }),
+      within(missingRow).getByRole('cell', { name: 'No data' }),
     ).toBeVisible()
 
     expect(
-      within(missingRow).queryByText('0 мин'),
+      within(missingRow).queryByText('0 min'),
     ).not.toBeInTheDocument()
 
     expect(
-      within(missingRow).queryByText('7 ч'),
+      within(missingRow).queryByText('7 h'),
     ).not.toBeInTheDocument()
 
     expect(
-      within(missingRow).queryByText('8 ч'),
+      within(missingRow).queryByText('8 h'),
     ).not.toBeInTheDocument()
 
     const firstMeasuredRow = sleepTable.getByRole('row', {
@@ -384,7 +384,7 @@ describe('FE2-06: обязательные сценарии обзора', () =>
     })
 
     expect(
-      within(firstMeasuredRow).getByRole('cell', { name: '7 ч' }),
+      within(firstMeasuredRow).getByRole('cell', { name: '7 h' }),
     ).toBeVisible()
 
     const secondMeasuredRow = sleepTable.getByRole('row', {
@@ -392,18 +392,18 @@ describe('FE2-06: обязательные сценарии обзора', () =>
     })
 
     expect(
-      within(secondMeasuredRow).getByRole('cell', { name: '8 ч' }),
+      within(secondMeasuredRow).getByRole('cell', { name: '8 h' }),
     ).toBeVisible()
 
     const nutrition = within(
-      screen.getByRole('region', { name: 'Калории и БЖУ' }),
+      screen.getByRole('region', { name: 'Calories & macros' }),
     )
 
-    expect(nutrition.getByText('— ккал')).toBeVisible()
+    expect(nutrition.getByText('— kcal')).toBeVisible()
 
     const meals = within(
       screen.getByRole('region', {
-        name: 'Количество приёмов пищи',
+        name: 'Meal count',
       }),
     )
 
@@ -412,15 +412,15 @@ describe('FE2-06: обязательные сценарии обзора', () =>
 
     // Частично заполненный период не становится полностью пустым.
     expect(
-      screen.queryByRole('heading', { name: 'Нет данных' }),
+      screen.queryByRole('heading', { name: 'No data' }),
     ).not.toBeInTheDocument()
   })
 
   it.each([
     {
-      chart: 'Питание',
+      chart: 'Nutrition',
       date: '2026-09-19',
-      button: /Выбрать день 19\.09\.2026/,
+      button: /Select day 19\.09\.2026/,
       kind: 'nutrition',
       type: 'meal',
       sourceIds: [
@@ -429,9 +429,9 @@ describe('FE2-06: обязательные сценарии обзора', () =>
       ],
     },
     {
-      chart: 'Сон',
+      chart: 'Sleep',
       date: '2026-09-14',
-      button: /Выбрать день 14\.09\.2026/,
+      button: /Select day 14\.09\.2026/,
       kind: 'sleep',
       type: 'metrics',
       sourceIds: [
@@ -439,9 +439,9 @@ describe('FE2-06: обязательные сценарии обзора', () =>
       ],
     },
     {
-      chart: 'Шаги',
+      chart: 'Steps',
       date: '2026-09-19',
-      button: /Выбрать день 19\.09\.2026/,
+      button: /Select day 19\.09\.2026/,
       kind: 'steps',
       type: 'metrics',
       sourceIds: [
@@ -449,9 +449,9 @@ describe('FE2-06: обязательные сценарии обзора', () =>
       ],
     },
     {
-      chart: 'Состояние',
+      chart: 'Wellbeing',
       date: '2026-09-19',
-      button: /Выбрать день 19\.09\.2026/,
+      button: /Select day 19\.09\.2026/,
       kind: 'checkin',
       type: 'checkin',
       sourceIds: [
@@ -474,7 +474,7 @@ describe('FE2-06: обязательные сценарии обзора', () =>
       fireEvent.click(table.getByRole('button', { name: button }))
 
       expect(
-        await screen.findByRole('heading', { name: 'Дневник' }),
+        await screen.findByRole('region', { name: 'Diary' }),
       ).toBeVisible()
 
       await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
@@ -498,10 +498,10 @@ describe('FE2-06: обязательные сценарии обзора', () =>
           '/overview?period=days_7&checkin_category=mood',
       })
 
-      expect(screen.getByLabelText('С даты')).toHaveValue(date)
-      expect(screen.getByLabelText('По дату')).toHaveValue(date)
-      expect(screen.getByLabelText('Тип')).toHaveValue(type)
-      expect(screen.getByLabelText('Режим')).toHaveValue('confirmed')
+      expect(screen.getByLabelText('From date')).toHaveValue(date)
+      expect(screen.getByLabelText('To date')).toHaveValue(date)
+      expect(screen.getByLabelText('Type')).toHaveValue(type)
+      expect(screen.getByLabelText('Mode')).toHaveValue('confirmed')
 
       // Проверяется настоящий вызов entriesApi через общий клиент.
       expect(get).toHaveBeenNthCalledWith(
@@ -529,7 +529,7 @@ describe('FE2-06: обязательные сценарии обзора', () =>
       }
 
       expect(
-        screen.queryByRole('heading', { name: 'Записей нет' }),
+        screen.queryByRole('heading', { name: 'No entries' }),
       ).not.toBeInTheDocument()
     },
   )
@@ -544,7 +544,7 @@ describe('FE2-06: обязательные сценарии обзора', () =>
 
     const router = renderOverview('today')
 
-    await screen.findByRole('heading', { name: 'Нет данных' })
+    await screen.findByRole('heading', { name: 'No data' })
 
     changePeriod('days_7')
 
@@ -552,24 +552,24 @@ describe('FE2-06: обязательные сценарии обзора', () =>
 
     expect(
       within(alert).getByRole('heading', {
-        name: 'Ошибка загрузки',
+        name: 'Loading error',
       }),
     ).toBeVisible()
 
     expect(
-      screen.queryByRole('heading', { name: 'Нет данных' }),
+      screen.queryByRole('heading', { name: 'No data' }),
     ).not.toBeInTheDocument()
 
     expect(
       screen.queryByRole('heading', {
-        name: 'Загрузка аналитики',
+        name: 'Loading analytics',
       }),
     ).not.toBeInTheDocument()
 
     expect(auth.markSessionExpired).not.toHaveBeenCalled()
 
     fireEvent.click(
-      within(alert).getByRole('button', { name: 'Повторить' }),
+      within(alert).getByRole('button', { name: 'Retry' }),
     )
 
     await waitFor(() => expect(get).toHaveBeenCalledTimes(3))
@@ -599,7 +599,7 @@ describe('FE2-06: обязательные сценарии обзора', () =>
     expectNormalOverview()
 
     expect(
-      screen.queryByRole('button', { name: 'Повторить' }),
+      screen.queryByRole('button', { name: 'Retry' }),
     ).not.toBeInTheDocument()
   })
 

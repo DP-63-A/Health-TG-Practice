@@ -4,13 +4,12 @@ Backend consists of two independently launched applications and one shared Java 
 
 | Module | Purpose | Documentation |
 |---|---|---|
-| `:backend:core` | Shared entry, draft, check-in, dialog-state and MongoDB persistence services | [BE1-03 storage](../docs/BE1-03-CORE-STORAGE.md) |
+| `:backend:core` | Shared entry, dialog, private-file and MongoDB persistence services | [BE1-03 storage](../docs/BE1-03-CORE-STORAGE.md), [BE1-05 files](../docs/BE1-05-FILE-STORAGE.md) |
 | `:backend:api` | HTTP API, Telegram authentication, sessions, ownership checks and readiness | [API](api/README.md) |
 | `:backend:bot` | Telegram long polling, closed access, commands and keyboards | [Bot](bot/README.md) |
 
-`api` depends on `core` and provides its Spring/MongoDB runtime. The bot remains isolated from MongoDB
-until BE2-02/05 wires it to the public `EntryCoreService` and `DialogStateService` interfaces. Consumers
-must not access Spring Data repositories directly. The `core` module is a library: it has no `main`, HTTP
+`api` and `bot` depend on `core` and provide its Spring/MongoDB runtime. Consumers use public core
+services and must not access Spring Data repositories directly. The `core` module is a library: it has no `main`, HTTP
 port or independent process. API and bot remain separate applications and neither starts the other.
 
 ## Build and tests

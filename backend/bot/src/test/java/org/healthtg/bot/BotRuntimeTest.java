@@ -170,7 +170,7 @@ class BotRuntimeTest {
         when(flow.handleMessage(any())).thenAnswer(invocation -> {
             BotUpdate update = invocation.getArgument(0);
             handled.add(update.text());
-            if (attempts.getAndIncrement() == 0) {
+            if (attempts.getAndIncrement() < 2) {
                 throw new DataAccessResourceFailureException("synthetic storage outage");
             }
             return List.of();
@@ -181,7 +181,7 @@ class BotRuntimeTest {
         when(client.execute(any(GetUpdates.class))).thenAnswer(invocation -> {
             GetUpdates request = invocation.getArgument(0);
             offsets.add(request.getOffset());
-            if (requested.getAndIncrement() < 2) {
+            if (requested.getAndIncrement() < 3) {
                 var first = TelegramAdapterTest.message("первое");
                 var second = TelegramAdapterTest.message("второе");
                 second.setUpdateId(11);
@@ -197,8 +197,12 @@ class BotRuntimeTest {
             runtime.start();
             assertTrue(nextPoll.await(8, TimeUnit.SECONDS));
             assertTrue(runtime.isRunning());
-            assertEquals(List.of("первое", "первое", "второе"), handled);
-            assertEquals(List.of(0, 0, 12), offsets);
+            assertEquals(List.of("первое", "первое", "первое", "второе"), handled);
+            assertEquals(List.of(0, 0, 0, 12), offsets);
+            var notifications = ArgumentCaptor.forClass(SendMessage.class);
+            verify(client, times(1)).execute(notifications.capture());
+            assertEquals("Хранилище временно недоступно. Повторяю обработку; повторно отправлять сообщение не нужно.",
+                    notifications.getValue().getText());
         }
     }
 

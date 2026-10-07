@@ -38,10 +38,10 @@ interface TooltipOracle {
 }
 
 const chartNames: Record<ChartKind, string> = {
-  nutrition: 'Питание',
-  sleep: 'Сон',
-  steps: 'Шаги',
-  checkin: 'Состояние',
+  nutrition: 'Nutrition',
+  sleep: 'Sleep',
+  steps: 'Steps',
+  checkin: 'Wellbeing',
 }
 
 // Фиксированные ожидания независимых ответов BE3.
@@ -50,41 +50,41 @@ const cases: TooltipOracle[] = [
   {
     fixture: 'normal',
     kind: 'nutrition',
-    points: [['19.09.2026', '930 ккал']],
+    points: [['19.09.2026', '930 kcal']],
   },
   {
     fixture: 'normal',
     kind: 'sleep',
     points: [
-      ['14.09.2026', '7 ч'],
-      ['16.09.2026', '8 ч'],
+      ['14.09.2026', '7 h'],
+      ['16.09.2026', '8 h'],
     ],
   },
   {
     fixture: 'normal',
     kind: 'steps',
-    points: [['19.09.2026', '5 000 шагов']],
+    points: [['19.09.2026', '5,000 steps']],
   },
   {
     fixture: 'normal',
     kind: 'checkin',
-    points: [['19.09.2026', '4 из 5']],
-    category: 'Настроение',
+    points: [['19.09.2026', '4 out of 5']],
+    category: 'Mood',
   },
   {
     fixture: 'dedup',
     kind: 'nutrition',
-    points: [['19.09.2026', '600 ккал']],
+    points: [['19.09.2026', '600 kcal']],
   },
   {
     fixture: 'dedup',
     kind: 'steps',
-    points: [['19.09.2026', '5 000 шагов']],
+    points: [['19.09.2026', '5,000 steps']],
   },
   {
     fixture: 'filtered',
     kind: 'nutrition',
-    points: [['19.09.2026', '300 ккал']],
+    points: [['19.09.2026', '300 kcal']],
   },
 ]
 
@@ -149,7 +149,7 @@ async function flushFrames() {
       iterations += 1
 
       if (iterations > 50) {
-        throw new Error('Отрисовка графика не завершилась')
+        throw new Error('Отрисовка gрафика не завершилась')
       }
 
       const current = [...frames.values()]
@@ -321,16 +321,16 @@ describe('FE2-06: настоящие tooltip по ответам BE3', () => {
     },
   )
 
-  it('сон: пропуски не получают ноль или значение соседнего дня', async () => {
+  it('sleep: пропуски не получают ноль или значение соседнего дня', async () => {
     renderChart('sleep', readContractFixture('gaps'))
 
     const { chart, wrapper } = await openChart('sleep')
 
     const expected: readonly (readonly [string, string | null])[] = [
       ['13.09.2026', null],
-      ['14.09.2026', '7 ч'],
+      ['14.09.2026', '7 h'],
       ['15.09.2026', null],
-      ['16.09.2026', '8 ч'],
+      ['16.09.2026', '8 h'],
       ['17.09.2026', null],
       ['18.09.2026', null],
       ['19.09.2026', null],

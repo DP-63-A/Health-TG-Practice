@@ -11,6 +11,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -44,7 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = {
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "health-tg.auth.telegram-bot-token=test-bot-token",
         "health-tg.auth.allowed-telegram-ids=10001",
         "health-tg.auth.init-data-ttl=15m",
@@ -59,6 +63,7 @@ class AuthHttpIntegrationTest {
     @Autowired MockMvc mockMvc;
     @Autowired ObjectMapper objectMapper;
     @Autowired MutableClock clock;
+    @Autowired TestRestTemplate http;
 
     @MockitoBean UserStore userStore;
     @MockitoBean SessionStore sessionStore;
@@ -167,6 +172,21 @@ class AuthHttpIntegrationTest {
 
         expectError(get("/api/v1/me").header("Authorization", "Bearer opaque-token"),
                 503, "SERVICE_UNAVAILABLE");
+    }
+
+    @Test
+    void missingAnalyticsReturns404WithoutInvalidatingAnAuthenticatedSession() throws Exception {
+        String token = loginAndReadToken();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+
+        var missing = http.exchange("/api/v1/analytics", HttpMethod.GET, request, String.class);
+        org.junit.jupiter.api.Assertions.assertEquals(404, missing.getStatusCode().value());
+        var me = http.exchange("/api/v1/me", HttpMethod.GET, request, String.class);
+        org.junit.jupiter.api.Assertions.assertEquals(200, me.getStatusCode().value());
+        var anonymous = http.getForEntity("/api/v1/me", String.class);
+        org.junit.jupiter.api.Assertions.assertEquals(401, anonymous.getStatusCode().value());
     }
 
     private String loginAndReadToken() throws Exception {

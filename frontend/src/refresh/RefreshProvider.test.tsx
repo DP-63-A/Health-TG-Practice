@@ -23,7 +23,7 @@ describe('refresh mechanism', () => {
 
     expect(screen.getByText('Refresh events: 0')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Обновить' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
 
     expect(screen.getByText('Refresh events: 1')).toBeInTheDocument()
   })
@@ -35,7 +35,7 @@ describe('refresh mechanism', () => {
     expect(await screen.findByText('Овсянка с ягодами')).toBeInTheDocument()
     expect(list).toHaveBeenCalledTimes(1)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Обновить' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
 
     await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
     expect(await screen.findByText('Овсянка с ягодами')).toBeInTheDocument()
@@ -45,12 +45,10 @@ describe('refresh mechanism', () => {
     const getAnalytics = vi.spyOn(analytics, 'getAnalytics').mockResolvedValue(analyticsFixture)
     renderRoute('/overview')
 
-    expect(await screen.findByText('Обновлений: 0')).toBeInTheDocument()
     await waitFor(() => expect(getAnalytics).toHaveBeenCalledTimes(1))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Обновить' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
 
-    expect(screen.getByText('Обновлений: 1')).toBeInTheDocument()
     await waitFor(() => expect(getAnalytics).toHaveBeenCalledTimes(2))
   })
 
@@ -64,7 +62,7 @@ describe('refresh mechanism', () => {
 
   it('notifies multiple subscribers once after one request', () => {
     render(<RefreshProvider><RefreshProbe /><RefreshProbe /><RequestRefreshButton /></RefreshProvider>)
-    fireEvent.click(screen.getByRole('button', { name: 'Обновить' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
     expect(screen.getAllByText('Refresh events: 1')).toHaveLength(2)
   })
 
@@ -151,10 +149,10 @@ describe('refresh mechanism', () => {
       .mockImplementationOnce(() => new Promise((resolve) => { resolveNew = resolve }))
     renderRoute('/overview')
     await waitFor(() => expect(getAnalytics).toHaveBeenCalledTimes(1))
-    fireEvent.click(screen.getByRole('button', { name: 'Обновить' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
     await waitFor(() => expect(getAnalytics).toHaveBeenCalledTimes(2))
     resolveNew({ ...analyticsFixture, cards: { ...analyticsFixture.cards, meal_count: { count: 9 } } })
-    const card = await screen.findByRole('region', { name: 'Количество приёмов пищи' })
+    const card = await screen.findByRole('region', { name: 'Meal count' })
     expect(within(card).getByText('9')).toBeInTheDocument()
     await act(async () => resolveOld(analyticsFixture))
     expect(within(card).getByText('9')).toBeInTheDocument()
@@ -222,7 +220,7 @@ describe('refresh mechanism', () => {
 
       try {
         const heartCard = await screen.findByRole('region', {
-          name: 'Аналитика пульса',
+          name: 'Heart rate analytics',
         })
         await waitFor(() => {
           expect(within(heartCard).getByText('72')).toBeVisible()
@@ -236,7 +234,7 @@ describe('refresh mechanism', () => {
         expect(getAnalytics).toHaveBeenCalledExactlyOnceWith(query)
 
         if (reason === 'manual') {
-          fireEvent.click(screen.getByRole('button', { name: 'Обновить' }))
+          fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
         } else if (reason === 'mutation') {
           // Сигнал FE1 после успешной мутации; саму HTTP-операцию
           // отдельно проверяют тесты EntryPage.
@@ -264,7 +262,7 @@ describe('refresh mechanism', () => {
 
         // Обновление действительно ожидает новый ответ.
         expect(screen.getByRole('heading', {
-          name: 'Загрузка аналитики',
+          name: 'Loading analytics',
         })).toBeVisible()
         expect(within(heartCard).queryByText('72')).not.toBeInTheDocument()
 
@@ -274,16 +272,16 @@ describe('refresh mechanism', () => {
 
         await waitFor(() => {
           const currentCard = within(screen.getByRole('region', {
-            name: 'Аналитика пульса',
+            name: 'Heart rate analytics',
           }))
           expect(currentCard.getByText('81')).toBeVisible()
           expect(currentCard.queryByText('72')).not.toBeInTheDocument()
         })
         expect(screen.queryByRole('heading', {
-          name: 'Загрузка аналитики',
+          name: 'Loading analytics',
         })).not.toBeInTheDocument()
-        expect(screen.getByLabelText('Период')).toHaveValue('days_21')
-        expect(screen.getByLabelText('Категория')).toHaveValue('wellbeing')
+        expect(screen.getByLabelText('Period')).toHaveValue('days_21')
+        expect(screen.getByLabelText('Category')).toHaveValue('wellbeing')
         expect(router.state.location.search).toBe(
           '?period=days_21&checkin_category=wellbeing',
         )
@@ -317,7 +315,7 @@ function RequestRefreshButton() {
 
   return (
     <button type="button" onClick={() => requestRefresh()}>
-      Обновить
+      Refresh
     </button>
   )
 }

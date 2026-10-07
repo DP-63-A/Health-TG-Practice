@@ -1,0 +1,220 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "is_food",
+    "description",
+    "mass_g",
+    "nutrients",
+    "nutrients_basis",
+    "occurred_at",
+    "local_date",
+    "local_time",
+    "field_origins"
+  ],
+  "properties": {
+    "is_food": {
+      "type": "boolean"
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 2000,
+      "minLength": 1
+    },
+    "mass_g": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "nutrients": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "energy_kcal",
+        "protein_g",
+        "fat_g",
+        "carbs_g"
+      ],
+      "properties": {
+        "energy_kcal": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "protein_g": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "fat_g": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "carbs_g": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "nutrients_basis": {
+      "type": "string",
+      "enum": [
+        "per_100g",
+        "per_serving",
+        "unknown"
+      ]
+    },
+    "occurred_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 40
+    },
+    "local_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 10
+    },
+    "local_time": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 18
+    },
+    "field_origins": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "description",
+        "mass_g",
+        "nutrients.energy_kcal",
+        "nutrients.protein_g",
+        "nutrients.fat_g",
+        "nutrients.carbs_g",
+        "occurred_at",
+        "local_date",
+        "local_time"
+      ],
+      "properties": {
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "extracted",
+            "estimated",
+            null
+          ]
+        },
+        "mass_g": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "extracted",
+            "estimated",
+            null
+          ]
+        },
+        "nutrients.energy_kcal": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "extracted",
+            "estimated",
+            null
+          ]
+        },
+        "nutrients.protein_g": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "extracted",
+            "estimated",
+            null
+          ]
+        },
+        "nutrients.fat_g": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "extracted",
+            "estimated",
+            null
+          ]
+        },
+        "nutrients.carbs_g": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "extracted",
+            "estimated",
+            null
+          ]
+        },
+        "occurred_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "extracted",
+            "estimated",
+            null
+          ]
+        },
+        "local_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "extracted",
+            "estimated",
+            null
+          ]
+        },
+        "local_time": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "extracted",
+            "estimated",
+            null
+          ]
+        }
+      }
+    }
+  }
+}

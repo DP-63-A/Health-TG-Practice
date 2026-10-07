@@ -65,8 +65,10 @@ export function AuthProvider({
         if (initData) {
           try {
             const auth = await client.post<TelegramAuthResponse, { init_data: string }>('/auth/telegram', { body: { init_data: initData } })
-            setSessionToken(auth.session_token)
-            if (isActive) setState({ status: 'authenticated', user: auth.user })
+            if (isActive) {
+              setSessionToken(auth.session_token)
+              setState({ status: 'authenticated', user: auth.user })
+            }
           } catch (error) {
             if (isActive) setState({ status: 'authRequired', message: error instanceof Error ? error.message : 'Не удалось войти через Telegram.' })
           }
@@ -91,6 +93,11 @@ export function AuthProvider({
         }
 
         if (error instanceof ApiError && error.status === 401) {
+          if (mode === 'live' && getSessionToken() && window.Telegram?.WebApp?.initData) {
+            clearSessionToken()
+            retry()
+            return
+          }
           markSessionExpired()
           return
         }
@@ -107,7 +114,7 @@ export function AuthProvider({
     return () => {
       isActive = false
     }
-  }, [client, markSessionExpired, mode, retryKey])
+  }, [client, markSessionExpired, mode, retry, retryKey])
 
   const value = useMemo(
     () => ({

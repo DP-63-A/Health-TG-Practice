@@ -126,7 +126,7 @@ async function renderResponse(fixture: ContractFixture) {
   await waitFor(() => {
     expect(
       screen.queryByRole('heading', {
-        name: 'Загрузка аналитики',
+        name: 'Loading analytics',
       }),
     ).not.toBeInTheDocument()
   })
@@ -166,20 +166,20 @@ afterEach(() => {
 const cases = [
   {
     fixture: 'normal',
-    nutrition: ['930 ккал', '50 г', '30 г', '110 г'],
+    nutrition: ['930 kcal', '50 g', '30 g', '110 g'],
     meals: '2',
-    sleep: ['15 ч', '7 ч 30 мин', '2'],
-    steps: ['5 000', '5 000', '1'],
+    sleep: ['15 h', '7 h 30 min', '2'],
+    steps: ['5,000', '5,000', '1'],
     coverage: '14',
     period: '13.09.2026 — 19.09.2026',
     pulse: '72',
-    scores: ['4 из 5', '5 из 5', '3 из 5', '4 из 5'],
+    scores: ['4 out of 5', '5 out of 5', '3 out of 5', '4 out of 5'],
   },
   {
     fixture: 'gaps',
-    nutrition: ['— ккал', '— г', '— г', '— г'],
+    nutrition: ['— kcal', '— g', '— g', '— g'],
     meals: '0',
-    sleep: ['15 ч', '7 ч 30 мин', '2'],
+    sleep: ['15 h', '7 h 30 min', '2'],
     steps: ['—', '—', '0'],
     coverage: '0',
     period: '13.09.2026 — 19.09.2026',
@@ -188,10 +188,10 @@ const cases = [
   },
   {
     fixture: 'dedup',
-    nutrition: ['600 ккал', '30 г', '20 г', '70 г'],
+    nutrition: ['600 kcal', '30 g', '20 g', '70 g'],
     meals: '1',
     sleep: ['—', '—', '0'],
-    steps: ['5 000', '5 000', '1'],
+    steps: ['5,000', '5,000', '1'],
     coverage: '100',
     period: '19.09.2026 — 19.09.2026',
     pulse: '—',
@@ -199,7 +199,7 @@ const cases = [
   },
   {
     fixture: 'filtered',
-    nutrition: ['300 ккал', '15 г', '10 г', '35 г'],
+    nutrition: ['300 kcal', '15 g', '10 g', '35 g'],
     meals: '1',
     sleep: ['—', '—', '0'],
     steps: ['—', '—', '0'],
@@ -216,7 +216,7 @@ describe('FE2-06: контрактные числа через OverviewPage', ()
     async (oracle) => {
       await renderResponse(oracle.fixture)
 
-      const nutrition = region('Калории и БЖУ')
+      const nutrition = region('Calories & macros')
 
       expectText(
         nutrition,
@@ -224,107 +224,107 @@ describe('FE2-06: контрактные числа через OverviewPage', ()
         oracle.nutrition[0],
       )
 
-      expectStat(nutrition, 'Белки', oracle.nutrition[1])
-      expectStat(nutrition, 'Жиры', oracle.nutrition[2])
-      expectStat(nutrition, 'Углеводы', oracle.nutrition[3])
+      expectStat(nutrition, 'Protein', oracle.nutrition[1])
+      expectStat(nutrition, 'Fat', oracle.nutrition[2])
+      expectStat(nutrition, 'Carbs', oracle.nutrition[3])
 
       expect(
         within(nutrition).queryByRole('status'),
       ).not.toBeInTheDocument()
 
       expectText(
-        region('Количество приёмов пищи'),
+        region('Meal count'),
         '.meal-count-card__value strong',
         oracle.meals,
       )
 
-      const sleep = region('Аналитика сна')
+      const sleep = region('Sleep analytics')
 
       expectText(sleep, '.sleep-card__total', oracle.sleep[0])
-      expectStat(sleep, 'Среднее', oracle.sleep[1])
-      expectStat(sleep, 'Дней с данными', oracle.sleep[2])
+      expectStat(sleep, 'Average', oracle.sleep[1])
+      expectStat(sleep, 'Days recorded', oracle.sleep[2])
       expectText(sleep, '.sleep-card__period', oracle.period)
 
-      const steps = region('Аналитика шагов')
+      const steps = region('Step analytics')
       const totalSteps = element(steps, '.steps-card__total')
 
       expect(directText(totalSteps)).toBe(oracle.steps[0])
       expect(
-        within(totalSteps).getByText('шагов', { exact: true }),
+        within(totalSteps).getByText('steps', { exact: true }),
       ).toBeVisible()
 
-      expectStat(steps, 'Среднее', oracle.steps[1])
-      expectStat(steps, 'Дней с данными', oracle.steps[2])
+      expectStat(steps, 'Average', oracle.steps[1])
+      expectStat(steps, 'Days recorded', oracle.steps[2])
       expectText(steps, '.steps-card__period', oracle.period)
 
       expect(
         within(steps).getByRole('progressbar'),
       ).toHaveAttribute('aria-valuenow', oracle.coverage)
 
-      const heart = region('Аналитика пульса')
+      const heart = region('Heart rate analytics')
       const pulse = element(heart, '.heart-rate-card__value')
 
       expect(directText(pulse)).toBe(oracle.pulse)
       expect(
-        within(pulse).getByText('уд/мин', { exact: true }),
+        within(pulse).getByText('bpm', { exact: true }),
       ).toBeVisible()
 
       if (oracle.fixture === 'normal') {
-        expectText(heart, '.heart-rate-card__time', '2026-09-19 · время неизвестно')
-        expect(within(heart).getByText('Сообщено', { exact: true })).toBeVisible()
+        expectText(heart, '.heart-rate-card__time', '2026-09-19 · time unknown')
+        expect(within(heart).getByText('Reported at', { exact: true })).toBeVisible()
         const time = heart.querySelectorAll('.heart-rate-card__time')[1]
 
-        expect(normalize(time.textContent)).toContain('19.09.2026')
+        expect(normalize(time.textContent)).toContain('19/09/2026')
         expect(normalize(time.textContent)).toContain('12:15')
-        expect(within(heart).getByText('В покое')).toBeVisible()
+        expect(within(heart).getByText('At rest')).toBeVisible()
       } else {
-        expectText(heart, '.heart-rate-card__time', 'неизвестно · время неизвестно')
+        expectText(heart, '.heart-rate-card__time', 'unknown · time unknown')
         expect(normalize(heart.querySelectorAll('.heart-rate-card__time')[1].textContent)).toBe('—')
       }
 
-      const checkins = region('Субъективные оценки состояния')
+      const checkins = region('Subjective wellbeing scores')
 
       for (const [index, label] of [
-        'Качество сна',
-        'Комфорт пищеварения',
-        'Самочувствие',
-        'Настроение',
+        'Sleep quality',
+        'Digestive comfort',
+        'Wellbeing',
+        'Mood',
       ].entries()) {
         expectStat(checkins, label, oracle.scores[index])
       }
     },
   )
 
-  it('empty: сохраняет контрактный ноль количества приёмов пищи', async () => {
+  it('empty: сохраняет контрактный ноль количества meals', async () => {
     await renderResponse('empty')
 
     expect(
-      screen.getByRole('heading', { name: 'Нет данных' }),
+      screen.getByRole('heading', { name: 'No data' }),
     ).toBeVisible()
 
     expectText(
-      region('Количество приёмов пищи'),
+      region('Meal count'),
       '.meal-count-card__value strong',
       '0',
     )
   })
 
-  it('empty: сохраняет контрактный ноль дней с данными сна', async () => {
+  it('empty: сохраняет контрактный ноль days с данными сна', async () => {
     await renderResponse('empty')
 
     expectStat(
-      region('Аналитика сна'),
-      'Дней с данными',
+      region('Sleep analytics'),
+      'Days recorded',
       '0',
     )
   })
 
-  it('empty: сохраняет контрактный ноль дней с данными шагов', async () => {
+  it('empty: сохраняет контрактный ноль days с данными steps', async () => {
     await renderResponse('empty')
 
     expectStat(
-      region('Аналитика шагов'),
-      'Дней с данными',
+      region('Step analytics'),
+      'Days recorded',
       '0',
     )
   })

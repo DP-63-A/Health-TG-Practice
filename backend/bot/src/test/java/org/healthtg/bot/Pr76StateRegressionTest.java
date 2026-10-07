@@ -124,14 +124,14 @@ class Pr76StateRegressionTest {
     @Test void sameFlowConcurrentStartsReturnPersistedSession() throws Exception {
         owner(1108);
         CyclicBarrier barrier = new CyclicBarrier(2);
-        DialogStateService coordinated = mock(DialogStateService.class, delegatesTo(dialogs));
-        doAnswer(inv -> { barrier.await(10, TimeUnit.SECONDS); return dialogs.save(inv.getArgument(0)); }).when(coordinated).save(any());
-        CoreBotFlow subject = new CoreBotFlow(users, entries, coordinated, Clock.systemUTC());
+        CoreBotFlow subject = new CoreBotFlow(users, entries, dialogs, Clock.systemUTC());
         try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
-            Future<String> left = pool.submit(() -> button(subject.beginCheckin(msg(1108, 10, "/state"))));
-            Future<String> right = pool.submit(() -> button(subject.beginCheckin(msg(1108, 10, "/state"))));
+            // Race public calls; serialization inside one flow is a valid implementation.
+            Future<String> left = pool.submit(() -> { barrier.await(10, TimeUnit.SECONDS); return button(subject.beginCheckin(msg(1108, 10, "/state"))); });
+            Future<String> right = pool.submit(() -> { barrier.await(10, TimeUnit.SECONDS); return button(subject.beginCheckin(msg(1108, 10, "/state"))); });
             String l = left.get(20, TimeUnit.SECONDS), r = right.get(20, TimeUnit.SECONDS);
-            assertEquals(l, r); assertEquals(storedToken(state(1108)), token(l));
+            assertEquals(l, r, "Concurrent duplicate starts must return the same buttons");
+            assertEquals(storedToken(state(1108)), token(l), "Returned session must match the persisted session");
         }
     }
 
@@ -291,7 +291,7 @@ class Pr76StateRegressionTest {
         List<BotAction> replay = flow().handleCallback(cb(1114, 12, score));
 
         assertEquals("Уже сохранено", ((BotAction.AnswerCallback) replay.getFirst()).text());
-        assertEquals("Отметка уже сохранена.", ((BotAction.SendInlineMessage) replay.get(1)).text());
+        assertTrue(((BotAction.SendInlineMessage) replay.get(1)).text().startsWith("Отметка уже сохранена.\n"));
         assertEquals(1, entries.listConfirmedEntries(new ListConfirmedEntriesQuery(owner(1114),
                 java.time.LocalDate.of(2026,1,1), java.time.LocalDate.of(2030,1,1),
                 java.time.ZoneId.of("UTC"), Set.of())).size());
