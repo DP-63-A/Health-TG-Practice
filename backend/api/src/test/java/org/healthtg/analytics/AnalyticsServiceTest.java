@@ -4,7 +4,7 @@ import org.healthtg.core.entry.Entry;
 import org.healthtg.core.entry.EntryCoreService;
 import org.healthtg.core.entry.EntryStatus;
 import org.healthtg.core.entry.EntryType;
-import org.healthtg.core.entry.ListConfirmedEntriesQuery;
+import org.healthtg.core.entry.ListEntriesQuery;
 import org.healthtg.core.entry.OwnerContext;
 import org.healthtg.core.entry.SourceKind;
 import org.junit.jupiter.api.Test;
@@ -12,14 +12,15 @@ import org.mockito.ArgumentCaptor;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -50,28 +51,62 @@ class AnalyticsServiceTest {
                 checkin("digestion", "digestion_comfort", 5),
                 checkin("wellbeing", "wellbeing", 3),
                 checkin("mood", "mood", 4));
-        when(entries.listConfirmedEntries(any())).thenReturn(found);
+        when(entries.listEntries(any())).thenReturn(found);
 
         var response = service.calculate(new OwnerContext(OWNER), "days_7", null, null);
 
-        ArgumentCaptor<ListConfirmedEntriesQuery> query = ArgumentCaptor.forClass(ListConfirmedEntriesQuery.class);
-        verify(entries).listConfirmedEntries(query.capture());
+        ArgumentCaptor<ListEntriesQuery> query = ArgumentCaptor.forClass(ListEntriesQuery.class);
+        verify(entries).listEntries(query.capture());
         assertEquals(OWNER, query.getValue().owner().userId());
-        assertEquals(LocalDate.of(2026, 9, 13), query.getValue().from());
-        assertEquals(LocalDate.of(2026, 9, 19), query.getValue().to());
+        assertEquals(EntryStatus.CONFIRMED, query.getValue().status());
+        assertNull(query.getValue().from());
+        assertNull(query.getValue().to());
         assertEquals(ZoneId.of("Europe/Warsaw"), query.getValue().timezone());
         assertEquals("Europe/Warsaw", response.period().timezone());
         assertEquals(2, response.cards().mealCount().count());
         assertEquals(930, response.cards().nutrition().energyKcal().intValueExact());
-        assertEquals(2, response.cards().mealCount().count());
         assertEquals(5000L, response.cards().steps().total());
         assertEquals(1, response.cards().steps().daysWithData());
-        assertEquals(420L, response.cards().sleep().total());
+        assertEquals(420L, response.cards().sleep().totalMinutes());
+        assertEquals(1, response.cards().sleep().daysWithData());
         assertEquals(4, response.cards().checkins().mood().score());
         assertEquals("mood", response.series().checkin().category());
         assertEquals(found.get(3).id(), response.series().steps().getFirst().source().entryId());
         assertEquals(NOW, response.observations().generatedAt());
         assertEquals(2, response.observations().daysWithAnyData());
+    }
+
+    @Test
+    void sleepIsAttributedToWakeDateEvenWhenOccurredAtIsOutsideThePeriod() {
+        // Wake date 2026-09-19 (inside the period), reported after local midnight on 2026-09-20.
+        Entry inside = metric("sleep-late", "sleep_duration_min", 450, "2026-09-19T23:30:00Z", "2026-09-19");
+        // occurred_at is inside the period but the wake date is before it.
+        Entry before = metric("sleep-old", "sleep_duration_min", 300, "2026-09-13T10:00:00Z", "2026-09-12");
+        when(entries.listEntries(any())).thenReturn(List.of(inside, before));
+
+        var response = service.calculate(new OwnerContext(OWNER), "days_7", "Europe/Warsaw", null);
+
+        assertEquals(450L, response.cards().sleep().totalMinutes());
+        assertEquals(1, response.cards().sleep().daysWithData());
+        assertEquals(1, response.series().sleep().size());
+        assertEquals(inside.id(), response.series().sleep().getFirst().source().entryId());
+        assertEquals(1, response.observations().daysWithAnyData());
+    }
+
+    @Test
+    void ignoresFractionalAndOutOfRangeStepsAndSleepInsteadOfFailing() {
+        List<Entry> found = List.of(
+                metric("sleep-fraction", "sleep_duration_min", 420.5, "2026-09-19T06:00:00Z", "2026-09-19"),
+                metric("steps-huge", "steps", 1.0e12, "2026-09-19T06:00:00Z", "2026-09-19"),
+                metric("steps-ok", "steps", 8000.0, "2026-09-19T07:00:00Z", "2026-09-19"));
+        when(entries.listEntries(any())).thenReturn(found);
+
+        var response = service.calculate(new OwnerContext(OWNER), "today", null, null);
+
+        assertNull(response.cards().sleep().totalMinutes());
+        assertEquals(0, response.cards().sleep().daysWithData());
+        assertEquals(8000L, response.cards().steps().total());
+        assertEquals(1, response.cards().steps().daysWithData());
     }
 
     @Test
@@ -89,13 +124,13 @@ class AnalyticsServiceTest {
                 instant, instant, 1, payload, Map.of(), id, id);
     }
 
-    private static Entry metric(String id, String code, int value, String occurredAt, String localDate) {
+    private static Entry metric(String id, String code, Number value, String occurredAt, String localDate) {
         return metric(id, code, value, occurredAt, localDate, Map.of());
     }
 
-    private static Entry metric(String id, String code, int value, String occurredAt, String localDate,
+    private static Entry metric(String id, String code, Number value, String occurredAt, String localDate,
                                 Map<String, Object> additional) {
-        Map<String, Object> payload = new java.util.HashMap<>(additional);
+        Map<String, Object> payload = new HashMap<>(additional);
         payload.put("code", code);
         payload.put("value", value);
         payload.put("local_date", localDate);

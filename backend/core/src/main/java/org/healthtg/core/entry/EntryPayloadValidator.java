@@ -1,5 +1,6 @@
 package org.healthtg.core.entry;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.Collection;
@@ -19,6 +20,8 @@ final class EntryPayloadValidator {
     private static final Set<String> NUTRIENT_BASES = Set.of("per_100g", "per_serving", "unknown");
     private static final Set<String> HEART_RATE_QUALIFIERS = Set.of("instant", "resting");
     private static final Set<String> FIELD_ORIGINS = Set.of("reported", "extracted", "estimated", "computed");
+    /** Steps and sleep minutes are whole numbers; the bound keeps multi-day sums inside long. */
+    private static final BigDecimal MAX_WHOLE_METRIC = BigDecimal.valueOf(1_000_000_000L);
 
     private EntryPayloadValidator() {
     }
@@ -78,11 +81,26 @@ final class EntryPayloadValidator {
                 && value.doubleValue() < 0) {
             throw invalid("value must be non-negative for " + code);
         }
+        if (code.equals("steps") || code.equals("sleep_duration_min")) {
+            requireWholeMetric(code, value);
+        }
 
         validateOptionalText(payload, "unit", 32);
         validateLocalDate(payload.get("local_date"));
         validateLocalTime(payload.get("local_time"));
         validateEnum(payload, "qualifier", HEART_RATE_QUALIFIERS, true);
+    }
+
+    private static void requireWholeMetric(String code, Number value) {
+        BigDecimal decimal;
+        try {
+            decimal = new BigDecimal(value.toString());
+        } catch (NumberFormatException exception) {
+            throw invalid("value must be a finite number for " + code);
+        }
+        if (decimal.stripTrailingZeros().scale() > 0 || decimal.compareTo(MAX_WHOLE_METRIC) > 0) {
+            throw invalid("value must be a whole number not greater than 1000000000 for " + code);
+        }
     }
 
     private static void validateCheckin(Map<String, Object> payload) {
