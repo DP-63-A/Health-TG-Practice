@@ -37,6 +37,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -50,6 +51,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -815,60 +817,67 @@ class CoreStorageIntegrationTest {
 
     @Test
     void entryPayloadValidator_validatesMetricsValueBoundsAndTypes() {
-        OwnerContext owner = new OwnerContext(OWNER_ID);
-    
+        UUID owner1 = UUID.randomUUID();
+        UUID owner2 = UUID.randomUUID();
+        UUID owner3 = UUID.randomUUID();
+        UUID owner4 = UUID.randomUUID();
+
         // 1. Значение 1 000 000 001 выбрасывает EntryValidationException
         var invalidCmd = new CreateDraftCommand(
+                owner1,
                 EntryType.METRICS,
-                SourceKind.MANUAL,
+                SourceKind.TEXT,
                 Map.of(),
                 Instant.now(),
                 Map.of("code", "steps", "value", new BigDecimal("1000000001"), "unit", "count"),
                 Map.of(),
                 null,
-                "test-key-1"
+                new TelegramUpdateKey(101L, 201L)
         );
-        assertThrows(EntryValidationException.class, () -> entryCoreService.createDraft(owner, invalidCmd));
-    
+        assertThrows(EntryValidationException.class, () -> entries.createDraft(invalidCmd));
+
         // 2. Граничное значение 1 000 000 000 успешно сохраняется
         var validMaxCmd = new CreateDraftCommand(
+                owner2,
                 EntryType.METRICS,
-                SourceKind.MANUAL,
+                SourceKind.TEXT,
                 Map.of(),
                 Instant.now(),
                 Map.of("code", "steps", "value", new BigDecimal("1000000000"), "unit", "count"),
                 Map.of(),
                 null,
-                "test-key-2"
+                new TelegramUpdateKey(102L, 202L)
         );
-        Entry createdMax = entryCoreService.createDraft(owner, validMaxCmd);
+        Entry createdMax = entries.createDraft(validMaxCmd).entry();
         assertNotNull(createdMax.id());
-    
+
         // 3. Дробное значение (10.5) для steps и heart_rate успешно принимается
         var validFractionalSteps = new CreateDraftCommand(
+                owner3,
                 EntryType.METRICS,
-                SourceKind.MANUAL,
+                SourceKind.TEXT,
                 Map.of(),
                 Instant.now(),
                 Map.of("code", "steps", "value", 10.5, "unit", "count"),
                 Map.of(),
                 null,
-                "test-key-3"
+                new TelegramUpdateKey(103L, 203L)
         );
-        Entry createdSteps = entryCoreService.createDraft(owner, validFractionalSteps);
+        Entry createdSteps = entries.createDraft(validFractionalSteps).entry();
         assertNotNull(createdSteps.id());
-    
+
         var validFractionalHeartRate = new CreateDraftCommand(
+                owner4,
                 EntryType.METRICS,
-                SourceKind.MANUAL,
+                SourceKind.TEXT,
                 Map.of(),
                 Instant.now(),
                 Map.of("code", "heart_rate", "value", 10.5, "unit", "bpm"),
                 Map.of(),
                 null,
-                "test-key-4"
+                new TelegramUpdateKey(104L, 204L)
         );
-        Entry createdHr = entryCoreService.createDraft(owner, validFractionalHeartRate);
+        Entry createdHr = entries.createDraft(validFractionalHeartRate).entry();
         assertNotNull(createdHr.id());
     }
 }
