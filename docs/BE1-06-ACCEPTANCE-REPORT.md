@@ -30,7 +30,7 @@ be identified by the `testcontainers` label before removing them manually.
 | AC2 atomicity on isolated MongoDB | Implemented, locally verified | Concurrent HTTP PATCH plus confirm/cancel/deduplication tests passed against Testcontainers MongoDB |
 | AC3 reproducible locally and in CI, protected from production data | Implemented, locally verified | Testcontainers-only configuration, successful local run and explicit CI step |
 | AC4 defect regressions | Partial | The full backend/contract regression command passed locally; final reviewed commit and linked defect decisions remain to be recorded |
-| AC5 matrix, commit report and independent review | Implemented, independently verified | Matrix and commit-bound report exist; CI passed and an independent reviewer reproduced all 85 acceptance tests with no failures or skips |
+| AC5 matrix, commit report and independent review | Follow-up verification pending | The original 85-test suite was independently reproduced; the analytics ownership follow-up must be tied to its corrected commit and rerun independently |
 
 ## Follow-up coverage
 
@@ -45,7 +45,9 @@ that owner's entry.
 - tested commit: [`365d5173527f1fb527877ac080817ab3db1efc43`](https://github.com/DP-63-A/Health-TG-Practice/commit/365d5173527f1fb527877ac080817ab3db1efc43);
 - local environment: Windows, Java 21 and Docker Desktop, verified 2026-10-07;
 - `be1Acceptance`: passed locally;
-- analytics ownership follow-up: `be1Acceptance` passed locally with 86 tests, 0 failed and 0 skipped;
+- analytics ownership follow-up: [`b160cd0`](https://github.com/DP-63-A/Health-TG-Practice/commit/b160cd0),
+  `be1Acceptance` passed locally on 2026-10-08 with 88 tests, 0 failed and 0 skipped;
 - full backend/contract command: passed locally;
 - GitHub Actions: [successful checks for the tested commit](https://github.com/DP-63-A/Health-TG-Practice/commit/365d5173527f1fb527877ac080817ab3db1efc43/checks);
-- independent review: accepted; `be1Acceptance` reproduced with 85 tests passed, 0 failed and 0 skipped.
+- independent review of the original suite: 85 tests passed, 0 failed and 0 skipped; this result predates the analytics ownership follow-up;
+- independent rerun of the corrected analytics ownership follow-up: pending.
