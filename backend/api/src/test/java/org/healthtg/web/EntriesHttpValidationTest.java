@@ -28,6 +28,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 @SpringBootTest(properties = "spring.data.mongodb.auto-index-creation=false")
 @AutoConfigureMockMvc
@@ -114,5 +115,28 @@ class EntriesHttpValidationTest {
         payload.put("mass_g", null);
         return new Entry(ENTRY, OWNER, EntryType.MEAL, EntryStatus.DRAFT, SourceKind.TEXT, Map.of(),
                 now, now, now, 2, payload, Map.of(), null, "http:test");
+    }
+
+    @Test
+    void createEntry_exceedsMaxMetricsValue_returns422() throws Exception {
+        String payload = """
+            {
+              "type": "metrics",
+              "status": "confirmed",
+              "payload": {
+                "code": "steps",
+                "value": 1000000001,
+                "unit": "count",
+                "local_date": "2026-03-30"
+              }
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/entries")
+                        .header("Authorization", "Bearer test-session")
+                        .contentType("application/json")
+                        .content(payload))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 }
