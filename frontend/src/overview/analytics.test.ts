@@ -196,7 +196,7 @@
 //     expect(getSpy).toHaveBeenCalledTimes(1)
 
 //     expect(getSpy).toHaveBeenCalledWith(
-//       '/api/v1/analytics',
+//       '/analytics',
 //       {
 //         query: {
 //           period: 'days_7',
@@ -345,6 +345,8 @@ import { describe, expect, it, vi } from 'vitest'
       heart_rate: {
         value_bpm: 62,
         occurred_at: '2026-09-16T06:05:00Z',
+        local_date: '2026-09-16',
+        local_time: '08:00',
         qualifier: 'resting',
         entry_id: '22222222-2222-4222-8222-222222222205',
       },
@@ -576,7 +578,7 @@ import { describe, expect, it, vi } from 'vitest'
       await getAnalytics(analyticsQuery, client)
 
       expect(getSpy).toHaveBeenCalledTimes(1)
-      expect(getSpy).toHaveBeenCalledWith('/api/v1/analytics', {
+      expect(getSpy).toHaveBeenCalledWith('/analytics', {
  query: analyticsQuery,
       })
     })

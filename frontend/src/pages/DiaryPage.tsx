@@ -109,8 +109,8 @@ function DiaryContent({ search }: { search: string }) {
       <ul className="entry-list">{entries.map((entry) => <li key={entry.id}><Link to={`/diary/${entry.id}`}>
         <span className="entry-title">{entryTitle(entry)}</span>
         <span>{typeLabels[entry.type]} · {statusLabels[entry.status]} · revision {entry.revision}</span>
-        {entry.type === 'metrics' && 'code' in entry.payload && entry.payload.code === 'steps'
-          ? <span>День итога шагов: {entry.payload.local_date || 'неизвестно'}</span>
+        {entry.type === 'metrics' && 'code' in entry.payload
+          ? <span>{entry.payload.code === 'steps' ? 'День итога шагов' : entry.payload.code === 'sleep_duration_min' ? 'Дата пробуждения' : 'Дата измерения'}: {entry.payload.local_date || 'неизвестно'}</span>
           : <time dateTime={entry.occurred_at}>{formatDateTime(entry.occurred_at)}</time>}
         <span>Источник: {sourceLabel(entry)}</span>
         <span>{payloadSummary(entry.payload)}</span>

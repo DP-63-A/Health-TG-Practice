@@ -83,6 +83,8 @@ export type AnalyticsPeriod = 'today' | 'days_7' |
       heart_rate: {
         value_bpm: number | null
         occurred_at: string | null
+        local_date: string | null
+        local_time: string | null
         qualifier: 'instant' | 'resting' | null
         entry_id: string | null
       }

@@ -43,7 +43,9 @@ public final class TelegramAdapter {
             } else if (action instanceof BotAction.SendInlineMessage message) {
                 List<InlineKeyboardRow> rows = message.rows().stream().map(row -> new InlineKeyboardRow(
                         row.stream().map(button -> InlineKeyboardButton.builder().text(button.text())
-                                .callbackData(button.callbackData()).build()).toList())).toList();
+                                .callbackData(button.callbackData())
+                                .webApp(button.webAppUrl() == null ? null : new WebAppInfo(button.webAppUrl().toString()))
+                                .build()).toList())).toList();
                 client.execute(SendMessage.builder().chatId(message.chatId()).text(message.text())
                         .replyMarkup(InlineKeyboardMarkup.builder().keyboard(rows).build()).build());
             } else if (action instanceof BotAction.AnswerCallback answer) {

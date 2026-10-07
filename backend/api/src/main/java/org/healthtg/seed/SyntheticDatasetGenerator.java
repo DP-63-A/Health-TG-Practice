@@ -119,16 +119,17 @@ public final class SyntheticDatasetGenerator {
         payload.put("value", value);
         payload.put("unit", unit);
         payload.put("local_date", date.toString());
-        payload.put("local_time", time.toString());
+        if (!code.equals("steps")) payload.put("local_time", time.toString());
         if (code.equals("heart_rate")) payload.put("qualifier", "resting");
         Map<String, String> origins = new LinkedHashMap<>();
         origins.put("code", "extracted");
         origins.put("value", "extracted");
         origins.put("unit", "extracted");
         origins.put("local_date", "computed");
-        origins.put("local_time", "computed");
+        if (!code.equals("steps")) origins.put("local_time", "computed");
         if (code.equals("heart_rate")) origins.put("qualifier", "estimated");
-        return entry(key, EntryType.METRICS, date, time, timezone, payload, origins, null, 1, false);
+        // Report follows the observation; the metric's calendar date/time stays in payload.
+        return entry(key, EntryType.METRICS, date, time.plusMinutes(5), timezone, payload, origins, null, 1, false);
     }
 
     private static SyntheticEntry entry(String key, EntryType type, LocalDate date, LocalTime time, ZoneId timezone,

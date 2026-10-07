@@ -19,6 +19,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { ApiError } from '../api/client'
 
 import { getAnalytics } from '../overview/analytics'
+import { buildDiaryUrl, type ChartKind } from '../overview/diaryNavigation'
 
 import type {
   AnalyticsResponse,
@@ -39,37 +40,6 @@ type AnalyticsState =
   | { status: 'empty'; data: AnalyticsResponse }
   | { status: 'error' }
 
-
-type ChartKind =
-  | 'nutrition'
-  | 'sleep'
-  | 'steps'
-  | 'checkin'
-
-type DiaryEntryType =
-  | 'meal'
-  | 'metrics'
-  | 'checkin'
-
-const diaryEntryTypes: Record<ChartKind, DiaryEntryType> = {
-  nutrition: 'meal',
-  sleep: 'metrics',
-  steps: 'metrics',
-  checkin: 'checkin',
-}
-
-export function buildDiaryUrl(
-  date: string,
-  kind: ChartKind,
-): string {
-  const params = new URLSearchParams({
-    from: date,
-    to: date,
-    type: diaryEntryTypes[kind],
-  })
-
-  return `/diary?${params.toString()}`
-}
 
 ///////
 function parsePeriod(value: string | null): AnalyticsPeriod {

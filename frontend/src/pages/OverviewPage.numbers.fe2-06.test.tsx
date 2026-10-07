@@ -132,7 +132,7 @@ async function renderResponse(fixture: ContractFixture) {
   })
 
   expect(get).toHaveBeenCalledExactlyOnceWith(
-    '/api/v1/analytics',
+    '/analytics',
     {
       query: {
         period: data.period.kind,
@@ -270,13 +270,16 @@ describe('FE2-06: контрактные числа через OverviewPage', ()
       ).toBeVisible()
 
       if (oracle.fixture === 'normal') {
-        const time = element(heart, '.heart-rate-card__time')
+        expectText(heart, '.heart-rate-card__time', '2026-09-19 · время неизвестно')
+        expect(within(heart).getByText('Сообщено', { exact: true })).toBeVisible()
+        const time = heart.querySelectorAll('.heart-rate-card__time')[1]
 
         expect(normalize(time.textContent)).toContain('19.09.2026')
         expect(normalize(time.textContent)).toContain('12:15')
         expect(within(heart).getByText('В покое')).toBeVisible()
       } else {
-        expectText(heart, '.heart-rate-card__time', '—')
+        expectText(heart, '.heart-rate-card__time', 'неизвестно · время неизвестно')
+        expect(normalize(heart.querySelectorAll('.heart-rate-card__time')[1].textContent)).toBe('—')
       }
 
       const checkins = region('Субъективные оценки состояния')

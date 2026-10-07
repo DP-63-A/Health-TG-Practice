@@ -152,7 +152,7 @@ export function createDiaryNavigationEntries(): Entry[] {
         value: 72,
         unit: 'bpm',
         local_date: '2026-09-19',
-        local_time: '12:15',
+        local_time: null,
         qualifier: 'resting',
       },
       '2026-09-19T10:15:00Z',

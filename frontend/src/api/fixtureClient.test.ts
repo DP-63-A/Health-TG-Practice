@@ -12,6 +12,19 @@ describe('FE1-04 fixture transitions', () => {
     fixtureApiClient = (await import('./fixtureClient')).fixtureApiClient
     api = createEntriesApi(fixtureApiClient)
   })
+  it.each(['22222222-2222-4222-8222-222222222203', '22222222-2222-4222-8222-222222222206'])(
+    'filters metric %s by corrected day while preserving report time and revision protection', async (id) => {
+      const before = await api.get(id)
+      const saved = await api.patch(id, { expected_revision: before.revision, payload: { local_date: '2026-10-05' } })
+      expect(saved.occurred_at).toBe(before.occurred_at)
+      expect(saved.payload).toMatchObject({ local_date: '2026-10-05', local_time: null })
+      expect((await api.list({ status: before.status, type: 'metrics', from: '2026-10-05', to: '2026-10-05', limit: 100 })).items.map(item => item.id)).toContain(id)
+      expect((await api.list({ status: before.status, type: 'metrics', from: before.occurred_at.slice(0, 10), to: before.occurred_at.slice(0, 10), limit: 100 })).items.map(item => item.id)).not.toContain(id)
+      await expect(api.patch(id, { expected_revision: saved.revision, occurred_at: '2026-10-05T00:00:00Z' })).rejects.toMatchObject({ status: 422 })
+      await expect(api.patch(id, { expected_revision: before.revision, payload: { local_date: '2026-10-04' } })).rejects.toMatchObject({ status: 409 })
+      expect(await api.get(id)).toEqual(saved)
+    },
+  )
   it('merges nested nutrients, checks revision and confirms idempotently', async () => {
     const id = '22222222-2222-4222-8222-222222222202'
     const before = await api.get(id)

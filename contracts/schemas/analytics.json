@@ -55,10 +55,12 @@
         "heart_rate": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["value_bpm", "occurred_at", "qualifier", "entry_id"],
+          "required": ["value_bpm", "occurred_at", "local_date", "local_time", "qualifier", "entry_id"],
           "properties": {
             "value_bpm": {"type": ["number", "null"], "minimum": 0},
-            "occurred_at": {"type": ["string", "null"], "format": "date-time"},
+            "occurred_at": {"type": ["string", "null"], "format": "date-time", "description": "Original report timestamp; select the latest local_date in the period, then the last report for that date."},
+            "local_date": {"type": ["string", "null"], "format": "date", "description": "Measurement date."},
+            "local_time": {"type": ["string", "null"], "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$", "description": "Known measurement time; null means unknown."},
             "qualifier": {"$ref": "common.json#/$defs/HeartRateQualifier"},
             "entry_id": {"type": ["string", "null"], "format": "uuid"}
           }

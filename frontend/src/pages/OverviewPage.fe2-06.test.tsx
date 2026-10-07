@@ -276,7 +276,7 @@ describe('FE2-06: обязательные сценарии обзора', () =>
 
     expect(get).toHaveBeenNthCalledWith(
       1,
-      '/api/v1/analytics',
+      '/analytics',
       analyticsRequest('today'),
     )
 
@@ -286,7 +286,7 @@ describe('FE2-06: обязательные сценарии обзора', () =>
 
     expect(get).toHaveBeenNthCalledWith(
       2,
-      '/api/v1/analytics',
+      '/analytics',
       analyticsRequest('days_7'),
     )
 
@@ -347,7 +347,7 @@ describe('FE2-06: обязательные сценарии обзора', () =>
     }
 
     expect(get).toHaveBeenCalledExactlyOnceWith(
-      '/api/v1/analytics',
+      '/analytics',
       analyticsRequest('today'),
     )
   })
@@ -576,13 +576,13 @@ describe('FE2-06: обязательные сценарии обзора', () =>
 
     expect(get).toHaveBeenNthCalledWith(
       2,
-      '/api/v1/analytics',
+      '/analytics',
       analyticsRequest('days_7'),
     )
 
     expect(get).toHaveBeenNthCalledWith(
       3,
-      '/api/v1/analytics',
+      '/analytics',
       analyticsRequest('days_7'),
     )
 
@@ -622,13 +622,13 @@ describe('FE2-06: обязательные сценарии обзора', () =>
 
     expect(get).toHaveBeenNthCalledWith(
       1,
-      '/api/v1/analytics',
+      '/analytics',
       analyticsRequest('today'),
     )
 
     expect(get).toHaveBeenNthCalledWith(
       2,
-      '/api/v1/analytics',
+      '/analytics',
       analyticsRequest('days_7'),
     )
 

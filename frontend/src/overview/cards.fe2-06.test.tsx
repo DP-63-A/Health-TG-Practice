@@ -373,7 +373,9 @@ describe.each(cases)(
       ).toBeVisible()
 
       if (oracle.fixture === 'normal') {
-        const time = element(card, '.heart-rate-card__time')
+        expectText(card, '.heart-rate-card__time', '2026-09-19 · время неизвестно')
+        expect(within(card).getByText('Сообщено', { exact: true })).toBeVisible()
+        const time = card.querySelectorAll('.heart-rate-card__time')[1]
 
         expect(time).toBeVisible()
 
@@ -394,7 +396,7 @@ describe.each(cases)(
         expectText(
           card,
           '.heart-rate-card__time',
-          '—',
+          'неизвестно · время неизвестно',
         )
 
         expect(

@@ -15,7 +15,8 @@ import type { AnalyticsResponse } from '../overview/analytics.types'
 import { analyticsFixture } from '../overview/fixtures/analytics.fixture'
 import { formatCalories, formatTooltipDate } from '../overview/chartFormat'
 import { useRefreshSubscription } from '../refresh/RefreshProvider'
-import OverviewPage, { buildDiaryUrl } from './OverviewPage'
+import OverviewPage from './OverviewPage'
+import { buildDiaryUrl } from '../overview/diaryNavigation'
 
 
 const { markSessionExpired, navigateMock } = vi.hoisted(() => ({
@@ -126,6 +127,8 @@ function emptyResponse(): AnalyticsResponse {
     heart_rate: {
       value_bpm: null,
       occurred_at: null,
+      local_date: null,
+      local_time: null,
       qualifier: null,
       entry_id: null,
     },

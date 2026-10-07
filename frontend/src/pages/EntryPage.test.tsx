@@ -10,6 +10,100 @@ import { RefreshProvider, useRefreshSubscription } from '../refresh/RefreshProvi
 import { appRoutes } from '../router/router'
 
 describe('FE1-04 entry review and correction', () => {
+  it.each(['-1', '-0.00001'])('rejects negative pulse %s without sending a patch and accepts an explicit zero', async (negative) => {
+    const entry = entryFixture({ type: 'metrics', status: 'draft', payload: { code: 'heart_rate', value: 72 } })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch').mockResolvedValue({ ...entry, revision: 2, payload: { code: 'heart_rate', value: 0 } })
+    renderRoute('/diary/' + entry.id)
+    const value = await screen.findByLabelText(/Значение/)
+    fireEvent.change(value, { target: { value: negative } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByText(/не может быть отрицательным по контракту/)).toBeInTheDocument()
+    expect(patch).not.toHaveBeenCalled()
+    expect(value).toHaveAttribute('aria-invalid', 'true')
+    expect(value).toHaveFocus()
+    fireEvent.change(value, { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(patch).toHaveBeenCalledWith(entry.id, { expected_revision: 1, payload: { value: 0 } }))
+  })
+
+  it.each([
+    ['metrics', { code: 'heart_rate', value: 72, unit: 'bpm', local_date: '2026-10-06' }, 'Значение'],
+    ['meal', { description: 'Печёное яблоко 🍎', mass_g: 100 }, 'Масса'],
+    ['meal', { description: 'Печёное яблоко 🍎', nutrients: { energy_kcal: 12 } }, 'Ккал'],
+  ] satisfies Array<[EntryType, EntryPayload, string]>)('blocks underflow in %s / %s / %s without sending zero', async (type, payload, label) => {
+    const entry = entryFixture({ type, payload })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch').mockResolvedValue({ ...entry, revision: 2 })
+    renderRoute(`/diary/${entry.id}`)
+    const field = await screen.findByLabelText(label)
+    for (const value of ['-1e-400', '1e-400']) {
+      fireEvent.change(field, { target: { value } })
+      fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+      expect(await screen.findByText(/при отправке оно превратится в ноль/)).toBeInTheDocument()
+      expect(field).toHaveValue(value)
+      expect(field).toHaveFocus()
+      expect(patch).not.toHaveBeenCalled()
+    }
+    fireEvent.change(field, { target: { value: '0e-400' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1))
+  })
+
+  it.each(['heart_rate', 'sleep_duration_min'] as const)('combines %s date correction with accessible errors and preserves known time', async (code) => {
+    const entry = entryFixture({ type: 'metrics', status: 'draft', submission_id: null,
+      occurred_at: '2026-10-07T23:50:00Z', payload: { code, value: 70,
+        unit: code === 'heart_rate' ? 'bpm' : 'min', local_date: '2026-10-06', local_time: '07:15' } })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch')
+      .mockRejectedValueOnce(new ApiError({ code: 'VALIDATION_ERROR', message: 'Invalid date',
+        request_id: 'integration94', field_errors: [{ field: 'payload.local_date', message: 'Проверьте дату показателя' }] }, 422))
+      .mockResolvedValueOnce({ ...entry, revision: 2, payload: { ...entry.payload, local_date: '2026-10-04' } })
+    renderRoute(`/diary/${entry.id}`)
+    const day = await screen.findByLabelText(code === 'heart_rate' ? 'Дата измерения' : 'Дата пробуждения')
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить' }))
+    expect(day).toHaveFocus()
+    expect(screen.getByLabelText('Время сообщения итога')).toHaveAttribute('readonly')
+    fireEvent.change(day, { target: { value: '2026-10-05' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await screen.findByText('Проверьте дату показателя')
+    expect(day).toHaveAttribute('aria-invalid', 'true')
+    expect(day).toHaveAccessibleDescription(/Проверьте дату показателя/)
+    expect(day).toHaveFocus()
+    expect(screen.getByLabelText('Локальное время')).toHaveValue('07:15')
+    fireEvent.change(day, { target: { value: '2026-10-04' } })
+    expect(day).not.toHaveAttribute('aria-invalid')
+    expect(day).not.toHaveAccessibleDescription(/Проверьте дату показателя/)
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await screen.findByText('Изменения сохранены.')
+    expect(patch).toHaveBeenCalledTimes(2)
+    for (const [, body] of patch.mock.calls) {
+      expect(body.expected_revision).toBe(1)
+      expect(body).not.toHaveProperty('occurred_at')
+      expect(body.payload).not.toHaveProperty('local_time')
+    }
+    expect(screen.getByLabelText('Локальное время')).toHaveValue('07:15')
+  })
+
+  it.each(['heart_rate', 'sleep_duration_min'] as const)('changes %s date without inventing time or replacing original report', async (code) => {
+    const entry = entryFixture({ type: 'metrics', status: 'draft', submission_id: null,
+      occurred_at: '2026-10-07T23:50:00Z',
+      payload: { code, value: 70, unit: code === 'heart_rate' ? 'bpm' : 'min', local_date: '2026-10-06' } })
+    vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
+    const patch = vi.spyOn(entriesApi, 'patch').mockResolvedValue({ ...entry, revision: 2,
+      payload: { ...entry.payload, local_date: '2026-10-05' } })
+    renderRoute(`/diary/${entry.id}`)
+    const day = await screen.findByLabelText(code === 'heart_rate' ? /Дата измерения/ : /Дата пробуждения/)
+    expect(screen.getByLabelText(/Локальное время/)).toHaveValue('')
+    expect(screen.getByLabelText(/Время сообщения итога/)).toHaveAttribute('readonly')
+    fireEvent.change(day, { target: { value: '2026-10-05' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1))
+    expect(patch.mock.calls[0][1]).toEqual(expect.objectContaining({ expected_revision: 1,
+      payload: { local_date: '2026-10-05' } }))
+    expect(patch.mock.calls[0][1]).not.toHaveProperty('occurred_at')
+  })
+
   it('edits the steps day without changing report time and focuses the editable day', async () => {
     const entry = entryFixture({ type: 'metrics', status: 'draft', submission_id: null,
       occurred_at: '2026-10-05T06:00:00Z',
@@ -439,7 +533,7 @@ describe('FE1-04 entry review and correction', () => {
     expect(await screen.findByLabelText(/Показатель/)).toHaveValue('heart_rate')
     expect(screen.getByLabelText(/Значение/)).toHaveValue('80')
     expect(screen.getByLabelText(/Единица/)).toHaveValue('bpm')
-    expect(screen.getByLabelText(/Локальная дата/)).toHaveValue('2026-09-16')
+    expect(screen.getByLabelText(/Дата измерения/)).toHaveValue('2026-09-16')
     expect(screen.getByLabelText(/Локальное время/)).toHaveValue('08:35')
     expect(screen.getByLabelText(/Уточнение пульса/)).toHaveValue('resting')
   })

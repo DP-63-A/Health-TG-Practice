@@ -38,6 +38,8 @@ import type { AnalyticsResponse } from '../analytics.types'
       heart_rate: {
         value_bpm: 72,
         occurred_at: '2026-09-19T10:15:00Z',
+        local_date: '2026-09-19',
+        local_time: '12:10',
         qualifier: 'resting',
         entry_id: '22222222-2222-4222-8222-222222222221',
       },

@@ -265,6 +265,7 @@ const entries: Entry[] = overviewNavigationScenario
 
 export const fixtureApiClient: ApiClient = {
   async get<TResponse>(path: string, options?: ApiRequestOptions) {
+
     const pathname = normalizePath(path)
 
     if (pathname === '/me') {
@@ -277,7 +278,7 @@ export const fixtureApiClient: ApiClient = {
       ) as TResponse
     }
 
-      if (pathname === '/analytics') {
+    if (pathname === '/analytics') {
       const requestedPeriod = options?.query?.period
 
       if (
@@ -297,6 +298,7 @@ export const fixtureApiClient: ApiClient = {
       }
 
       const response: AnalyticsResponse = clone(analyticsFixture)
+      if (overviewNavigationScenario) response.cards.heart_rate.local_time = null
       const requestedCategory = options?.query?.checkin_category
 
       const categories = [
@@ -445,11 +447,11 @@ export const fixtureApiClient: ApiClient = {
     }
 
     checkRevision(entry, body.expected_revision)
-    const wasSteps = entry.type === 'metrics' && (entry.payload as MetricsPayload).code === 'steps'
+    const metric = entry.type === 'metrics'
     const nextCode = body.payload && 'code' in body.payload ? body.payload.code : (entry.payload as MetricsPayload).code
-    if ((entry.type === 'metrics' && wasSteps !== (nextCode === 'steps'))
-      || (wasSteps && body.occurred_at && Date.parse(body.occurred_at) !== Date.parse(entry.occurred_at))) {
-      throw new ApiError({ code: 'VALIDATION_ERROR', message: 'Нельзя менять время исходного итога или преобразовывать шаги в другую метрику.', request_id: 'fixture-validation' }, 422)
+    if ((metric && (entry.payload as MetricsPayload).code !== nextCode)
+      || (metric && body.occurred_at && Date.parse(body.occurred_at) !== Date.parse(entry.occurred_at))) {
+      throw new ApiError({ code: 'VALIDATION_ERROR', message: 'Нельзя менять время исходного сообщения или код метрики.', request_id: 'fixture-validation' }, 422)
     }
     validatePatch(entry, body)
 
@@ -532,7 +534,7 @@ function listEntries(filters: EntryFilters = {}) {
   const limit = filters.limit ?? 20
   const start = filters.cursor ? Number(filters.cursor) : 0
   const items = entries.filter((entry) => {
-    const day = entry.type === 'metrics' && (entry.payload as MetricsPayload).code === 'steps'
+    const day = entry.type === 'metrics'
       ? (entry.payload as MetricsPayload).local_date : entry.occurred_at.slice(0, 10)
     return entry.status === status && (!filters.type || entry.type === filters.type) &&
       (!filters.from || Boolean(day && day >= filters.from)) && (!filters.to || Boolean(day && day <= filters.to))
@@ -700,13 +702,10 @@ function validatePatch(entry: Entry, body: EntryPatchRequest) {
       })
     }
 
-    const code =
-      payload.code ?? (entry.payload as MetricsPayload).code
     const value =
       payload.value ?? (entry.payload as MetricsPayload).value
 
     if (
-      (code === 'steps' || code === 'sleep_duration_min') &&
       typeof value === 'number' &&
       value < 0
     ) {
@@ -715,6 +714,7 @@ function validatePatch(entry: Entry, body: EntryPatchRequest) {
         code: 'MINIMUM',
         message: 'value must be >= 0',
       })
+
     }
 
     if (
