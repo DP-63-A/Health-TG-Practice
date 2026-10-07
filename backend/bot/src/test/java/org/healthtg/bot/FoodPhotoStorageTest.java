@@ -12,7 +12,6 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.test.util.TestPropertyValues;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.repository.support.MongoRepositoryFactory;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.utility.DockerImageName;
