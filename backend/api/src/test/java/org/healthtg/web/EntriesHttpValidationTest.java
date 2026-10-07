@@ -120,20 +120,14 @@ class EntriesHttpValidationTest {
 
     @Test
     void patchEntry_metricsValueValidation() throws Exception {
-        // Настраиваем мок так, чтобы при валидации значение > 1_000_000_000 выбивало EntryValidationException
-        Mockito.doAnswer(invocation -> {
-            PatchEntryCommand cmd = invocation.getArgument(0);
-            Object valueObj = cmd.payload() != null ? cmd.payload().get("value") : null;
-            if (valueObj instanceof Number num) {
-                BigDecimal bd = new BigDecimal(num.toString());
-                if (bd.compareTo(new BigDecimal("1000000000")) > 0) {
-                    throw new EntryValidationException("value must not be greater than 1000000000 for steps");
-                }
-            }
-            return entryWithNullMass();
-        }).when(entries).patch(any());
+        // Настраиваем мок сервиса на реальное поведение: сервис выбрасывает EntryValidationException при невалидном значении
+        when(entries.patch(argThat(cmd -> cmd != null 
+                && cmd.payload() != null 
+                && cmd.payload().containsKey("value")
+                && new BigDecimal(cmd.payload().get("value").toString()).compareTo(new BigDecimal("1000000000")) > 0)))
+                .thenThrow(new EntryValidationException("value must not be greater than 1000000000"));
 
-        // 1. Превышение максимума (1000000001) должно возвращать 422 Unprocessable Entity
+        // 1. Невалидное значение транслируется HTTP-слоем в 422 Unprocessable Entity
         String invalidPayload = """
                 {
                   "expected_revision": 1,
@@ -151,7 +145,7 @@ class EntriesHttpValidationTest {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
 
-        // 2. Граничное значение (1000000000) должно проходить успешно (200 OK)
+        // 2. Валидное граничное значение (1000000000) передается в сервис и возвращает 200 OK
         String validMaxPayload = """
                 {
                   "expected_revision": 1,
@@ -168,7 +162,7 @@ class EntriesHttpValidationTest {
                         .content(validMaxPayload))
                 .andExpect(status().isOk());
 
-        // 3. Дробное значение (10.5) должно проходить успешно (200 OK)
+        // 3. Дробное значение (10.5) передается в сервис и возвращает 200 OK
         String validFractionalPayload = """
                 {
                   "expected_revision": 1,
@@ -185,7 +179,7 @@ class EntriesHttpValidationTest {
                         .content(validFractionalPayload))
                 .andExpect(status().isOk());
     }
-
+    
     private static Entry entryWithNullMass() {
         Instant now = Instant.parse("2026-09-23T08:00:00Z");
         Map<String, Object> payload = new LinkedHashMap<>();
