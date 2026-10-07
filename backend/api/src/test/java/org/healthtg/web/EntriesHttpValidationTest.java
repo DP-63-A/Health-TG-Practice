@@ -119,28 +119,71 @@ class EntriesHttpValidationTest {
     }
 
     @Test
-    void createEntry_exceedsMaxMetricsValue_returns422() throws Exception {
-        when(entries.create(any())).thenThrow(new EntryValidationException("Metric value exceeds maximum limit"));
-
-        String payload = """
-            {
-              "type": "metrics",
-              "status": "confirmed",
-              "payload": {
-                "code": "steps",
-                "value": 1000000001,
-                "unit": "count",
-                "local_date": "2026-03-30"
-              }
+    void patchEntry_metricsValueValidation() throws Exception {
+        // Настраиваем мок так, чтобы при валидации значение > 1_000_000_000 выбивало EntryValidationException
+        Mockito.doAnswer(invocation -> {
+            PatchEntryCommand cmd = invocation.getArgument(0);
+            Object valueObj = cmd.payload() != null ? cmd.payload().get("value") : null;
+            if (valueObj instanceof Number num) {
+                BigDecimal bd = new BigDecimal(num.toString());
+                if (bd.compareTo(new BigDecimal("1000000000")) > 0) {
+                    throw new EntryValidationException("value must not be greater than 1000000000 for steps");
+                }
             }
-            """;
+            return entryWithNullMass();
+        }).when(entries).patch(any());
 
-        mockMvc.perform(post("/api/v1/entries")
+        // 1. Превышение максимума (1000000001) должно возвращать 422 Unprocessable Entity
+        String invalidPayload = """
+                {
+                  "expected_revision": 1,
+                  "payload": {
+                    "code": "steps",
+                    "value": 1000000001
+                  }
+                }
+                """;
+
+        mockMvc.perform(patch("/api/v1/entries/{id}", ENTRY)
                         .header("Authorization", "Bearer test-session")
                         .contentType("application/json")
-                        .content(payload))
+                        .content(invalidPayload))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        // 2. Граничное значение (1000000000) должно проходить успешно (200 OK)
+        String validMaxPayload = """
+                {
+                  "expected_revision": 1,
+                  "payload": {
+                    "code": "steps",
+                    "value": 1000000000
+                  }
+                }
+                """;
+
+        mockMvc.perform(patch("/api/v1/entries/{id}", ENTRY)
+                        .header("Authorization", "Bearer test-session")
+                        .contentType("application/json")
+                        .content(validMaxPayload))
+                .andExpect(status().isOk());
+
+        // 3. Дробное значение (10.5) должно проходить успешно (200 OK)
+        String validFractionalPayload = """
+                {
+                  "expected_revision": 1,
+                  "payload": {
+                    "code": "steps",
+                    "value": 10.5
+                  }
+                }
+                """;
+
+        mockMvc.perform(patch("/api/v1/entries/{id}", ENTRY)
+                        .header("Authorization", "Bearer test-session")
+                        .contentType("application/json")
+                        .content(validFractionalPayload))
+                .andExpect(status().isOk());
     }
 
     private static Entry entryWithNullMass() {
