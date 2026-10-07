@@ -22,6 +22,68 @@ import static org.mockito.AdditionalAnswers.delegatesTo;
 /** Independent requirements tests using real Mongo, core services and disk-backed files. */
 class HealthWatchStorageTest extends HealthWatchTestSupport {
     static final ObjectMapper JSON=new ObjectMapper();
+    @Test void legacyFractionalStepPendingCanBeCorrectedWithoutLosingQueue() {
+        var card=create(start("health_screenshot"),12);var original=active();
+        var saved=dialogs.find(owner()).orElseThrow();var pending=new LinkedHashMap<>(saved.context());
+        pending.put("operation","patch");pending.put("field","v");pending.put("value","1230.5");
+        dialogs.save(new SaveDialogStateCommand(owner(),original.id(),"draft_pending",pending,new TelegramUpdateKey("main",13)));
+        restart();var choices=flow().handleCallback(cb(14,button(card,"Изменить")));
+        assertEquals(original,active());assertTrue(dialogs.find(owner()).orElseThrow().context().containsKey("photo_queue"));
+        flow().handleCallback(cb(15,button(choices,"Значение")));flow().handleMessage(msg(16,"2345"));value(active(),"2345");
+        assertTrue(dialogs.find(owner()).orElseThrow().context().containsKey("photo_queue"));
+    }
+    @ParameterizedTest @CsvSource({"h,ч,450", "min,мин,7.5", "unknown,ч,450"})
+    void missingSleepValueRequiresExplicitAnswerUnitAcrossRestart(String rawUnit,String answerUnit,String expected) throws Exception {
+        var json=(ObjectNode)JSON.readTree(metricJson("watch_photo"));
+        var metrics=(com.fasterxml.jackson.databind.node.ArrayNode)json.get("metrics");
+        metrics.remove(2);metrics.remove(0);var sleep=(ObjectNode)metrics.get(0);
+        sleep.putNull("value");sleep.remove("minutes_component");sleep.put("unit",rawUnit);
+        sleep.withObject("field_origins").putNull("value");sleep.withObject("field_origins").remove("minutes_component");
+        useJson(json.toString());var choices=flow().handleMessage(photo(10));
+        flow().handleCallback(cb(11,button(choices,"Часы")));
+        restart();flow().handleMessage(msg(12,"7,5"));
+        assertTrue(entries.findActiveDraft(owner()).isEmpty());
+        restart();var ready=flow().handleMessage(msg(13,answerUnit));
+        var card=create(ready,14);var entry=active();value(entry,expected);
+        assertEquals("min",entry.payload().get("unit"));assertEquals(NOW,entry.occurredAt());
+        assertEquals(answerUnit.equals("ч")?"computed":"reported",entry.fieldOrigins().get("value"));
+        restart();flow().handleCallback(cb(14,button(ready,"Создать черновик")));
+        assertEquals(entry,active());flow().handleCallback(cb(15,button(card,"Сохранить")));
+        assertEquals(EntryStatus.CONFIRMED,entries.requireEntry(owner(),entry.id()).status());assertEquals(1,calls.get());
+    }
+    @Test void fractionalModelStepsAndManualCorrectionNeverReachEntryUntilWhole() throws Exception {
+        var json=(ObjectNode)JSON.readTree(metricJson("health_screenshot"));
+        var metrics=(com.fasterxml.jackson.databind.node.ArrayNode)json.get("metrics");metrics.remove(2);metrics.remove(1);
+        ((ObjectNode)metrics.get(0)).put("value",1230.5);useJson(json.toString());
+        var choices=flow().handleMessage(photo(10));flow().handleCallback(cb(11,button(choices,"Экран здоровья")));
+        flow().handleMessage(msg(12,"1230,5"));assertTrue(entries.findActiveDraft(owner()).isEmpty());
+        var ready=flow().handleMessage(msg(13,"1230,0"));var card=create(ready,14);value(active(),"1230");
+        var menu=flow().handleCallback(cb(15,button(card,"Изменить")));
+        flow().handleCallback(cb(16,button(menu,"Значение")));var original=active();
+        flow().handleMessage(msg(17,"1230,5"));assertEquals(original,active());
+        flow().handleMessage(msg(18,"1000000000"));value(active(),"1000000000");
+    }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void orphanAfterStoreAndLostDialogSaveIsDeletedOnCancelAndRestart(boolean failCleanup) {
+        var ready=start("watch_photo");var broken=mock(DialogStateService.class,delegatesTo(dialogs));
+        doAnswer(i->{SaveDialogStateCommand command=i.getArgument(0);
+            if(command.updateKey().botKey().equals("main-food-stored"))throw new IllegalStateException("lost file id save");
+            return dialogs.save(command);}).when(broken).save(any());
+        var error=flow(entries,broken,files).handleCallback(cb(12,button(ready,"Создать черновик")));
+        var state=dialogs.find(owner()).orElseThrow();UUID id=UUID.fromString((String)state.context().get("reserved_file_id"));
+        assertFalse(state.context().containsKey("file_id"));assertEquals(1,fileCount());assertTrue(entries.findActiveDraft(owner()).isEmpty());
+        var cleanup=mock(FileStorageService.class,delegatesTo(files));
+        if(failCleanup)doThrow(new IllegalStateException("disk unavailable")).when(cleanup).discardUnreferenced(owner(),id);
+        flow(entries,dialogs,cleanup).handleCallback(cb(13,button(error,"Отменить")));
+        if(failCleanup)assertEquals("food_cancelling",dialogs.find(owner()).orElseThrow().step());
+        restart();if(failCleanup)flow().handleMessage(msg(14,"продолжить"));
+        assertEquals(0,fileCount());assertEquals("idle",dialogs.find(owner()).orElseThrow().step());
+        var tombstone=context.getBean(MongoTemplate.class).getCollection("stored_files").find(new org.bson.Document("_id",id.toString())).first();
+        assertEquals("DELETED",tombstone.getString("lifecycle"));assertFalse(tombstone.containsKey("relativePath"));
+        assertFalse(Files.exists(root.resolve(id.toString().substring(0,2)).resolve(id+".bin")));
+        assertEquals(FileStorageService.CleanupResult.DELETED,files.discardUnreferenced(owner(),id));
+        assertThrows(StoredFileUnavailableException.class,()->files.store(owner(),id,new java.io.ByteArrayInputStream(png),png.length));
+    }
     String metricJson(String kind) {
         return """
             {"image_class":"%s","metrics":[
@@ -163,7 +225,7 @@ class HealthWatchStorageTest extends HealthWatchTestSupport {
     @Test void correctionAndConflictPreserveQueueOriginalTimeAndUnicode() {
         var card=create(start("health_screenshot"),12);var first=active();var choice=flow().handleCallback(cb(13,button(card,"Изменить")));
         flow().handleCallback(cb(14,button(choice,"Значение")));restart();flow().handleMessage(msg(15,"-1"));value(active(),"1230");
-        flow().handleMessage(msg(16,"1234,5"));value(active(),"1234.5");assertEquals("reported",active().fieldOrigins().get("value"));
+        flow().handleMessage(msg(16,"1234,0"));value(active(),"1234");assertEquals("reported",active().fieldOrigins().get("value"));
         card=flow().handleMessage(msg(17,"проверить ё 🌡"));choice=flow().handleCallback(cb(18,button(card,"Изменить")));flow().handleCallback(cb(19,button(choice,"Дата")));
         var current=active();var payload=new LinkedHashMap<>(current.payload());payload.put("value",new BigDecimal("1300"));
         entries.patch(new PatchEntryCommand(owner(),current.id(),current.revision(),null,payload,current.fieldOrigins()));
@@ -175,8 +237,8 @@ class HealthWatchStorageTest extends HealthWatchTestSupport {
     void pendingPatchRecoversBeforeOrAfterWriteAndKeepsRemainingMetrics(boolean after) {
         var card=create(start("health_screenshot"),12);var choices=flow().handleCallback(cb(13,button(card,"Изменить")));flow().handleCallback(cb(14,button(choices,"Значение")));
         var failing=mock(EntryCoreService.class,delegatesTo(entries));doAnswer(i->{if(after)entries.patch(i.getArgument(0));throw new IllegalStateException("lost patch");}).when(failing).patch(any());
-        assertThrows(IllegalStateException.class,()->flow(failing,dialogs,files).handleMessage(msg(15,"847,5")));restart();
-        flow().handleMessage(msg(16,"продолжить"));value(active(),"847.5");assertEquals(2,active().revision());assertTrue(dialogs.find(owner()).orElseThrow().context().containsKey("photo_queue"));
+        assertThrows(IllegalStateException.class,()->flow(failing,dialogs,files).handleMessage(msg(15,"847,0")));restart();
+        flow().handleMessage(msg(16,"продолжить"));value(active(),"847");assertEquals(2,active().revision());assertTrue(dialogs.find(owner()).orElseThrow().context().containsKey("photo_queue"));
         var e=active();entries.confirm(new ConfirmEntryCommand(owner(),e.id(),"external-patch",e.revision()));create(flow().handleMessage(msg(17,"продолжить")),18);value(active(),"252");assertEquals(1,calls.get());
     }
     @ParameterizedTest @ValueSource(booleans={false,true})
@@ -211,9 +273,9 @@ class HealthWatchStorageTest extends HealthWatchTestSupport {
         var n=(ObjectNode)JSON.readTree(metricJson("health_screenshot"));var list=(com.fasterxml.jackson.databind.node.ArrayNode)n.get("metrics");list.remove(2);list.remove(1);var m=(ObjectNode)list.get(0);
         for(String key:List.of("value","unit","local_date")){m.putNull(key);m.withObject("field_origins").putNull(key);}useJson(n.toString());
         var select=flow().handleMessage(photo(10));flow().handleCallback(cb(11,button(select,"Экран здоровья")));assertTrue(entries.findActiveDraft(owner()).isEmpty());
-        flow().handleMessage(msg(12,"-1"));flow().handleMessage(msg(13,"1230,5"));restart();flow().handleMessage(msg(14,"км"));assertTrue(entries.findActiveDraft(owner()).isEmpty());
+        flow().handleMessage(msg(12,"-1"));flow().handleMessage(msg(13,"1230,0"));restart();flow().handleMessage(msg(14,"км"));assertTrue(entries.findActiveDraft(owner()).isEmpty());
         flow().handleMessage(msg(15,"шаги"));flow().handleMessage(msg(16,"31.02.2026"));var ready=flow().handleMessage(msg(17,"05.10.2026"));create(ready,18);
-        value(active(),"1230.5");assertEquals(NOW,active().occurredAt());assertEquals("2026-10-05",active().payload().get("local_date"));assertEquals("reported",active().fieldOrigins().get("local_date"));contract(active());
+        value(active(),"1230");assertEquals(NOW,active().occurredAt());assertEquals("2026-10-05",active().payload().get("local_date"));assertEquals("reported",active().fieldOrigins().get("local_date"));contract(active());
     }
     @Test void pulseDateEditKeepsExplicitMeasurementTimeContextAndOriginalReport() throws Exception {
         var n=(ObjectNode)JSON.readTree(metricJson("watch_photo"));var list=(com.fasterxml.jackson.databind.node.ArrayNode)n.get("metrics");list.remove(0);list.remove(0);var pulse=(ObjectNode)list.get(0);

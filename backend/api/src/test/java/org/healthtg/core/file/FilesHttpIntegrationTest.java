@@ -125,7 +125,7 @@ class FilesHttpIntegrationTest {
         org.junit.jupiter.api.Assertions.assertNotNull(document.get("version"));
 
         try (var paths = Files.walk(ROOT)) {
-            Path physical = paths.filter(Files::isRegularFile).findFirst().orElseThrow();
+            Path physical = paths.filter(Files::isRegularFile).filter(p -> p.toString().endsWith(".bin")).findFirst().orElseThrow();
             Files.delete(physical);
         }
         mockMvc.perform(get("/api/v1/files/{id}", stored.id())

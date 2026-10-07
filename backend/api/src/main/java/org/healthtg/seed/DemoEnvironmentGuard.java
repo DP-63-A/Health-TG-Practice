@@ -12,6 +12,10 @@ public final class DemoEnvironmentGuard {
     }
 
     public static void requireDemoEnvironment(String demoFlag, String mongoUri) {
+        requireDemoEnvironment(demoFlag, mongoUri, System.getenv("HEALTH_TG_DEMO_COMPOSE"));
+    }
+
+    static void requireDemoEnvironment(String demoFlag, String mongoUri, String composeFlag) {
         if (!"true".equals(demoFlag == null ? null : demoFlag.toLowerCase(Locale.ROOT))) {
             throw new IllegalStateException("Demo data commands require HEALTH_TG_DEMO=true");
         }
@@ -21,13 +25,19 @@ public final class DemoEnvironmentGuard {
         try {
             ConnectionString connection = new ConnectionString(mongoUri);
             List<String> hosts = connection.getHosts();
-            boolean localHostsOnly = !hosts.isEmpty() && hosts.stream().allMatch(DemoEnvironmentGuard::isLoopback);
-            if (!localHostsOnly || !DATABASE.equals(connection.getDatabase())) {
+            boolean composeMode = "true".equals(composeFlag == null ? null : composeFlag.toLowerCase(Locale.ROOT));
+            boolean allowedHosts = !hosts.isEmpty() && (hosts.stream().allMatch(DemoEnvironmentGuard::isLoopback)
+                    || (composeMode && hosts.stream().allMatch(DemoEnvironmentGuard::isComposeMongo)));
+            if (!allowedHosts || !DATABASE.equals(connection.getDatabase())) {
                 throw new IllegalStateException("Demo data commands require the fixed local demo MongoDB");
             }
         } catch (IllegalArgumentException exception) {
             throw new IllegalStateException("Demo data commands require the fixed local demo MongoDB", exception);
         }
+    }
+
+    private static boolean isComposeMongo(String host) {
+        return host.equalsIgnoreCase("mongo") || host.equalsIgnoreCase("mongo:27017");
     }
 
     private static boolean isLoopback(String host) {

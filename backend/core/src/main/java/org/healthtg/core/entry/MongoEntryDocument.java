@@ -32,6 +32,7 @@ record MongoEntryDocument(
         long revision,
         Map<String, Object> payload,
         Map<String, String> fieldOrigins,
+        Integer fieldOriginsEncodingVersion,
         String submissionId,
         @Indexed(unique = true) String telegramUpdateKey,
         List<Map<String, Object>> history

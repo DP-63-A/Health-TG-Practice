@@ -74,7 +74,35 @@ and 12 MP limits, owner isolation, source-reference binding, unchanged original
 bytes, corruption detection, HTTP authentication/error contracts, Mongo metadata
 persistence and optimistic locking.
 
-The current dependent implementations are:
+### Reservation cancellation and uncertain writes
+
+`FileStorageService.discardUnreferenced(owner, fileId)` is an internal operation,
+not an HTTP delete endpoint. It returns `DELETED` or `PROTECTED`. Cleanup uses the
+reserved ID even if a subsequent dialog update was not acknowledged.
+
+The `stored_files` lifecycle is `ACTIVE`, `PINNED`, `DELETING`, `DELETED`;
+missing lifecycle on legacy metadata means `ACTIVE`. Before creating an Entry
+with a file reference, the core requires an owned UUID reservation and obtains
+an acknowledged `PINNED` transition. The pin is never undone after an uncertain
+Entry write. Cleanup preserves pins, bindings and any Entry reference, including
+cancelled/deleted entries and legacy uppercase UUID references. Existing
+idempotent Entry results remain readable without new reservation validation.
+
+Deletion first records `DELETING`, removes the image bytes, then records
+`DELETED` and clears content metadata. A failed operation can be retried.
+The technical ID/owner/lifecycle/version tombstone remains permanently;
+late store retries cannot resurrect it. Missing reservations receive the same
+tombstone to exclude delayed inserts. A `PINNED` reservation whose Entry write
+never became visible can remain indefinitely: safety takes priority over
+automatic deletion of every possible orphan.
+
+All writers use a per-file OS lock plus shared JVM lock stripes. API and bot
+must share one physical `FILE_STORAGE_ROOT` and MongoDB; retain `.locks` files.
+Stop old application versions before upgrading: bypassing the lifecycle or
+using independent roots removes these guarantees. Network filesystem locking
+requires separate verification. No Mongo transaction or replica set is required.
+
+### Dependent implementations
 
 - `feature/be2-03-food-integration-9` for Telegram download, retry-safe storage,
   Entry creation and binding;

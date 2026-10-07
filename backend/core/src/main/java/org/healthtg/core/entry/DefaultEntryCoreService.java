@@ -3,6 +3,8 @@ package org.healthtg.core.entry;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
+import org.healthtg.core.file.FileOperationGuard;
+import org.healthtg.core.file.StoredFileLifecycle;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -22,10 +24,14 @@ import java.util.UUID;
 class DefaultEntryCoreService implements EntryCoreService {
     private final EntryStore store;
     private final Clock clock;
+    private final FileOperationGuard fileGuard;
+    private final StoredFileLifecycle fileLifecycle;
 
-    DefaultEntryCoreService(EntryStore store, Clock clock) {
+    DefaultEntryCoreService(EntryStore store, Clock clock,FileOperationGuard fileGuard,StoredFileLifecycle fileLifecycle) {
         this.store = store;
         this.clock = clock;
+        this.fileGuard=fileGuard;
+        this.fileLifecycle=fileLifecycle;
     }
 
     @Override
@@ -49,14 +55,28 @@ class DefaultEntryCoreService implements EntryCoreService {
 
     @Override
     public DraftCreationResult createDraft(CreateDraftCommand command) {
-        EntryPayloadValidator.validateDraft(command.type(), command.payload());
-        EntryPayloadValidator.validateOrigins(command.fieldOrigins());
         String updateKey = command.updateKey().storageKey();
         Optional<Entry> repeated = store.findByTelegramUpdateKey(updateKey);
         if (repeated.isPresent()) {
             return new DraftCreationResult(owned(repeated.get(), command.owner()),
                     DraftCreationResult.Outcome.EXISTING_UPDATE);
         }
+        EntryPayloadValidator.validateDraft(command.type(), command.payload());
+        EntryPayloadValidator.validateOrigins(command.fieldOrigins());
+        Object file=command.sourceRef().get("file_id");
+        if (file!=null) {
+            if (!(file instanceof String text) || !text.matches("(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))
+                throw new EntryValidationException("file_id must be an owned image UUID");
+            UUID id=UUID.fromString(text);
+            return fileGuard.withFile(id,() -> createNewDraft(command,id));
+        }
+        return createNewDraft(command,null);
+    }
+
+    private DraftCreationResult createNewDraft(CreateDraftCommand command,UUID fileId) {
+        String updateKey=command.updateKey().storageKey();
+        var repeated=store.findByTelegramUpdateKey(updateKey);
+        if(repeated.isPresent()) return new DraftCreationResult(owned(repeated.get(),command.owner()),DraftCreationResult.Outcome.EXISTING_UPDATE);
         Optional<Entry> active = store.findActiveDraft(command.owner().userId());
         if (active.isPresent()) {
             return new DraftCreationResult(active.get(), DraftCreationResult.Outcome.ACTIVE_DRAFT_EXISTS);
@@ -64,6 +84,10 @@ class DefaultEntryCoreService implements EntryCoreService {
 
         Instant now = persistedNow();
         Map<String, Object> sourceRef = new LinkedHashMap<>(command.sourceRef());
+        if(fileId!=null) {
+            fileLifecycle.pinForEntry(command.owner(),fileId);
+            sourceRef.put("file_id",fileId.toString());
+        }
         sourceRef.putIfAbsent("telegram_update_id", command.updateKey().updateId());
         Entry draft = new Entry(UUID.randomUUID(), command.owner().userId(), command.type(), EntryStatus.DRAFT,
                 command.sourceKind(), sourceRef, command.occurredAt(), now, now, 1, command.payload(),

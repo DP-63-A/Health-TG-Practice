@@ -38,10 +38,10 @@ class ReservedFileStorageTest {
         when(repository.findByIdAndOwnerId(anyString(),anyString())).thenAnswer(i->Optional.ofNullable(database.get(i.getArgument(0))).filter(d->d.ownerId().equals(i.getArgument(1))));
         when(repository.save(any(MongoStoredFileDocument.class))).thenAnswer(i->{MongoStoredFileDocument d=i.getArgument(0);database.put(d.id(),d);return d;});
     }
-    DefaultFileStorageService service(){return new DefaultFileStorageService(repository,entries,Clock.systemUTC(),root.toString());}
+    DefaultFileStorageService service(){return new DefaultFileStorageService(repository,entries,Clock.systemUTC(),root.toString(),new FileOperationGuard(root.toString()),FileLifecycleUnitSupport.lifecycle(database),mock(EntryStore.class));}
     StoredFile store(){return service().store(owner,id,new ByteArrayInputStream(image),image.length);}
     Path target(){return root.resolve(id.toString().substring(0,2)).resolve(id+".bin");}
-    long fileCount() throws Exception {try(var paths=Files.walk(root)){return paths.filter(Files::isRegularFile).count();}}
+    long fileCount() throws Exception {try(var paths=Files.walk(root)){return paths.filter(Files::isRegularFile).filter(p->p.toString().endsWith(".bin")).count();}}
     static byte[] image(int rgb) throws Exception {
         var b=new BufferedImage(2,2,BufferedImage.TYPE_INT_RGB);b.setRGB(0,0,rgb);var out=new ByteArrayOutputStream();ImageIO.write(b,"png",out);return out.toByteArray();
     }

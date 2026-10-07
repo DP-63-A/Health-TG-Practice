@@ -13,6 +13,12 @@ public record MetricCandidate(String code, BigDecimal value, String unit, String
 
     public record Normalized(BigDecimal value, String unit, boolean converted) { }
 
+    public static void validateValue(String code, BigDecimal value) {
+        if (value.signum() < 0 || value.compareTo(BigDecimal.valueOf(1_000_000_000L)) > 0
+                || ("steps".equals(code) && value.stripTrailingZeros().scale() > 0))
+            throw new IllegalArgumentException("Metric value is outside its allowed range");
+    }
+
     public static Normalized normalize(String code, BigDecimal value, String rawUnit) {
         if (value != null && (value.signum() < 0 || value.precision() > 2000
                 || Math.abs((long)value.scale()) > 2000 || !Double.isFinite(value.doubleValue())))
@@ -49,10 +55,21 @@ public record MetricCandidate(String code, BigDecimal value, String unit, String
                 throw new IllegalArgumentException("Invalid hours and minutes");
             normalized=new Normalized(normalized.value().add(minutesComponent),normalized.unit(),true);
         }
+        // Keep an invalid model number as evidence, but ask the user instead of rounding it.
+        if (normalized.value() != null) {
+            try { validateValue(code, normalized.value()); }
+            catch (IllegalArgumentException invalid) {
+                normalized = new Normalized(null, normalized.unit(), false);
+            }
+        }
+        // A missing sleep value has not been converted. The unit of the later answer is unknown.
+        if (code.equals("sleep_duration_min") && normalized.value() == null)
+            normalized = new Normalized(null, null, false);
         var p = new LinkedHashMap<String,Object>();
         p.put("code",code); p.put("value",normalized.value()==null?null:normalized.value().toPlainString());
         p.put("unit",normalized.unit()); p.put("local_date",localDate); p.put("local_time",localTime); p.put("qualifier",qualifier);
         var origins = new LinkedHashMap<String,Object>(fieldOrigins);
+        if (normalized.value()==null) origins.remove("value");
         if (normalized.unit()==null) origins.remove("unit");
         else if (!Objects.equals(unit,normalized.unit())) origins.put("unit","computed");
         if (normalized.converted() && value!=null) origins.put("value","computed");

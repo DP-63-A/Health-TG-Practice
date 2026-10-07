@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Backend style, tests and executable jars
+        run: ./gradlew check :backend:api:bootJar :backend:bot:bootJar --no-daemon --console=plain
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --run
+      - run: npm run build
+
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew validateContracts :contract-validator:validate --no-daemon --console=plain
+
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate resolved Compose configuration
+        run: docker compose --env-file .env.example config --quiet
+      - name: Build application images
+        run: docker compose --env-file .env.example build
+      - name: Start private stack and verify readiness
+        run: |
+          docker compose --env-file .env.example up -d mongo api frontend
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8088/api/v1/healthz > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ps
+          docker compose logs api
+          exit 1
+      - name: Verify private file volume survives API recreation
+        run: |
+          docker compose --env-file .env.example exec -T api sh -c 'printf persistent > /var/lib/health-tg/files/.ci-probe'
+          docker compose --env-file .env.example up -d --force-recreate api
+          docker compose --env-file .env.example exec -T api sh -c 'test "$(cat /var/lib/health-tg/files/.ci-probe)" = persistent'
+      - name: Stop Compose stack
+        if: always()
+        run: docker compose --env-file .env.example down --volumes

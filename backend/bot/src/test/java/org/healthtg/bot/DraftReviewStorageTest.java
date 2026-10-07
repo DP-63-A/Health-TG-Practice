@@ -157,7 +157,7 @@ class DraftReviewStorageTest {
 
     @ParameterizedTest @ValueSource(booleans = {false, true})
     void decimalPendingSurvivesRestartBeforeOrAfterPatch(boolean afterWrite) {
-        flow().handleMessage(message(10, "06.10.2026 за день прошёл 8000 шагов"));
+        entries.createDraft(new CreateDraftCommand(owner(), EntryType.METRICS, SourceKind.TEXT, Map.of(), SENT, Map.of("code", "sleep_duration_min", "value", new BigDecimal("480"), "unit", "min", "local_date", "2026-10-06"), Map.of(), new TelegramUpdateKey("main", 10)));
         Entry original = active();
         flow().handleCallback(button(11, original, "v"));
         EntryCoreService broken = mock(EntryCoreService.class, delegatesTo(entries));
@@ -215,7 +215,7 @@ class DraftReviewStorageTest {
     }
 
     @Test void fieldInputSurvivesRestartAndValidatesUnicodeWithoutMutation() {
-        flow().handleMessage(message(10, "06.10.2026 за день прошёл 8000 шагов"));
+        entries.createDraft(new CreateDraftCommand(owner(), EntryType.METRICS, SourceKind.TEXT, Map.of(), SENT, Map.of("code", "sleep_duration_min", "value", new BigDecimal("480"), "unit", "min", "local_date", "2026-10-06"), Map.of(), new TelegramUpdateKey("main", 10)));
         flow().handleCallback(button(11, active(), "v"));
         context.close(); reopen();
         var invalid = (BotAction.SendInlineMessage) flow().handleMessage(message(12, "ёжик 🍎")).getFirst();

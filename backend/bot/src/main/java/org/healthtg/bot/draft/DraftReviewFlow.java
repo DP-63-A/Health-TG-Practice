@@ -87,6 +87,14 @@ public final class DraftReviewFlow {
         if (value instanceof BigDecimal decimal && decimal.signum() < 0) {
             return Optional.of(List.of(message(update, "Значение не может быть отрицательным.", backRows(entry))));
         }
+        if ("v".equals(field) && entry.type()==EntryType.METRICS && value instanceof BigDecimal decimal) {
+            try { org.healthtg.bot.recognition.MetricCandidate.validateValue((String)entry.payload().get("code"),decimal); }
+            catch (IllegalArgumentException invalid) {
+                return Optional.of(List.of(message(update, "steps".equals(entry.payload().get("code"))
+                        ? "Введите целое количество шагов от 0 до 1000000000."
+                        : "Введите значение от 0 до 1000000000.", backRows(entry))));
+            }
+        }
         Map<String, Object> context = base(entry, ZoneId.of(String.valueOf(state.context().get("timezone"))));
         context.put("operation", "patch");
         context.put("field", field);
@@ -141,7 +149,7 @@ public final class DraftReviewFlow {
             if (!accepted.context().equals(context)) return card(update, entry, zone, "Диалог уже изменён.");
             return withAnswer(update, message(update, "d".equals(action)
                     ? "Введите дату: ДД.ММ.ГГГГ или ГГГГ-ММ-ДД."
-                    : "Введите одно число для поля «" + FIELDS.get(action) + "», например 12,5.", backRows(entry)));
+                    : correctionQuestion(entry,action), backRows(entry)));
         }
         if ("n".equals(action)) {
             save(owner, entry, "draft_choose", context, update);
@@ -180,9 +188,19 @@ public final class DraftReviewFlow {
             entry = entries.requireEntry(owner, entry.id());
             notice = "Запись изменилась. Старое действие не применено повторно; проверьте текущую версию.";
         } catch (EntryValidationException | DateTimeException invalid) {
+            // The caller owns this update's transition. Consuming its key here would
+            // prevent the same callback from selecting a corrected field below.
             notice = "Не удалось применить значение. Проверьте поле и выберите исправление заново.";
         }
         return card(update, entry, zone, notice);
+    }
+
+    private static String correctionQuestion(Entry entry,String field) {
+        if ("v".equals(field) && entry.type()==EntryType.METRICS) {
+            if ("steps".equals(entry.payload().get("code"))) return "Введите целое количество шагов от 0 до 1000000000.";
+            if ("sleep_duration_min".equals(entry.payload().get("code"))) return "Введите длительность сна в минутах, например 450.";
+        }
+        return "Введите одно число для поля «"+FIELDS.get(field)+"», например 12,5.";
     }
 
     /** Validate persisted intent before any mutation; a partial/corrupt intent is never guessed. */

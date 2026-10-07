@@ -2,6 +2,7 @@ package org.healthtg.core.file;
 
 import org.healthtg.core.entry.EntryCoreService;
 import org.healthtg.core.entry.OwnerContext;
+import org.healthtg.core.entry.EntryStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -14,17 +15,14 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.Locale;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -37,34 +35,25 @@ public class DefaultFileStorageService implements FileStorageService {
     private final EntryCoreService entries;
     private final Clock clock;
     private final Path root;
+    private final FileOperationGuard guard;
+    private final StoredFileLifecycle lifecycle;
+    private final EntryStore entryStore;
 
     public DefaultFileStorageService(MongoStoredFileRepository files, EntryCoreService entries, Clock clock,
-                                     @Value("${health-tg.files.root:${user.home}/.health-tg/files}") String root) {
+                                     @Value("${health-tg.files.root:${user.home}/.health-tg/files}") String root,
+                                     FileOperationGuard guard,StoredFileLifecycle lifecycle,EntryStore entryStore) {
         this.files = files;
         this.entries = entries;
         this.clock = clock;
         this.root = Path.of(root).toAbsolutePath().normalize();
+        this.guard=guard;
+        this.lifecycle=lifecycle;
+        this.entryStore=entryStore;
     }
 
     @Override
     public StoredFile store(OwnerContext owner, InputStream content, long contentLength) {
-        if (owner == null || content == null) throw new IllegalArgumentException("owner and content are required");
-        if (contentLength > MAX_BYTES) throw new FileValidationException("Image exceeds 5 MiB");
-        byte[] bytes = readBounded(content);
-        ImageMetadata image = decode(bytes);
-        UUID id = UUID.randomUUID();
-        String relativePath = id.toString().substring(0, 2) + "/" + id + ".bin";
-        Path target = resolve(relativePath);
-        writeAtomically(target, bytes);
-        var document = new MongoStoredFileDocument(id.toString(), owner.userId().toString(), null,
-                relativePath, image.mediaType(), image.extension(), bytes.length, image.width(), image.height(),
-                sha256(bytes), clock.instant(), null);
-        try {
-            return domain(files.save(document));
-        } catch (RuntimeException failure) {
-            try { Files.deleteIfExists(target); } catch (IOException ignored) { }
-            throw failure;
-        }
+        return store(owner,UUID.randomUUID(),content,contentLength);
     }
 
     @Override
@@ -74,6 +63,10 @@ public class DefaultFileStorageService implements FileStorageService {
         if (contentLength > MAX_BYTES) throw new FileValidationException("Image exceeds 5 MiB");
         byte[] bytes = readBounded(content);
         ImageMetadata image = decode(bytes);
+        return guard.withFile(id,() -> storeReserved(owner,id,bytes,image));
+    }
+
+    private StoredFile storeReserved(OwnerContext owner,UUID id,byte[] bytes,ImageMetadata image) {
         String relativePath = id.toString().substring(0, 2) + "/" + id + ".bin";
         var proposed = new MongoStoredFileDocument(id.toString(), owner.userId().toString(), null,
                 relativePath, image.mediaType(), image.extension(), bytes.length, image.width(), image.height(),
@@ -88,6 +81,8 @@ public class DefaultFileStorageService implements FileStorageService {
         }
         // A lost acknowledgement is allowed to propagate: no file is deleted. A later retry
         // finds the same reservation through duplicate-key handling and completes the write.
+        if (!reserved.ownerId().equals(owner.userId().toString())) throw new StoredFileNotFoundException();
+        StoredFileLifecycle.requireUsable(reserved);
         validateReservation(reserved, proposed);
         Path target = resolve(reserved.relativePath());
         writeReserved(target, bytes);
@@ -97,15 +92,19 @@ public class DefaultFileStorageService implements FileStorageService {
     private static void validateReservation(MongoStoredFileDocument stored, MongoStoredFileDocument proposed) {
         if (!stored.ownerId().equals(proposed.ownerId())) throw new StoredFileNotFoundException();
         if (!stored.id().equals(proposed.id()) || !stored.sha256().equals(proposed.sha256())
-                || stored.size() != proposed.size() || !stored.relativePath().equals(proposed.relativePath())
+                || !stored.size().equals(proposed.size()) || !stored.relativePath().equals(proposed.relativePath())
                 || !stored.mediaType().equals(proposed.mediaType()) || !stored.extension().equals(proposed.extension())
-                || stored.width() != proposed.width() || stored.height() != proposed.height()) {
+                || !stored.width().equals(proposed.width()) || !stored.height().equals(proposed.height())) {
             throw new FileValidationException("File ID is reserved for different image contents");
         }
     }
     @Override
     public StoredFile bindToEntry(OwnerContext owner, UUID fileId, UUID entryId) {
+        return guard.withFile(fileId,() -> bindOwned(owner,fileId,entryId));
+    }
+    private StoredFile bindOwned(OwnerContext owner,UUID fileId,UUID entryId) {
         MongoStoredFileDocument file = requireOwned(owner, fileId);
+        StoredFileLifecycle.requireUsable(file);
         var entry = entries.requireEntry(owner, entryId);
         Object referencedId = entry.sourceRef().get("file_id");
         if (!fileId.toString().equals(referencedId)) {
@@ -115,14 +114,47 @@ public class DefaultFileStorageService implements FileStorageService {
             throw new FileValidationException("File is already bound to another entry");
         }
         if (entryId.toString().equals(file.entryId())) return domain(file);
-        return domain(files.save(new MongoStoredFileDocument(file.id(), file.ownerId(), entryId.toString(),
-                file.relativePath(), file.mediaType(), file.extension(), file.size(), file.width(), file.height(),
-                file.sha256(), file.createdAt(), file.version())));
+        lifecycle.pinForEntry(owner,fileId);
+        return domain(lifecycle.bind(owner,fileId,entryId));
+    }
+
+    @Override
+    public CleanupResult discardUnreferenced(OwnerContext owner,UUID fileId) {
+        if(owner==null || fileId==null) throw new IllegalArgumentException("owner and fileId are required");
+        return guard.withFile(fileId,() -> discardOwned(owner,fileId));
+    }
+    private CleanupResult discardOwned(OwnerContext owner,UUID fileId) {
+        var existing=files.findById(fileId.toString());
+        if(existing.isEmpty()) {
+            if(entryStore.hasFileReference(fileId)) return CleanupResult.PROTECTED;
+            try {
+                files.insert(new MongoStoredFileDocument(fileId.toString(),owner.userId().toString(),null,
+                        null,null,null,null,null,null,null,null,null,StoredFileLifecycle.DELETED));
+                return CleanupResult.DELETED;
+            } catch(DuplicateKeyException concurrent) {
+                existing=files.findById(fileId.toString());
+                if(existing.isEmpty()) throw new StoredFileUnavailableException("File cancellation is not acknowledged",concurrent);
+            }
+        }
+        var file=existing.orElseThrow();
+        if(!file.ownerId().equals(owner.userId().toString())) throw new StoredFileNotFoundException();
+        if(file.entryId()!=null || entryStore.hasFileReference(fileId)
+                || StoredFileLifecycle.PINNED.equals(StoredFileLifecycle.state(file))) return CleanupResult.PROTECTED;
+        String state=StoredFileLifecycle.state(file);
+        if(StoredFileLifecycle.DELETED.equals(state)) return CleanupResult.DELETED;
+        if(!StoredFileLifecycle.DELETING.equals(state)
+                && (!StoredFileLifecycle.ACTIVE.equals(state) || !lifecycle.beginDeletion(owner,fileId)))
+            throw new StoredFileUnavailableException("File cancellation is not acknowledged",null);
+        try { Files.deleteIfExists(resolve(file.relativePath())); }
+        catch(IOException failure) { throw new StoredFileUnavailableException("File cleanup is incomplete",failure); }
+        lifecycle.finishDeletion(owner,fileId);
+        return CleanupResult.DELETED;
     }
 
     @Override
     public StoredFileContent open(OwnerContext owner, UUID fileId) {
         MongoStoredFileDocument file = requireOwned(owner, fileId);
+        StoredFileLifecycle.requireUsable(file);
         if (file.entryId() == null) throw new StoredFileNotFoundException();
         Path path = resolve(file.relativePath());
         try {
@@ -231,25 +263,6 @@ public class DefaultFileStorageService implements FileStorageService {
                 throw new StoredFileUnavailableException("Stored file conflicts with reservation", null);
         }
     }
-    private void writeAtomically(Path target, byte[] bytes) {
-        try {
-            Files.createDirectories(target.getParent());
-            Path temporary = Files.createTempFile(target.getParent(), ".upload-", ".tmp");
-            try {
-                Files.write(temporary, bytes);
-                try {
-                    Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE);
-                } catch (AtomicMoveNotSupportedException ignored) {
-                    Files.move(temporary, target);
-                }
-            } finally {
-                Files.deleteIfExists(temporary);
-            }
-        } catch (IOException failure) {
-            throw new StoredFileUnavailableException("File storage is unavailable", failure);
-        }
-    }
-
     private Path resolve(String relativePath) {
         Path resolved = root.resolve(relativePath).normalize();
         if (!resolved.startsWith(root)) throw new StoredFileUnavailableException("Invalid storage path", null);
