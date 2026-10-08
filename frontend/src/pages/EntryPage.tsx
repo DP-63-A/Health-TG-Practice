@@ -15,6 +15,7 @@ import type {
 import { useAuth } from '../auth/AuthProvider'
 import { Button, Card, ErrorState, FormField, LoadingState } from '../components/ui'
 import { useRefresh } from '../refresh/RefreshProvider'
+import '../components/Overview-components/PaperNote.css'
 
 type BusyAction = 'save' | 'confirm' | 'cancel' | 'delete'
 type FieldErrors = Record<string, string>
@@ -40,30 +41,30 @@ interface EntryFormState {
 }
 
 // const typeLabels: Record<EntryType, string> = {
-//   meal: 'Питание',
-//   metrics: 'Метрика',
+//   meal: 'Meal',
+//   metrics: 'Measurement',
 //   checkin: 'Оценка',
-//   note: 'Заметка',
+//   note: 'Note',
 // }
 
 const originLabels: Record<FieldOrigin, string> = {
-  reported: 'сообщено пользователем',
-  extracted: 'извлечено',
-  estimated: 'оценочное',
-  computed: 'рассчитано',
+  reported: 'reported by user',
+  extracted: 'extracted',
+  estimated: 'estimated',
+  computed: 'computed',
 }
 
 const checkinLabels: Record<CheckinPayload['category'], string> = {
-  sleep_quality: 'Качество сна',
-  digestion_comfort: 'Комфорт пищеварения',
-  wellbeing: 'Самочувствие',
-  mood: 'Настроение',
+  sleep_quality: 'Sleep quality',
+  digestion_comfort: 'Digestive comfort',
+  wellbeing: 'Wellbeing',
+  mood: 'Mood',
 }
 
 const metricLabels: Record<MetricsPayload['code'], string> = {
-  steps: 'Шаги',
-  sleep_duration_min: 'Сон',
-  heart_rate: 'Пульс',
+  steps: 'Steps',
+  sleep_duration_min: 'Sleep',
+  heart_rate: 'Heart rate',
 }
 
 const emptyForm: EntryFormState = {
@@ -101,13 +102,13 @@ export default function EntryPage() {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [message, setMessage] = useState('')
   const [busyAction, setBusyAction] = useState<BusyAction | null>(null)
-  const [sourceFile, setSourceFile] = useState({ fileId: '', url: '', error: '' })
   const [conflictEntry, setConflictEntry] = useState<Entry | null>(null)
   const [conflictActive, setConflictActive] = useState(false)
   const [freshError, setFreshError] = useState('')
   const [replaceRequested, setReplaceRequested] = useState(false)
   const [acceptingFresh, setAcceptingFresh] = useState(false)
   const [deleteRequested, setDeleteRequested] = useState(false)
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
   const requestIdRef = useRef(0)
   const currentEntryRef = useRef<Entry | null>(null)
   const latestSnapshotRef = useRef<Entry | null>(null)
@@ -164,7 +165,7 @@ export default function EntryPage() {
       if (controller.signal.aborted || !mountedRef.current || activeIdRef.current !== entryId) return
       const current = currentEntryRef.current
       if (current && fresh.revision <= current.revision && fresh.status === current.status) {
-        if (reason === 'conflict') setFreshError('Сервер пока не вернул новую версию. Повторите чтение.')
+        if (reason === 'conflict') setFreshError('The server has not returned a newer version yet. Try again.')
         return
       }
       const previous = latestSnapshotRef.current
@@ -173,14 +174,14 @@ export default function EntryPage() {
       latestSnapshotRef.current = fresh
       setConflictEntry(fresh)
       setConflictActive(true)
-      if (reason === 'refresh') setMessage('На сервере появилась новая версия записи. Ваш ввод сохранён; сравните версии перед продолжением.')
+      if (reason === 'refresh') setMessage('A newer version is available. Your input is preserved; compare the versions before continuing.')
     } catch (cause) {
       if (controller.signal.aborted || !mountedRef.current || activeIdRef.current !== entryId) return
       if (cause instanceof ApiError && cause.status === 401) {
         markSessionExpired()
         return
       }
-      setFreshError(cause instanceof Error ? cause.message : 'Не удалось перечитать запись.')
+      setFreshError(cause instanceof Error ? cause.message : 'Could not reload the entry.')
     } finally {
       if (freshRequestRef.current === controller) freshRequestRef.current = null
     }
@@ -222,40 +223,6 @@ export default function EntryPage() {
     if (current?.id === id) void readLatest(id, 'refresh')
   }, [id, readLatest, refreshReason, refreshVersion])
 
-  useEffect(() => {
-    const fileId = entry?.source_ref.file_id
-    if (!fileId) return
-
-    const controller = new AbortController()
-    let objectUrl = ''
-    let disposed = false
-
-    void entriesApi.downloadFile(fileId, controller.signal).then((url) => {
-      if (disposed) {
-        if (URL.revokeObjectURL && !url.startsWith('blob:fixture/')) URL.revokeObjectURL(url)
-        return
-      }
-      objectUrl = url
-      setSourceFile({ fileId, url, error: '' })
-    }).catch((cause) => {
-      if (cause instanceof DOMException && cause.name === 'AbortError') return
-      if (disposed) return
-      setSourceFile({
-        fileId,
-        url: '',
-        error: cause instanceof Error ? cause.message : 'Не удалось загрузить исходный файл.',
-      })
-    })
-
-    return () => {
-      disposed = true
-      controller.abort()
-      if (objectUrl && URL.revokeObjectURL && !objectUrl.startsWith('blob:fixture/')) {
-        URL.revokeObjectURL(objectUrl)
-      }
-    }
-  }, [entry?.source_ref.file_id])
-
   const draftBody = useMemo(() => {
     if (!entry) return null
     const result = buildPatchBody(entry, form, timezone)
@@ -275,6 +242,7 @@ export default function EntryPage() {
 
   async function save(event?: FormEvent) {
     event?.preventDefault()
+    if (entry?.type === 'checkin' && editingEntryId !== id) return null
     if (!entry || (entry.status !== 'draft' && entry.status !== 'confirmed') || conflictActive || busyAction || mutationLockRef.current) return null
     mutationLockRef.current = true
     try {
@@ -291,7 +259,7 @@ export default function EntryPage() {
     const result = buildPatchBody(currentEntry, form, timezone)
     if (!result.ok) {
       setFieldErrors(result.errors)
-      setMessage('Проверьте поля формы.')
+      setMessage('Please check the form fields.')
       return null
     }
 
@@ -303,7 +271,7 @@ export default function EntryPage() {
       const updated = await entriesApi.patch(currentEntry.id, result.body)
       if (mountedRef.current && activeIdRef.current === currentEntry.id) applyEntry(updated)
       requestRefresh('mutation')
-      if (!silent && mountedRef.current && activeIdRef.current === currentEntry.id) setMessage('Изменения сохранены.')
+      if (!silent && mountedRef.current && activeIdRef.current === currentEntry.id) setMessage('Changes saved.')
       return updated
     } catch (cause) {
       await handleMutationError(cause, currentEntry.id)
@@ -322,15 +290,15 @@ export default function EntryPage() {
       const checked = buildPatchBody(entry, form, timezone)
       if (!checked.ok) {
         setFieldErrors(checked.errors)
-        setMessage('Проверьте поля формы.')
+        setMessage('Please check the form fields.')
         return
       }
       if (entry.type === 'metrics' && (!form.metric_unit.trim() || !form.metric_local_date)) {
         setFieldErrors({
-          ...(!form.metric_unit.trim() ? { 'payload.unit': 'Укажите единицу перед подтверждением.' } : {}),
-          ...(!form.metric_local_date ? { 'payload.local_date': 'Укажите дату перед подтверждением.' } : {}),
+          ...(!form.metric_unit.trim() ? { 'payload.unit': 'Enter a unit before confirming.' } : {}),
+          ...(!form.metric_local_date ? { 'payload.local_date': 'Enter a date before confirming.' } : {}),
         })
-        setMessage('Проверьте поля формы.')
+        setMessage('Please check the form fields.')
         return
       }
       if (hasLocalChanges) {
@@ -350,7 +318,7 @@ export default function EntryPage() {
       })
       if (mountedRef.current && activeIdRef.current === currentEntry.id) applyEntry(updated)
       requestRefresh('mutation')
-      if (mountedRef.current && activeIdRef.current === currentEntry.id) setMessage('Запись подтверждена.')
+      if (mountedRef.current && activeIdRef.current === currentEntry.id) setMessage('Entry confirmed.')
     } catch (cause) {
       await handleMutationError(cause, currentEntry.id)
     } finally {
@@ -388,7 +356,7 @@ export default function EntryPage() {
       const removed = await entriesApi.delete(entry.id, entry.revision)
       if (mountedRef.current && activeIdRef.current === entry.id) {
         applyEntry(removed)
-        setMessage('Запись убрана из дневника.')
+        setMessage('Sticker discarded.')
       }
       requestRefresh('mutation')
     } catch (cause) {
@@ -413,7 +381,7 @@ export default function EntryPage() {
       if (controller.signal.aborted || !mountedRef.current || activeIdRef.current !== snapshot.id) return
       const newer = latestSnapshotRef.current
       if (verified.revision < snapshot.revision || (newer && newer.revision > verified.revision)) {
-        setFreshError('Сервер пока не вернул самую новую версию. Повторите чтение.')
+        setFreshError('The server has not returned the latest version yet. Try again.')
         setReplaceRequested(false)
         return
       }
@@ -421,15 +389,15 @@ export default function EntryPage() {
         latestSnapshotRef.current = verified
         setConflictEntry(verified)
         setReplaceRequested(false)
-        setMessage('Серверная версия снова изменилась. Сравните её перед заменой ввода.')
+        setMessage('The server version changed again. Compare it before replacing your input.')
         return
       }
       applyEntry(verified)
-      setMessage('Серверная версия загружена. Проверьте запись перед новым действием.')
+      setMessage('Server version loaded. Review the entry before continuing.')
     } catch (cause) {
       if (controller.signal.aborted || !mountedRef.current || activeIdRef.current !== snapshot.id) return
       if (cause instanceof ApiError && cause.status === 401) markSessionExpired()
-      else setFreshError(cause instanceof Error ? cause.message : 'Не удалось проверить серверную версию.')
+      else setFreshError(cause instanceof Error ? cause.message : 'Could not check the server version.')
       setReplaceRequested(false)
     } finally {
       if (freshRequestRef.current === controller) freshRequestRef.current = null
@@ -453,8 +421,8 @@ export default function EntryPage() {
       setReplaceRequested(false)
       setDeleteRequested(false)
       setMessage(cause.code === 'INVALID_STATUS_TRANSITION'
-        ? 'Действие больше недоступно: статус записи изменился. Ваш ввод сохранён; проверьте серверную версию.'
-        : 'Конфликт версий: запись изменилась на сервере. Ваш ввод сохранён; сравните версии перед повтором.')
+        ? 'This action is no longer available because the entry status changed. Your input is preserved; check the server version.'
+        : 'Version conflict: the entry changed on the server. Your input is preserved; compare the versions before retrying.')
       await readLatest(entryId, 'conflict')
       return
     }
@@ -474,7 +442,7 @@ export default function EntryPage() {
   if (state === 'loading') {
     return (
       <Card>
-        <LoadingState title="Загрузка записи" message="Получаем текущую ревизию." />
+        <LoadingState title="Loading entry" message="Fetching the current version." />
       </Card>
     )
   }
@@ -483,9 +451,9 @@ export default function EntryPage() {
     return (
       <Card>
         <ErrorState
-          title="Запись не найдена"
-          message={message || 'Не удалось открыть запись.'}
-          actionLabel="Повторить"
+          title="Entry not found"
+          message={message || 'Could not open the entry.'}
+          actionLabel="Try again"
           onAction={() => {
             setState('loading')
             setMessage('')
@@ -499,6 +467,8 @@ export default function EntryPage() {
   const isBusy = busyAction !== null || acceptingFresh
   const canEdit = entry.status === 'draft' || entry.status === 'confirmed'
   const actionsBlocked = isBusy || conflictActive
+  const isCheckin = entry.type === 'checkin'
+  const isEditing = !isCheckin || editingEntryId === id
 
   return (
     <Card className="entry-detail">
@@ -506,7 +476,7 @@ export default function EntryPage() {
       {/* <div className="section-heading"> */}
         {/* <h2>Проверка записи</h2>
         <Badge tone={entry.status === 'confirmed' ? 'success' : entry.status === 'draft' ? 'warning' : 'danger'}>
-          Статус: {entry.status}
+          Status: {entry.status}
         </Badge>
       </div> */}
 
@@ -516,25 +486,6 @@ export default function EntryPage() {
         <div><dt>Ревизия</dt><dd>{entry.revision}</dd></div>
         <div><dt>Обновлена</dt><dd>{formatDate(entry.updated_at, timezone)}</dd></div>
       </dl> */}
-
-      {/* <section className="source-card" aria-label="Источник записи"> */}
-        {/* <h3>Источник</h3> */}
-        {/* <p>{entry.source_ref.label ?? entry.source_kind}</p>
-        <p>{isMetricEntry(entry) ? 'Время сообщения итога' : 'Дата записи'}: {formatNullableDate(entry.occurred_at, timezone)}</p> */}
-        {/* {isMetricEntry(entry) && <p>{metricDateLabel(entry)}: {(entry.payload as MetricsPayload).local_date || 'неизвестно'}</p>}
-        {entry.source_ref.telegram_message_id && <p>Telegram message: {entry.source_ref.telegram_message_id}</p>}
-        {entry.source_ref.file_id && (sourceFile.fileId !== entry.source_ref.file_id || (!sourceFile.url && !sourceFile.error)) && (
-          <p role="status">Загружаем исходный файл через защищённый API...</p>
-        )}
-        {entry.source_ref.file_id && sourceFile.fileId === entry.source_ref.file_id && sourceFile.url && (
-          <a className="source-link" href={sourceFile.url} target="_blank" rel="noreferrer">
-            Открыть исходное изображение
-          </a>
-        )} */}
-        {/* {entry.source_ref.file_id && sourceFile.fileId === entry.source_ref.file_id && sourceFile.error && (
-          <p role="alert">{sourceFile.error}</p>
-        )}
-      </section> */}
 
       {/* <section className="source-card" aria-label="Происхождение полей">
         <h3>Происхождение полей</h3>
@@ -550,82 +501,122 @@ export default function EntryPage() {
       </section> */}
 
       {conflictActive && (
-        <section className="source-card conflict-panel" aria-label="Свежая серверная версия">
-          <h3>Свежая серверная версия</h3>
+        <section className="source-card conflict-panel" aria-label="Latest server version">
+          <h3>Latest server version</h3>
           {conflictEntry ? (
             <>
-              <p>Статус: {conflictEntry.status}. Ревизия: {conflictEntry.revision}. Локальный ввод ниже не заменён.</p>
-              <pre tabIndex={0} aria-label="Данные свежей серверной версии">{JSON.stringify(conflictEntry.payload, null, 2)}</pre>
+              <p>Status: {conflictEntry.status}. Revision: {conflictEntry.revision}. Your input below has been preserved.</p>
+              <pre tabIndex={0} aria-label="Latest server version data">{JSON.stringify(conflictEntry.payload, null, 2)}</pre>
               {!replaceRequested ? (
-                <Button onClick={() => setReplaceRequested(true)} variant="secondary">Использовать серверную версию</Button>
+                <Button onClick={() => setReplaceRequested(true)} variant="secondary">Use server version</Button>
               ) : (
                 <div>
-                  <p>Несохранённый ввод в форме будет заменён серверной версией.</p>
+                  <p>Your unsaved changes will be replaced with the server version.</p>
                   <div className="form-actions">
-                    <Button disabled={acceptingFresh} isLoading={acceptingFresh} onClick={() => void acceptFreshSnapshot()} variant="danger">Да, заменить ввод</Button>
-                    <Button disabled={acceptingFresh} onClick={() => setReplaceRequested(false)} variant="secondary">Оставить мой ввод</Button>
+                    <Button disabled={acceptingFresh} isLoading={acceptingFresh} onClick={() => void acceptFreshSnapshot()} variant="danger">Yes, replace my input</Button>
+                    <Button disabled={acceptingFresh} onClick={() => setReplaceRequested(false)} variant="secondary">Keep my input</Button>
                   </div>
                 </div>
               )}
             </>
-          ) : <p>Свежую версию пока не удалось получить. Ваш ввод остаётся в форме.</p>}
+          ) : <p>Could not fetch the latest version. Your input is still in the form.</p>}
           {freshError && <p role="alert">{freshError}</p>}
-          <Button disabled={acceptingFresh} onClick={() => void readLatest(entry.id, 'conflict')} variant="secondary">Перечитать серверную версию</Button>
+          <Button disabled={acceptingFresh} onClick={() => void readLatest(entry.id, 'conflict')} variant="secondary">Reload server version</Button>
         </section>
       )}
 
-      <form ref={formRef} className="entry-form" aria-label="Редактирование записи" onSubmit={(event) => void save(event)} noValidate>
-        <fieldset className="entry-edit-fields" disabled={isBusy || !canEdit}>
-        <FormField label={isMetricEntry(entry) ? 'Время сообщения итога' : 'Дата и время'} hint={isMetricEntry(entry) ? `Часовой пояс: ${timezone}. Сохраняется исходное время сообщения.` : undefined} error={errorFor(fieldErrors, 'occurred_at')}>
-          <input
-            readOnly={isMetricEntry(entry)}
-            ref={dateInputRef}
-            type="datetime-local"
-            value={form.occurredAt}
-            onChange={(event) => updateForm({ occurredAt: event.target.value })}
-          />
-        </FormField>
+      <form ref={formRef} className="entry-form" aria-label="Edit entry" onSubmit={(event) => void save(event)} noValidate>
+        <div className={isCheckin ? 'entry-checkin-sticker paper-note' : undefined}>
+        {isCheckin && <div className="entry-checkin-header">
+          <h2>Wellbeing</h2>
+          {canEdit && <button
+            type="button"
+            className="entry-pencil-button"
+            aria-label={isEditing ? 'Cancel editing' : 'Edit sticker'}
+            aria-expanded={isEditing}
+            title={isEditing ? 'Cancel editing' : 'Edit sticker'}
+            disabled={isBusy || (!isEditing && conflictActive)}
+            onClick={() => {
+              if (isEditing) {
+                setForm(createForm(entry, timezone))
+                setFieldErrors({})
+                setMessage('')
+                setEditingEntryId(null)
+              } else {
+                setEditingEntryId(id)
+              }
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+              <path d="m15.5 4.5 4 4M4 20l4.5-1 12-12a2.8 2.8 0 0 0-4-4l-12 12L4 20Z" />
+              <path d="m5 15 4 4" />
+            </svg>
+          </button>}
+        </div>}
+        {isCheckin && !isEditing ? <dl className="entry-checkin-summary">
+          <div><dt>Date and time</dt><dd>{formatEntryDate(form.occurredAt)}</dd></div>
+          <div><dt>Category</dt><dd>{form.checkin_category ? checkinLabels[form.checkin_category] : 'Unknown'}</dd></div>
+          <div><dt>Score</dt><dd>{form.checkin_score ? `${form.checkin_score}/5` : '—'}</dd></div>
+        </dl> : <fieldset className="entry-edit-fields" disabled={isBusy || !canEdit}>
+        <div className="ui-field">
+          <label htmlFor="entry-occurred-at">{isMetricEntry(entry) ? 'Reported at' : 'Date and time'}</label>
+          <div className="entry-date-control">
+            <span className="entry-date-display" aria-hidden="true">{formatEntryDate(form.occurredAt)}</span>
+            <input
+              id="entry-occurred-at"
+              readOnly={isMetricEntry(entry)}
+              ref={dateInputRef}
+              type="datetime-local"
+              value={form.occurredAt}
+              aria-invalid={errorFor(fieldErrors, 'occurred_at') ? true : undefined}
+              aria-describedby={errorFor(fieldErrors, 'occurred_at') ? 'entry-occurred-at-error' : undefined}
+              onChange={(event) => updateForm({ occurredAt: event.target.value })}
+            />
+          </div>
+          {errorFor(fieldErrors, 'occurred_at') && <small id="entry-occurred-at-error" className="field-error" role="alert">{errorFor(fieldErrors, 'occurred_at')}</small>}
+        </div>
 
         {renderPayloadForm(entry, form, fieldErrors, updateForm, metricDateInputRef)}
-        </fieldset>
+        </fieldset>}
+        </div>
 
         {message && (
-          <p role="status" className={message.includes('Конфликт') ? 'conflict-message' : undefined}>
+          <p role="status" className={message.includes('Version conflict') ? 'conflict-message' : undefined}>
             {message}
           </p>
         )}
 
         <div className="form-actions">
-          {canEdit && (
+          {canEdit && isEditing && (
             <Button disabled={actionsBlocked} isLoading={busyAction === 'save'} type="submit">
-              Сохранить
+              Save
             </Button>
           )}
           {entry.status === 'draft' && (
             <>
-              <Button disabled={isBusy} onClick={() => (isMetricEntry(entry) ? metricDateInputRef : dateInputRef).current?.focus()} variant="secondary">
-                Изменить
-              </Button>
+              {!isCheckin && <Button disabled={isBusy} onClick={() => (isMetricEntry(entry) ? metricDateInputRef : dateInputRef).current?.focus()} variant="secondary">
+                Edit
+              </Button>}
               <Button disabled={actionsBlocked} isLoading={busyAction === 'confirm'} onClick={() => void confirmDraft()} variant="secondary">
-                Подтвердить
+                Confirm
               </Button>
               <Button disabled={actionsBlocked} isLoading={busyAction === 'cancel'} onClick={() => void cancelDraft()} variant="danger">
-                Не сохранять
+                Discard draft
               </Button>
             </>
           )}
           {entry.status === 'confirmed' && !deleteRequested && (
             <Button disabled={actionsBlocked} onClick={() => setDeleteRequested(true)} variant="danger">
-              Убрать из дневника
+              Discard sticker
             </Button>
           )}
         </div>
         {entry.status === 'confirmed' && deleteRequested && (
-          <div className="delete-confirmation" role="group" aria-label="Подтверждение удаления">
-            <p>Запись исчезнет из дневника и аналитики.</p>
+          <div className="delete-confirmation" role="group" aria-label="Confirm deletion">
+            <p>This sticker will be removed from your diary and statistics.</p>
             <div className="form-actions">
-              <Button disabled={actionsBlocked} isLoading={busyAction === 'delete'} onClick={() => void removeConfirmed()} variant="danger">Да, убрать</Button>
-              <Button disabled={isBusy} onClick={() => setDeleteRequested(false)} variant="secondary">Оставить запись</Button>
+              <Button disabled={actionsBlocked} isLoading={busyAction === 'delete'} onClick={() => void removeConfirmed()} variant="danger">Yes, discard</Button>
+              <Button disabled={isBusy} onClick={() => setDeleteRequested(false)} variant="secondary">Keep sticker</Button>
             </div>
           </div>
         )}
@@ -644,24 +635,24 @@ function renderPayloadForm(
   if (entry.type === 'meal') {
     return (
       <fieldset className="entry-fieldset">
-        <legend>Питание</legend>
-        <FormField label="Описание" hint={originHint(entry, 'description')} error={errorFor(errors, 'payload.description')}>
+        <legend>Meal</legend>
+        <FormField label="Description" hint={originHint(entry, 'description')} error={errorFor(errors, 'payload.description')}>
           <input value={form.description} onChange={(event) => updateForm({ description: event.target.value })} />
         </FormField>
-        <NumberField entry={entry} errors={errors} field="mass_g" label="Масса" unit="г" value={form.mass_g} onChange={(value) => updateForm({ mass_g: value })} />
-        <FormField label="Основа нутриентов" hint={originHint(entry, 'nutrients_basis')} error={errorFor(errors, 'payload.nutrients_basis')}>
+        <NumberField entry={entry} errors={errors} field="mass_g" label="Weight" unit="g" value={form.mass_g} onChange={(value) => updateForm({ mass_g: value })} />
+        <FormField label="Nutrition basis" hint={originHint(entry, 'nutrients_basis')} error={errorFor(errors, 'payload.nutrients_basis')}>
           <select value={form.nutrients_basis} onChange={(event) => updateForm({ nutrients_basis: event.target.value as EntryFormState['nutrients_basis'] })}>
-            <option value="">Неизвестно</option>
-            <option value="per_100g">На 100 г</option>
-            <option value="per_serving">На порцию</option>
+            <option value="">Unknown</option>
+            <option value="per_100g">Per 100 g</option>
+            <option value="per_serving">Per serving</option>
             <option value="unknown">Unknown</option>
           </select>
         </FormField>
         <div className="entry-form-grid">
-          <NumberField entry={entry} errors={errors} field="nutrients.energy_kcal" label="Ккал" unit="kcal" value={form.energy_kcal} onChange={(value) => updateForm({ energy_kcal: value })} />
-          <NumberField entry={entry} errors={errors} field="nutrients.protein_g" label="Белки" unit="г" value={form.protein_g} onChange={(value) => updateForm({ protein_g: value })} />
-          <NumberField entry={entry} errors={errors} field="nutrients.fat_g" label="Жиры" unit="г" value={form.fat_g} onChange={(value) => updateForm({ fat_g: value })} />
-          <NumberField entry={entry} errors={errors} field="nutrients.carbs_g" label="Углеводы" unit="г" value={form.carbs_g} onChange={(value) => updateForm({ carbs_g: value })} />
+          <NumberField entry={entry} errors={errors} field="nutrients.energy_kcal" label="Calories" unit="kcal" value={form.energy_kcal} onChange={(value) => updateForm({ energy_kcal: value })} />
+          <NumberField entry={entry} errors={errors} field="nutrients.protein_g" label="Protein" unit="g" value={form.protein_g} onChange={(value) => updateForm({ protein_g: value })} />
+          <NumberField entry={entry} errors={errors} field="nutrients.fat_g" label="Fat" unit="g" value={form.fat_g} onChange={(value) => updateForm({ fat_g: value })} />
+          <NumberField entry={entry} errors={errors} field="nutrients.carbs_g" label="Carbs" unit="g" value={form.carbs_g} onChange={(value) => updateForm({ carbs_g: value })} />
         </div>
       </fieldset>
     )
@@ -670,30 +661,30 @@ function renderPayloadForm(
   if (entry.type === 'metrics') {
     return (
       <fieldset className="entry-fieldset">
-        <legend>Метрика</legend>
-        <FormField label="Показатель" hint={originHint(entry, 'code')} error={errorFor(errors, 'payload.code')}>
+        <legend>Measurement</legend>
+        <FormField label="Metric" hint={originHint(entry, 'code')} error={errorFor(errors, 'payload.code')}>
           <select disabled={isMetricEntry(entry)} value={form.metric_code} onChange={(event) => updateForm({ metric_code: event.target.value as EntryFormState['metric_code'] })}>
-            <option value="">Выберите показатель</option>
+            <option value="">Choose a metric</option>
             {Object.entries(metricLabels).map(([value, label]) => <option disabled={value === 'steps' && !isMetricEntry(entry)} key={value} value={value}>{label}</option>)}
           </select>
         </FormField>
-        <NumberField entry={entry} errors={errors} field="value" label="Значение" unit={form.metric_unit || 'ед.'} nullable={false} value={form.metric_value} onChange={(value) => updateForm({ metric_value: value })} />
-        <FormField label="Единица" hint={originHint(entry, 'unit')} error={errorFor(errors, 'payload.unit')}>
+        <NumberField entry={entry} errors={errors} field="value" label="Value" unit={form.metric_unit || 'units'} nullable={false} value={form.metric_value} onChange={(value) => updateForm({ metric_value: value })} />
+        <FormField label="Unit" hint={originHint(entry, 'unit')} error={errorFor(errors, 'payload.unit')}>
           <input maxLength={32} value={form.metric_unit} onChange={(event) => updateForm({ metric_unit: event.target.value })} />
           <UnknownMark value={form.metric_unit} />
         </FormField>
         <div className="entry-form-grid">
-          <FormField label={isMetricEntry(entry) ? metricDateLabel(entry) : 'Локальная дата'} hint={originHint(entry, 'local_date')} error={errorFor(errors, 'payload.local_date')}>
+          <FormField label={isMetricEntry(entry) ? metricDateLabel(entry) : 'Local date'} hint={originHint(entry, 'local_date')} error={errorFor(errors, 'payload.local_date')}>
             <input ref={metricDateInputRef} type="date" value={form.metric_local_date} onChange={(event) => updateForm({ metric_local_date: event.target.value })} />
             <UnknownMark value={form.metric_local_date} />
           </FormField>
-          {(entry.payload as MetricsPayload).code !== 'steps' && <FormField label="Локальное время" 
+          {(entry.payload as MetricsPayload).code !== 'steps' && <FormField label="Local time"
 hint={originHint(entry, 'local_time')}  error={errorFor(errors, 'payload.local_time')}>
             <input type="time" value={form.metric_local_time} onChange={(event) => updateForm({ metric_local_time: event.target.value })} />
             <UnknownMark value={form.metric_local_time} />
           </FormField>}
         </div>
-        <FormField label="Уточнение пульса" hint={originHint(entry, 'qualifier')} error={errorFor(errors, 'payload.qualifier')}>
+        <FormField label="Heart rate context" hint={originHint(entry, 'qualifier')} error={errorFor(errors, 'payload.qualifier')}>
           <select value={form.metric_qualifier} onChange={(event) => updateForm({ metric_qualifier: event.target.value as EntryFormState['metric_qualifier'] })}>
             <option value="">Unknown</option>
             <option value="instant">Instant</option>
@@ -706,15 +697,14 @@ hint={originHint(entry, 'local_time')}  error={errorFor(errors, 'payload.local_t
 
   if (entry.type === 'checkin') {
     return (
-      <fieldset className="entry-fieldset">
-        <legend>Оценка</legend>
-        <FormField label="Категория" hint={originHint(entry, 'category')} error={errorFor(errors, 'payload.category')}>
+      <fieldset className="entry-fieldset" aria-label="Wellbeing">
+        <FormField label="Category" error={errorFor(errors, 'payload.category')}>
           <select value={form.checkin_category} onChange={(event) => updateForm({ checkin_category: event.target.value as EntryFormState['checkin_category'] })}>
-            <option value="">Выберите категорию</option>
+            <option value="">Choose a category</option>
             {Object.entries(checkinLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </FormField>
-        <FormField label="Оценка" hint={`${originHint(entry, 'score')} Значение 1-5 по контракту.`} error={errorFor(errors, 'payload.score')}>
+        <FormField label="Score" error={errorFor(errors, 'payload.score')}>
           <input inputMode="numeric" value={form.checkin_score} onChange={(event) => updateForm({ checkin_score: event.target.value })} />
         </FormField>
       </fieldset>
@@ -723,8 +713,8 @@ hint={originHint(entry, 'local_time')}  error={errorFor(errors, 'payload.local_t
 
   return (
     <fieldset className="entry-fieldset">
-      <legend>Заметка</legend>
-      <FormField label="Текст" hint={originHint(entry, 'text')} error={errorFor(errors, 'payload.text')}>
+      <legend>Note</legend>
+      <FormField label="Text" hint={originHint(entry, 'text')} error={errorFor(errors, 'payload.text')}>
         <textarea rows={6} value={form.note_text} onChange={(event) => updateForm({ note_text: event.target.value })} />
       </FormField>
     </fieldset>
@@ -763,7 +753,7 @@ function NumberField({
 
 function UnknownMark({ value }: { value: string }) {
   if (value !== '') return null
-  return <span className="unknown-value">Неизвестно</span>
+  return <span className="unknown-value">Unknown</span>
 }
 
 function createForm(entry: Entry, timezone: string): EntryFormState {
@@ -814,19 +804,19 @@ function buildPatchBody(entry: Entry, form: EntryFormState, timezone: string) {
   const original = createForm(entry, timezone)
   const changedPayload = changedFields(entry.type, form, original, payload)
   if (entry.type === 'meal' && form.nutrients_basis === '' && original.nutrients_basis !== '') {
-    errors['payload.nutrients_basis'] = 'Укажите основу или выберите Unknown.'
+    errors['payload.nutrients_basis'] = 'Choose a nutrition basis or select Unknown.'
   }
   if (entry.type === 'metrics' && entry.status === 'confirmed') {
-    if (!form.metric_unit.trim()) errors['payload.unit'] = 'Единица обязательна для подтверждённой метрики.'
-    if (!form.metric_local_date) errors['payload.local_date'] = 'Дата обязательна для подтверждённой метрики.'
+    if (!form.metric_unit.trim()) errors['payload.unit'] = 'A unit is required for a confirmed measurement.'
+    if (!form.metric_local_date) errors['payload.local_date'] = 'A date is required for a confirmed measurement.'
   }
   const dateChanged = !isMetricEntry(entry) && form.occurredAt !== original.occurredAt
   const occurredAt = dateChanged && form.occurredAt ? localInputToUtc(form.occurredAt, timezone) : undefined
 
   if (dateChanged && !occurredAt) {
     errors.occurred_at = form.occurredAt
-      ? 'Дата или время не существует либо неоднозначно в часовом поясе пользователя.'
-      : 'Контракт не позволяет очистить известную дату.'
+      ? 'This date or time does not exist or is ambiguous in your time zone.'
+      : 'An existing date cannot be cleared.'
   }
 
   if (Object.keys(errors).length > 0) {
@@ -884,8 +874,8 @@ function changedFields(type: EntryType, form: EntryFormState, original: EntryFor
 function buildPayload(type: EntryType, form: EntryFormState, errors: FieldErrors): EntryPayload {
   if (type === 'meal') {
     const description = form.description
-    if (!description) errors['payload.description'] = 'Описание обязательно.'
-    if (description.length > 2000) errors['payload.description'] = 'Максимум 2000 символов.'
+    if (!description) errors['payload.description'] = 'Description is required.'
+    if (description.length > 2000) errors['payload.description'] = 'Maximum 2000 characters.'
 
     return compact({
       description,
@@ -901,15 +891,15 @@ function buildPayload(type: EntryType, form: EntryFormState, errors: FieldErrors
   }
 
   if (type === 'metrics') {
-    if (!form.metric_code) errors['payload.code'] = 'Показатель обязателен.'
-    if (form.metric_unit.length > 32) errors['payload.unit'] = 'Максимум 32 символа.'
+    if (!form.metric_code) errors['payload.code'] = 'Metric is required.'
+    if (form.metric_unit.length > 32) errors['payload.unit'] = 'Maximum 32 characters.'
     if (form.metric_local_time && !/^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/.test(form.metric_local_time)) {
-      errors['payload.local_time'] = 'Время должно быть в формате HH:mm.'
+      errors['payload.local_time'] = 'Use HH:mm for the time.'
     }
 
     const value = parseRequiredNumber(form.metric_value, 'payload.value', errors)
     if (value !== null && value < 0) {
-      errors['payload.value'] = 'Значение не может быть отрицательным по контракту.'
+      errors['payload.value'] = 'Value cannot be negative.'
     }
 
     return compact({
@@ -923,10 +913,10 @@ function buildPayload(type: EntryType, form: EntryFormState, errors: FieldErrors
   }
 
   if (type === 'checkin') {
-    if (!form.checkin_category) errors['payload.category'] = 'Категория обязательна.'
+    if (!form.checkin_category) errors['payload.category'] = 'Category is required.'
     const score = parseRequiredInteger(form.checkin_score, 'payload.score', errors)
     if (score !== null && (score < 1 || score > 5)) {
-      errors['payload.score'] = 'Оценка должна быть целым числом от 1 до 5.'
+      errors['payload.score'] = 'Score must be a whole number from 1 to 5.'
     }
 
     return compact({
@@ -936,8 +926,8 @@ function buildPayload(type: EntryType, form: EntryFormState, errors: FieldErrors
   }
 
   const text = form.note_text
-  if (!text) errors['payload.text'] = 'Текст обязателен.'
-  if (text.length > 2000) errors['payload.text'] = 'Максимум 2000 символов.'
+  if (!text) errors['payload.text'] = 'Text is required.'
+  if (text.length > 2000) errors['payload.text'] = 'Maximum 2000 characters.'
   return { text } satisfies NotePayload
 }
 
@@ -945,32 +935,32 @@ function parseNullableNumber(value: string, field: string, errors: FieldErrors) 
   if (value.trim() === '') return null
   const parsed = Number(value.replace(',', '.'))
   if (!Number.isFinite(parsed)) {
-    errors[field] = 'Введите число или оставьте поле пустым.'
+    errors[field] = 'Enter a number or leave the field empty.'
     return null
   }
   if (underflowsToZero(value, parsed)) {
-    errors[field] = 'Число слишком мало: при отправке оно превратится в ноль.'
+    errors[field] = 'This number is too small and would be sent as zero.'
     return null
   }
   if (parsed < 0) {
-    errors[field] = 'Значение не может быть отрицательным по контракту.'
+    errors[field] = 'Value cannot be negative.'
   }
   return parsed
 }
 
 function parseRequiredNumber(value: string, field: string, errors: FieldErrors) {
   if (value.trim() === '') {
-    errors[field] = 'Значение обязательно.'
+    errors[field] = 'Value is required.'
     return null
   }
 
   const parsed = Number(value.replace(',', '.'))
   if (!Number.isFinite(parsed)) {
-    errors[field] = 'Введите число.'
+    errors[field] = 'Enter a number.'
     return null
   }
   if (underflowsToZero(value, parsed)) {
-    errors[field] = 'Число слишком мало: при отправке оно превратится в ноль.'
+    errors[field] = 'This number is too small and would be sent as zero.'
     return null
   }
   return parsed
@@ -985,7 +975,7 @@ function parseRequiredInteger(value: string, field: string, errors: FieldErrors)
   const parsed = parseRequiredNumber(value, field, errors)
   if (parsed === null) return null
   if (!Number.isInteger(parsed)) {
-    errors[field] = 'Введите целое число.'
+    errors[field] = 'Enter a whole number.'
     return null
   }
   return parsed
@@ -1011,7 +1001,8 @@ function errorFor(errors: FieldErrors, field: string) {
 
 function originHint(entry: Entry, field: string) {
   const origin = entry.field_origins[field] ?? entry.field_origins[`payload.${field}`]
-  return origin ? `Происхождение: ${originLabels[origin]}.` : ''
+  if (origin === 'reported') return ''
+  return origin ? `Source: ${originLabels[origin]}.` : ''
 }
 
 function toInputValue(value: number | string | null | undefined) {
@@ -1078,6 +1069,15 @@ function getZonedParts(date: Date, timezone: string) {
 }
 
 
+function formatEntryDate(value: string) {
+  if (!value) return 'Date unknown'
+  const [day, time] = value.split('T')
+  const date = new Date(`${day}T00:00:00Z`)
+  if (Number.isNaN(date.getTime()) || !time) return 'Date unknown'
+  const label = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(date)
+  return `${label} at ${time.slice(0, 5)}`
+}
+
 function isSameInstant(left: string, right: string | null | undefined) {
   if (!right) return false
   const leftTime = new Date(left).getTime()
@@ -1096,10 +1096,10 @@ function handleError(cause: unknown, expire: () => void, setMessage: (value: str
     return
   }
 
-  setMessage(cause instanceof Error ? cause.message : 'Произошла ошибка.')
+  setMessage(cause instanceof Error ? cause.message : 'Something went wrong.')
 }
 
 function metricDateLabel(entry: Entry) {
   const code = (entry.payload as MetricsPayload).code
-  return code === 'steps' ? 'День итога шагов' : code === 'sleep_duration_min' ? 'Дата пробуждения' : 'Дата измерения'
+  return code === 'steps' ? 'Steps date' : code === 'sleep_duration_min' ? 'Wake-up date' : 'Measurement date'
 }

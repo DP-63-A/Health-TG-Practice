@@ -40,7 +40,7 @@ describe('shared UI states', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Выполняется…' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Working…' }))
     expect(onAction).toHaveBeenCalledTimes(1)
   })
 
@@ -51,7 +51,7 @@ describe('shared UI states', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Повторить' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Выполняется…' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Working…' }))
 
     expect(onAction).toHaveBeenCalledTimes(1)
   })
@@ -83,7 +83,7 @@ describe('shared buttons', () => {
       </Button>,
     )
 
-    const button = screen.getByRole('button', { name: 'Выполняется…' })
+    const button = screen.getByRole('button', { name: 'Working…' })
     expect(button).toBeDisabled()
     fireEvent.click(button)
     expect(onClick).not.toHaveBeenCalled()

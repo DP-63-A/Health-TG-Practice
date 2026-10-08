@@ -20,7 +20,7 @@ export function Button({
 
   return (
     <button className={classes} disabled={disabled || isLoading} type="button" {...props}>
-      {isLoading ? 'Выполняется…' : children}
+      {isLoading ? 'Working…' : children}
     </button>
   )
 }

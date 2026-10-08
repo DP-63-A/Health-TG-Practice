@@ -513,6 +513,35 @@ h2 {
 .entry-meta dt { color: var(--muted); font-size: 13px; }
 .entry-meta dd { margin: 3px 0 0; overflow-wrap: anywhere; }
 .entry-form { display: grid; gap: 16px; margin-top: 20px; }
+.entry-checkin-sticker {
+  --sticker-paper: #f3e7ad;
+  --sticker-accent: #9b782a;
+  --bg: var(--sticker-paper);
+  --text: #54492b;
+  --muted: #7a6a40;
+  --border: #9b782a40;
+  padding: 20px 20px 28px;
+  margin: 0 2px;
+  color: var(--text);
+  color-scheme: light;
+}
+.entry-checkin-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 62px; margin: -20px -20px 20px; padding: 10px 20px; background: color-mix(in srgb, var(--sticker-accent) 14%, transparent); }
+.entry-checkin-header h2 { margin: 0; font-size: 16px; line-height: 1.5; }
+.entry-pencil-button { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; padding: 0; border: 0; border-radius: 14px; color: var(--sticker-accent); background: color-mix(in srgb, var(--sticker-accent) 16%, transparent); cursor: pointer; }
+.entry-pencil-button:hover:not(:disabled) { background: color-mix(in srgb, var(--sticker-accent) 25%, transparent); }
+.entry-pencil-button[aria-expanded='true'] { background: color-mix(in srgb, var(--sticker-accent) 30%, transparent); }
+.entry-pencil-button:focus-visible { outline: 3px solid var(--sticker-accent); outline-offset: 3px; }
+.entry-pencil-button:disabled { cursor: default; opacity: 0.5; }
+.entry-checkin-summary { display: grid; gap: 20px; margin: 0; }
+.entry-checkin-summary > div { display: grid; gap: 6px; }
+.entry-checkin-summary dt { color: var(--muted); font-size: 13px; }
+.entry-checkin-summary dd { margin: 0; font-size: 18px; font-weight: 500; overflow-wrap: anywhere; }
+.app-shell .entry-checkin-sticker .entry-fieldset { margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; transform: none; }
+.entry-date-control { position: relative; min-height: 44px; }
+.entry-date-display { display: block; min-height: 44px; border: 1px solid var(--border); border-radius: 4px; padding: 10px 12px; background: var(--bg); color: var(--text); font-size: 16px; }
+.entry-date-control input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.entry-date-control:focus-within .entry-date-display { visibility: hidden; }
+.entry-date-control:focus-within input { opacity: 1; }
 .entry-edit-fields { display: grid; gap: 16px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .entry-form textarea { font-family: var(--font-diary); font-size: 18px; line-height: 32px; resize: vertical; background: var(--bg); }
 .entry-fieldset { display: grid; gap: 14px; min-width: 0; border: 1px solid var(--border); border-radius: 8px; margin: 0; padding: 16px; }

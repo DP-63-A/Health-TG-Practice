@@ -23,11 +23,13 @@ import './SleepChart.css'
 interface SleepChartProps {
   series: AnalyticsResponse['series']['sleep']
   onSelectDay?: (date: string) => void
+  embedded?: boolean
 }
 
 export function SleepChart({
   series,
   onSelectDay,
+  embedded = false,
 }: SleepChartProps) {
   const titleId = useId()
 
@@ -47,10 +49,11 @@ export function SleepChart({
 
   return (
     <section
-      className="sleep-chart paper-note"
-      aria-labelledby={titleId}
+      className={embedded ? 'sleep-chart' : 'sleep-chart paper-note'}
+      aria-labelledby={embedded ? undefined : titleId}
+      aria-label={embedded ? 'Sleep' : undefined}
     >
-      <div className="sleep-chart__header">
+      {!embedded && <div className="sleep-chart__header">
         <div>
           <h2 id={titleId}>
             Sleep
@@ -78,7 +81,7 @@ export function SleepChart({
             <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7Z" />
           </svg>
         </div>
-      </div>
+      </div>}
 
       {!hasValues ? (
         <div

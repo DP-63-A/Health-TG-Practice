@@ -37,6 +37,11 @@ storage shared by API and bot; it is not a public file server.
 
 ## Host-side API or bot development
 
+For Telegram on a phone with temporary HTTPS tunnels on Windows, use the
+[single-command Mini App workflow](local-miniapp.md). It starts only the Compose
+MongoDB service, runs API/bot/Vite on the host, publishes one frontend tunnel,
+and synchronizes both default and per-chat Telegram menus.
+
 The main Compose file deliberately keeps MongoDB private. To run API or bot from
 IDEA, `bootRun`, or `scripts/run-backend.ps1`, start MongoDB with the explicit
 development override:

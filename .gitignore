@@ -28,3 +28,6 @@ data/
 
 build-log.txt
 *.log
+
+# Local Mini App process state and configuration backups
+.local-miniapp/

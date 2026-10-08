@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { AnalyticsResponse } from '../../overview/analytics.types'
 
 import './StepsCard.css'
@@ -8,6 +9,7 @@ type Period = AnalyticsResponse['period']
 interface StepsCardProps {
   steps: Steps | null
   period: Period | null
+  children?: ReactNode
 }
 
 function formatSteps(
@@ -61,6 +63,7 @@ function getDaysInPeriod(
 export function StepsCard({
   steps,
   period,
+  children,
 }: StepsCardProps) {
   const daysInPeriod = getDaysInPeriod(period)
 
@@ -193,6 +196,7 @@ export function StepsCard({
           ? `${formatDate(period.from)} — ${formatDate(period.to)}`
           : '—'}
       </p>
+      {children}
     </section>
   )
 }

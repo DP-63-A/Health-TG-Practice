@@ -24,11 +24,13 @@ import './StepsChart.css'
 interface StepsChartProps {
   series: AnalyticsResponse['series']['steps']
   onSelectDay?: (date: string) => void
+  embedded?: boolean
 }
 
 export function StepsChart({
   series,
   onSelectDay,
+  embedded = false,
 }: StepsChartProps) {
   const titleId = useId()
 
@@ -48,10 +50,11 @@ export function StepsChart({
 
   return (
     <section
-      className="steps-chart paper-note"
-      aria-labelledby={titleId}
+      className={embedded ? 'steps-chart' : 'steps-chart paper-note'}
+      aria-labelledby={embedded ? undefined : titleId}
+      aria-label={embedded ? 'Steps' : undefined}
     >
-      <div className="steps-chart__header">
+      {!embedded && <div className="steps-chart__header">
         <div>
           <h2 id={titleId}>
             Steps
@@ -82,7 +85,7 @@ export function StepsChart({
             <path d="M10 8l-2 5-3 2" />
           </svg>
         </div>
-      </div>
+      </div>}
 
       {!hasValues ? (
         <div

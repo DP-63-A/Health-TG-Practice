@@ -355,12 +355,24 @@ function updateCategory(value: CheckinCategory) {
   <SleepCard
     sleep={cardData?.cards.sleep ?? null}
     period={cardData?.period ?? null}
-  />
+  >
+    {(analyticsState.status === 'success' || analyticsState.status === 'empty') && <SleepChart
+      embedded
+      series={analyticsState.data.series.sleep}
+      onSelectDay={(date) => openDiary(date, 'sleep')}
+    />}
+  </SleepCard>
 
   <StepsCard
     steps={cardData?.cards.steps ?? null}
     period={cardData?.period ?? null}
-  />
+  >
+    {(analyticsState.status === 'success' || analyticsState.status === 'empty') && <StepsChart
+      embedded
+      series={analyticsState.data.series.steps}
+      onSelectDay={(date) => openDiary(date, 'steps')}
+    />}
+  </StepsCard>
 
   <HeartRateCard
     heartRate={cardData?.cards.heart_rate ?? null}
@@ -384,18 +396,6 @@ function updateCategory(value: CheckinCategory) {
         series={analyticsState.data.series.nutrition}
         onSelectDay={(date) => openDiary(date,
         'nutrition')}
-      />
-
-      <SleepChart
-        series={analyticsState.data.series.sleep}
-        onSelectDay={(date) => openDiary(date,
-        'sleep')}
-      />
-
-      <StepsChart
-        series={analyticsState.data.series.steps}
-        onSelectDay={(date) => openDiary(date,
-        'steps')}
       />
 
       <CheckinChart
