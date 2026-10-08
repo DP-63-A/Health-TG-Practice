@@ -182,7 +182,7 @@ describe('FE1-04 entry review and correction', () => {
     expect(confirm).not.toHaveBeenCalled()
   })
 
-  it('loads a draft by id and shows contract fields, source, unknown and origin data', async () => {
+  it('loads a draft with contract fields, source image and field origins', async () => {
     const entry = entryFixture({
       status: 'draft',
       payload: {
@@ -198,7 +198,8 @@ describe('FE1-04 entry review and correction', () => {
 
     renderRoute(`/diary/${entry.id}`)
 
-    expect(await screen.findByRole('heading', { name: 'Проверка записи' })).toBeInTheDocument()
+    expect(await screen.findByRole('form', { name: 'Редактирование записи' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Проверка записи' })).not.toBeInTheDocument()
     expect(entriesApi.get).toHaveBeenCalledWith(entry.id, expect.any(AbortSignal))
     expect(screen.getByLabelText(/Описание/)).toHaveValue('Pasta')
     expect(screen.getByLabelText(/Масса/)).toHaveValue('')
@@ -227,7 +228,7 @@ describe('FE1-04 entry review and correction', () => {
     }))
     vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
 
-    renderRoute(`/diary/${entry.id}`)
+    const { router } = renderRoute(`/diary/${entry.id}`)
 
     fireEvent.change(await screen.findByLabelText(/Масса/), { target: { value: '150' } })
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
@@ -238,7 +239,7 @@ describe('FE1-04 entry review and correction', () => {
       payload: expect.objectContaining({ mass_g: 150 }),
     }))
     expect(screen.queryByRole('button', { name: 'Изменить' })).not.toBeInTheDocument()
-    expect(await screen.findByText('Изменения сохранены.')).toBeInTheDocument()
+    await waitFor(() => expect(router.state.location.pathname).toBe('/diary'))
   })
 
   it.each([
@@ -326,24 +327,24 @@ describe('FE1-04 entry review and correction', () => {
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
   })
 
-  it('shows success only after the PATCH API resolves', async () => {
+  it('returns to the diary only after the PATCH API resolves', async () => {
     const entry = entryFixture({ status: 'confirmed', revision: 3 })
     let resolvePatch: (entry: Entry) => void = () => undefined
     vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
     vi.spyOn(entriesApi, 'patch').mockImplementation(() => new Promise<Entry>((resolve) => { resolvePatch = resolve }))
 
-    renderRoute(`/diary/${entry.id}`)
+    const { router } = renderRoute(`/diary/${entry.id}`)
 
     fireEvent.change(await screen.findByLabelText(/Описание/), { target: { value: 'Waiting' } })
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
 
-    expect(screen.queryByText('Изменения сохранены.')).not.toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(`/diary/${entry.id}`)
 
     await act(async () => {
       resolvePatch({ ...entry, revision: 4, payload: { description: 'Waiting' } })
     })
 
-    expect(await screen.findByText('Изменения сохранены.')).toBeInTheDocument()
+    await waitFor(() => expect(router.state.location.pathname).toBe('/diary'))
   })
 
   it('keeps input and shows 422 field_errors next to fields without false success', async () => {
@@ -467,12 +468,15 @@ describe('FE1-04 entry review and correction', () => {
     vi.spyOn(entriesApi, 'patch').mockResolvedValue({ ...entry, revision: 2 })
     vi.spyOn(entriesApi, 'confirm').mockResolvedValue({ ...entry, status: 'confirmed', revision: 3, submission_id: 'sub' })
 
-    renderRoute(`/diary/${entry.id}`, refresh)
+    const { router } = renderRoute(`/diary/${entry.id}`, refresh)
 
     fireEvent.change(await screen.findByLabelText(/Масса/), { target: { value: '123' } })
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
 
+    await waitFor(() => expect(router.state.location.pathname).toBe('/diary'))
+    await act(async () => { await router.navigate(`/diary/${entry.id}`) })
+    expect(await screen.findByRole('button', { name: 'Подтвердить' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить' }))
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(2))
   })
@@ -671,7 +675,7 @@ describe('FE1-04 entry review and correction', () => {
     expect(confirm.mock.calls[1][1]).toEqual(confirm.mock.calls[0][1])
   })
 
-  it('loads a protected source through the API and keeps its file URL out of the link', async () => {
+  it('loads a protected source through the API and exposes only its protected object URL', async () => {
     const entry = entryFixture({ source_ref: { file_id: '33333333-3333-4333-8333-333333333301', label: 'photo' } })
     vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
     const download = vi.spyOn(entriesApi, 'downloadFile').mockResolvedValue('blob:fixture/owned-image')
@@ -704,7 +708,8 @@ describe('FE1-04 entry review and correction', () => {
     const patch = vi.spyOn(entriesApi, 'patch')
     vi.spyOn(entriesApi, 'get').mockResolvedValue(clone(entry))
     renderRoute(`/diary/${entry.id}`)
-    expect(await screen.findByText(`Статус: ${status}`)).toBeInTheDocument()
+    expect(await screen.findByRole('form', { name: 'Редактирование записи' })).toBeInTheDocument()
+    expect(screen.queryByText(`Статус: ${status}`)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Сохранить' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Подтвердить' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Не сохранять' })).not.toBeInTheDocument()
@@ -727,13 +732,13 @@ describe('FE1-04 entry review and correction', () => {
     fireEvent.click(confirm)
     expect(remove).toHaveBeenCalledTimes(1)
     expect(remove).toHaveBeenCalledWith(entry.id, 5)
-    expect(screen.getByText('Статус: confirmed')).toBeInTheDocument()
+    expect(screen.getByRole('form', { name: 'Редактирование записи' })).toBeInTheDocument()
     expect(screen.queryByText('Запись убрана из дневника.')).not.toBeInTheDocument()
     expect(refresh).not.toHaveBeenCalled()
 
     await act(async () => resolveDelete({ ...entry, status: 'deleted', revision: 6 }))
     expect(await screen.findByText('Запись убрана из дневника.')).toBeInTheDocument()
-    expect(screen.getByText('Статус: deleted')).toBeInTheDocument()
+    expect(screen.getByRole('form', { name: 'Редактирование записи' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Убрать из дневника' })).not.toBeInTheDocument()
     expect(refresh).toHaveBeenCalledTimes(1)
   })
@@ -748,7 +753,7 @@ describe('FE1-04 entry review and correction', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Убрать из дневника' }))
     fireEvent.click(screen.getByRole('button', { name: 'Да, убрать' }))
     expect(await screen.findByText('Network down')).toBeInTheDocument()
-    expect(screen.getByText('Статус: confirmed')).toBeInTheDocument()
+    expect(screen.getByRole('form', { name: 'Редактирование записи' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Да, убрать' })).toBeEnabled()
     expect(screen.queryByText('Запись убрана из дневника.')).not.toBeInTheDocument()
     expect(remove).toHaveBeenCalledTimes(1)
@@ -854,7 +859,7 @@ describe('FE1-04 entry review and correction', () => {
     expect(remove).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: 'Использовать серверную версию' }))
     fireEvent.click(screen.getByRole('button', { name: 'Да, заменить ввод' }))
-    expect(await screen.findByText('Статус: deleted')).toBeInTheDocument()
+    expect(await screen.findByRole('form', { name: 'Редактирование записи' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Убрать из дневника' })).not.toBeInTheDocument()
     expect(remove).toHaveBeenCalledTimes(1)
   })
@@ -972,17 +977,16 @@ describe('FE1-04 entry review and correction', () => {
       .mockResolvedValueOnce(clone(entry))
       .mockImplementationOnce(() => new Promise<Entry>((resolve) => { resolveRefresh = resolve }))
     vi.spyOn(entriesApi, 'patch').mockResolvedValue({ ...entry, revision: 2, payload: { ...entry.payload, mass_g: 150 } })
-    renderRoute(`/diary/${entry.id}`)
+    const { router } = renderRoute(`/diary/${entry.id}`)
 
     fireEvent.change(await screen.findByLabelText(/Масса/), { target: { value: '150' } })
     fireEvent(window, new Event('blur'))
     fireEvent(window, new Event('focus'))
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
-    expect(await screen.findByText('Изменения сохранены.')).toBeInTheDocument()
+    await waitFor(() => expect(router.state.location.pathname).toBe('/diary'))
 
     await act(async () => resolveRefresh(clone(entry)))
-    expect(screen.getByLabelText(/Масса/)).toHaveValue('150')
-    expect(screen.queryByRole('region', { name: 'Свежая серверная версия' })).not.toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/diary')
   })
 
   it('does not apply an old DELETE response to another entry or leave it busy', async () => {

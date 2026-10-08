@@ -65,8 +65,7 @@ public final class GeminiRecognitionProvider implements RecognitionProvider {
         CompletableFuture<HttpResponse<byte[]>> pending = client.sendAsync(request, info -> new LimitedBody());
         try {
             var response = pending.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-            if (response.statusCode() != 200) throw new RecognitionException(HTTP_ERROR);
-            return parseEnvelope(response.body());
+            return parseEnvelope(response.body(), response.statusCode());
         } catch (TimeoutException e) {
             pending.cancel(true); throw new RecognitionException(TIMEOUT);
         } catch (InterruptedException e) {
@@ -78,30 +77,31 @@ public final class GeminiRecognitionProvider implements RecognitionProvider {
         }
     }
 
-    private static Response parseEnvelope(byte[] body) throws RecognitionException {
-        if (body.length == 0) throw new RecognitionException(EMPTY_RESPONSE);
+    private static Response parseEnvelope(byte[] body, int statusCode) throws RecognitionException {
+        boolean httpError = statusCode != 200;
+        if (body.length == 0) throw new RecognitionException(httpError ? HTTP_ERROR : EMPTY_RESPONSE);
         try {
             JsonNode root = RecognitionJson.MAPPER.readTree(body);
-            if (!root.isObject()) throw new RecognitionException(INVALID_RESPONSE);
-            if (root.path("promptFeedback").hasNonNull("blockReason")) throw new RecognitionException(REFUSED);
+            if (root == null || !root.isObject()) throw new RecognitionException(httpError ? HTTP_ERROR : INVALID_RESPONSE);
+            String id = root.path("responseId").isTextual() ? RecognitionException.safeRequestId(root.get("responseId").textValue()) : null;
+            JsonNode usage = root.path("usageMetadata");
+            Usage tokens = usage.isObject() ? new Usage(token(usage,"promptTokenCount"),token(usage,"candidatesTokenCount"),token(usage,"totalTokenCount")) : null;
+            if (httpError) throw new RecognitionException(HTTP_ERROR, id, tokens);
+            if (root.path("promptFeedback").hasNonNull("blockReason")) throw new RecognitionException(REFUSED, id, tokens);
             JsonNode candidates = root.path("candidates");
-            if (!candidates.isArray() || candidates.isEmpty()) throw new RecognitionException(EMPTY_RESPONSE);
+            if (!candidates.isArray() || candidates.isEmpty()) throw new RecognitionException(EMPTY_RESPONSE, id, tokens);
             JsonNode candidate = candidates.get(0);
             String finish = candidate.path("finishReason").asText();
             if (List.of("SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "IMAGE_SAFETY").contains(finish))
-                throw new RecognitionException(REFUSED);
-            if (!finish.equals("STOP")) throw new RecognitionException(INVALID_RESPONSE);
+                throw new RecognitionException(REFUSED, id, tokens);
+            if (!finish.equals("STOP")) throw new RecognitionException(INVALID_RESPONSE, id, tokens);
             StringBuilder text = new StringBuilder();
             for (var part : candidate.path("content").path("parts")) {
                 if (!part.path("thought").asBoolean(false) && part.path("text").isTextual()) text.append(part.get("text").textValue());
             }
-            if (text.isEmpty() || text.toString().isBlank()) throw new RecognitionException(EMPTY_RESPONSE);
-            String id = root.path("responseId").isTextual() ? root.get("responseId").textValue() : null;
-            if (id != null && !id.matches("[a-zA-Z0-9_.:/-]{1,128}")) id = null;
-            JsonNode usage = root.path("usageMetadata");
-            Usage tokens = usage.isObject() ? new Usage(token(usage,"promptTokenCount"),token(usage,"candidatesTokenCount"),token(usage,"totalTokenCount")) : null;
+            if (text.isEmpty() || text.toString().isBlank()) throw new RecognitionException(EMPTY_RESPONSE, id, tokens);
             return new Response(text.toString(), id, tokens);
-        } catch (IOException e) { throw new RecognitionException(INVALID_RESPONSE); }
+        } catch (IOException e) { throw new RecognitionException(httpError ? HTTP_ERROR : INVALID_RESPONSE); }
     }
     private static Long token(JsonNode usage, String name) {
         var value = usage.path(name);

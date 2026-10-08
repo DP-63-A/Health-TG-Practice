@@ -447,6 +447,51 @@ h2 {
 .entry-list { display: grid; gap: 18px; margin: 0; padding: 0; list-style: none; }
 .entry-list a { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.65fr); gap: 8px 18px; border: 0; border-radius: 6px; padding: 32px clamp(28px, 10%, 64px); text-decoration: none; background: transparent; }
 .entry-list a > div { display: grid; align-content: start; gap: 8px; }
+
+
+.entry-list a {
+  isolation: isolate;
+  transition: transform 160ms ease;
+}
+
+.entry-list a::before {
+  content: '';
+  position: absolute;
+  inset: 10% 5%;
+  z-index: 0;
+  border-radius: 50%;
+  background: var(--surface-hover);
+  opacity: 0;
+  transition: opacity 160ms ease;
+  pointer-events: none;
+}
+
+.entry-list a > div {
+  position: relative;
+  z-index: 2;
+}
+
+
+
+@media (hover: hover) and (pointer: fine) {
+  .entry-list a:hover {
+    transform: translateY(-2px);
+  }
+
+  .entry-list a:hover::before {
+    opacity: 1;
+  }
+}
+
+.entry-list a:focus-visible {
+  outline: none;
+}
+
+.entry-list a:focus-visible::before {
+  opacity: 1;
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
 .entry-outline { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; stroke: var(--pen-ink); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; opacity: 0.8; transition: opacity 150ms ease; }
 .entry-outline .entry-outline-retrace { stroke-width: 0.8; opacity: 0.35; }
 .entry-list a:hover .entry-outline, .entry-list a:focus-visible .entry-outline { opacity: 1; }
@@ -473,6 +518,19 @@ h2 {
 .entry-fieldset { display: grid; gap: 14px; min-width: 0; border: 1px solid var(--border); border-radius: 8px; margin: 0; padding: 16px; }
 .entry-fieldset legend { padding: 0 6px; font-weight: 650; }
 .entry-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.entry-form-grid .ui-field {
+  align-self: start;
+}
+
+.entry-form-grid input[type='date'],
+.entry-form-grid input[type='time'] {
+  box-sizing: border-box;
+  height: 44px;
+  min-height: 44px;
+  padding: 8px 12px;
+  line-height: 24px;
+}
+
 .field-error { color: var(--danger) !important; font-weight: 600; }
 .unknown-value { color: var(--muted); font-size: 13px; }
 .form-actions { display: flex; flex-wrap: wrap; gap: 10px; }

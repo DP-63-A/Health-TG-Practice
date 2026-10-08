@@ -290,7 +290,7 @@ class HealthWatchStorageTest extends HealthWatchTestSupport {
         try{when(provider.recognize(any(),eq("watch_photo"))).thenThrow(new RecognitionException(RecognitionException.Code.NETWORK));}catch(RecognitionException impossible){throw new AssertionError(impossible);}
         recognition=new FoodRecognitionService(new ImageValidator(),provider,new RecognitionResponseParser());var select=flow().handleMessage(photo(10));var error=flow().handleCallback(cb(11,button(select,"Часы")));
         flow().handleCallback(cb(12,button(error,"Ввести вручную")));flow().handleMessage(msg(13,"сон"));flow().handleMessage(msg(14,"7,5"));flow().handleMessage(msg(15,"ч"));
-        var ready=flow().handleMessage(msg(16,"05.10.2026"));create(ready,17);value(active(),"450");assertNull(active().payload().get("qualifier"));assertEquals(SourceKind.WATCH_PHOTO,active().sourceKind());
+        var ready=flow().handleMessage(msg(16,"05.10.2026"));create(ready,17);value(active(),"450");assertNull(active().payload().get("qualifier"));assertEquals(SourceKind.TEXT,active().sourceKind());assertNull(active().sourceRef().get("file_id"));
         try{verify(provider,times(1)).recognize(any(),eq("watch_photo"));}catch(RecognitionException impossible){throw new AssertionError(impossible);}
     }
     @Test void wrongModelImageClassIsErrorRatherThanImportOrFallback() {

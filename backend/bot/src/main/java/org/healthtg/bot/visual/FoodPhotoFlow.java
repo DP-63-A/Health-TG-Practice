@@ -150,11 +150,13 @@ public final class FoodPhotoFlow {
         // New domain phase keys must not bypass the last accepted ordinary update.
         if (dialogs.find(owner).filter(state -> u.updateId() <= observedUpdate(state)).isPresent())
             return response(u,"Сообщение уже обработано. Продолжите текущий диалог.",List.of());
-        if(image.album()) return response(u,"Отправьте одну фотографию, без альбома.",List.of());
+        if(image.album()) return rejectInput(u,RecognitionException.Code.INVALID_IMAGE,"Отправьте одну фотографию, без альбома.");
         if(image.fileId()==null || !Set.of("image/jpeg","image/png").contains(Objects.toString(image.mediaType(),"")))
-            return response(u,"Поддерживаются только JPEG и PNG.",List.of());
-        if(image.size()!=null && (image.size()<1 || image.size()>ImageValidator.MAX_BYTES))
-            return response(u,"Изображение должно быть не больше 5 МиБ.",List.of());
+            return rejectInput(u,RecognitionException.Code.INVALID_IMAGE,"Поддерживаются только JPEG и PNG. Пришлите одну фотографию или читаемый фрагмент.");
+        if(image.size()!=null && image.size()<1)
+            return rejectInput(u,RecognitionException.Code.INVALID_IMAGE,"Файл пуст. Пришлите читаемое изображение JPEG или PNG.");
+        if(image.size()!=null && image.size()>ImageValidator.MAX_BYTES)
+            return rejectInput(u,RecognitionException.Code.IMAGE_TOO_LARGE,"Изображение должно быть не больше 5 МиБ. Уменьшите файл или пришлите фрагмент.");
         Map<String,Object> data=new LinkedHashMap<>();
         data.put("schema_version",1); data.put("original_update",u.updateId()); data.put("telegram_file",image.fileId());
         // Telegram's original sent time survives clarification, retries and process restarts.
@@ -192,7 +194,13 @@ public final class FoodPhotoFlow {
             return recognize(u,owner,next);
         }
         if(p[1].equals("m") && Set.of("food_error","food_processing").contains(s.step())) {
-            var data=new LinkedHashMap<>(s.context());
+            if(List.of("reserved_file_id","file_id","entry_id").stream().anyMatch(s.context()::containsKey))
+                return prompt(u,s,"Сохранение фотографии уже начато. Завершите или отмените текущую операцию.");
+            // Explicit manual input is independent of the failed image, not another image import.
+            var data=new LinkedHashMap<String,Object>();
+            for(String key:List.of("schema_version","original_update","telegram_file","message_sent_at","requested_class"))
+                if(s.context().containsKey(key)) data.put(key,s.context().get(key));
+            data.put("manual_text",true);
             data.put("payload",emptyPayload()); data.put("origins",Map.of());
             String requested=(String)data.get("requested_class");
             // Programmatic callers predating the multi-class UI still represent food input.
@@ -204,7 +212,8 @@ public final class FoodPhotoFlow {
                     data.put("payload",Map.of()); data.put("candidate_index",0); data.put("candidates",List.of(Map.of()));
                 }
             }
-            return prompt(u,save(owner,null,"food_clarify",data,u,"manual"),"Введите сведения вручную.");
+            return prompt(u,save(owner,null,"food_clarify",data,u,"manual"),
+                    "Введите сведения вручную. Они будут сохранены как текстовый ввод без фотографии; связь с исходным сообщением сохранится.");
         }
         if(p[1].equals("k") && s.step().equals("food_clarify") && isMetric(s.context())) {
             var data=new LinkedHashMap<>(s.context());
@@ -327,16 +336,43 @@ public final class FoodPhotoFlow {
     }
 
     private static boolean matchesPhoto(Map<String,Object> data,Entry entry) {
+        if(isManualText(data)) return creationKey(data).storageKey().equals(entry.telegramUpdateKey())
+                && entry.type()==(isMetric(data)?EntryType.METRICS:EntryType.MEAL)
+                && entry.sourceKind()==SourceKind.TEXT && entry.sourceRef().get("file_id")==null
+                && Objects.equals(number(data,"original_update"),entry.sourceRef().get("telegram_update_id"));
         return creationKey(data).storageKey().equals(entry.telegramUpdateKey())
                 && Objects.equals(data.get("file_id"),entry.sourceRef().get("file_id"))
                 && (isMetric(data)?entry.type()==EntryType.METRICS && entry.sourceKind().name().equals(
                         ((String)data.get("image_class")).toUpperCase(Locale.ROOT)):
                         entry.type()==EntryType.MEAL && entry.sourceKind()==SourceKind.FOOD_PHOTO);
     }
+    private List<BotAction> rejectInput(BotUpdate u,RecognitionException.Code code,String message) {
+        recognition.rejectInput(code);
+        return response(u,message,List.of());
+    }
+    /** Persisted codes are mapped to fixed text; neither exception messages nor model output are displayed. */
+    private static String errorMessage(Object value) {
+        RecognitionException.Code code;
+        try { code=RecognitionException.Code.valueOf(Objects.toString(value,"")); }
+        catch(IllegalArgumentException invalid) { return "Не удалось распознать изображение. Можно повторить, ввести данные вручную или отменить ввод."; }
+        return switch(code) {
+            case INVALID_IMAGE -> "Файл повреждён, пуст или не является читаемым JPEG/PNG.";
+            case IMAGE_TOO_LARGE -> "Файл превышает 5 МиБ. Уменьшите его или пришлите фрагмент после отмены ввода.";
+            case TOO_MANY_PIXELS -> "Разрешение превышает 12 мегапикселей. Уменьшите изображение или пришлите фрагмент после отмены ввода.";
+            case TIMEOUT -> "Время ожидания истекло. Можно повторить запрос вручную.";
+            case NETWORK -> "Не удалось загрузить изображение или связаться с сервисом распознавания. Проверьте соединение и повторите.";
+            case HTTP_ERROR -> "Сервис распознавания вернул ошибку. Попробуйте позже или введите данные вручную.";
+            case REFUSED -> "Модель отказалась распознавать изображение. Можно ввести данные вручную или отменить ввод.";
+            case EMPTY_RESPONSE -> "Модель не вернула результат. Повторите запрос или введите данные вручную.";
+            case INVALID_RESPONSE -> "Ответ модели не прошёл проверку или не соответствует выбранному типу изображения. Подтверждённая запись не создана.";
+            case RESPONSE_TOO_LARGE -> "Ответ модели слишком большой и отклонён. Повторите запрос или введите данные вручную.";
+            case CONFIGURATION -> "Распознавание недоступно из-за настроек. Введите данные вручную или обратитесь к ответственному за бота.";
+        };
+    }
     private List<BotAction> recognize(BotUpdate u,OwnerContext owner,DialogState s) {
         var data=new LinkedHashMap<>(s.context());
         try {
-            var result=recognition.recognize(loader.load((String)data.get("telegram_file")),(String)data.get("requested_class"));
+            var result=recognition.recognizeLoaded(() -> loader.load((String)data.get("telegram_file")),(String)data.get("requested_class"));
             var r=result.result(); data.put("image_class",r.imageClass());
             if(!r.metrics().isEmpty()) {
                 data.put("candidates",r.metrics().stream().map(MetricCandidate::context).toList());
@@ -387,7 +423,7 @@ public final class FoodPhotoFlow {
         try {
             s=save(owner,null,"food_commit",data,u,"commit");
             data=new LinkedHashMap<>(s.context());
-            if(!data.containsKey("file_id")) {
+            if(!isManualText(data) && !data.containsKey("file_id")) {
                 if (!data.containsKey("reserved_file_id")) {
                     data.put("reserved_file_id",UUID.randomUUID().toString());
                     s=save(owner,null,"food_commit",data,u,"file-reserved");
@@ -408,28 +444,37 @@ public final class FoodPhotoFlow {
                         ? dateOrigin : "computed";
                 origins.put("occurred_at",canonical);
             }
-            var source=new LinkedHashMap<String,Object>(); source.put("file_id",data.get("file_id"));
-            if(isMetric(data)) {
+            var source=new LinkedHashMap<String,Object>();
+            if(isManualText(data)) {
+                source.put("telegram_update_id",number(data,"original_update"));
+                source.put("label","Введено вручную после попытки распознавания; изображение не приложено.");
+            } else {
+                source.put("file_id",data.get("file_id"));
+            }
+            if(isMetric(data) && !isManualText(data)) {
                 source.put("telegram_update_id",number(data,"original_update"));
                 source.put("label",sourceLabel(data));
             }
             var result=entries.createDraft(new CreateDraftCommand(owner,isMetric(data)?EntryType.METRICS:EntryType.MEAL,
-                    isMetric(data)?SourceKind.valueOf(((String)data.get("image_class")).toUpperCase(Locale.ROOT)):SourceKind.FOOD_PHOTO,
+                    isManualText(data)?SourceKind.TEXT:
+                            isMetric(data)?SourceKind.valueOf(((String)data.get("image_class")).toUpperCase(Locale.ROOT)):SourceKind.FOOD_PHOTO,
                     source,occurred,numericPayload(data),origins,creationKey(data)));
             if(result.outcome()==DraftCreationResult.Outcome.ACTIVE_DRAFT_EXISTS)
                 return drafts.card(u,result.entry(),zone,"Завершите существующий черновик.");
             Entry entry=result.entry(); data.put("entry_id",entry.id().toString());
             s=save(owner,entry.id(),"food_commit",data,u,"created"); data=new LinkedHashMap<>(s.context());
-            files.bindToEntry(owner,UUID.fromString((String)data.get("file_id")),entry.id());
+            if(!isManualText(data)) files.bindToEntry(owner,UUID.fromString((String)data.get("file_id")),entry.id());
             // Handoff follows DraftReviewFlow's contract, including its main update watermark.
             var review=new LinkedHashMap<String,Object>(); review.put("schema_version",1);
             review.put("entry_revision",entry.revision()); review.put("timezone",zone.getId());
-            if(isMetric(data)) review.put("photo_queue",data);
+            if(isMetric(data) && !isManualText(data)) review.put("photo_queue",data);
             dialogs.save(new SaveDialogStateCommand(owner,entry.id(),"draft_review",review,new TelegramUpdateKey("main",u.updateId())));
-            return drafts.card(u,entry,zone,"Фото связано с черновиком. Это ещё не подтверждённая запись.");
+            return drafts.card(u,entry,zone,isManualText(data)
+                    ?"Ручной ввод сохранён в текстовый черновик без фотографии. Это ещё не подтверждённая запись."
+                    :"Фото связано с черновиком. Это ещё не подтверждённая запись.");
         } catch(RecognitionException | RuntimeException failure) {
             // Never expose storage/provider exceptions or claim success after a partial failure.
-            return prompt(u,pending(owner).orElse(s),"Подготовка черновика не завершена. Нажмите «Продолжить», чтобы восстановить связь.");
+            return prompt(u,pending(owner).orElse(s),"Подготовка черновика не завершена. Нажмите «Продолжить», чтобы завершить сохранение.");
         }
     }
     private DialogState save(OwnerContext owner,UUID entry,String step,Map<String,Object> original,BotUpdate u,String phase) {
@@ -475,7 +520,8 @@ public final class FoodPhotoFlow {
         if(s.step().equals("food_class")) rows.add(List.of(button("Еда","f",s),button("Экран здоровья","h",s),button("Часы","w",s)));
         if(Set.of("food_error","food_processing").contains(s.step())) {
             rows.add(List.of(button("Повторить","r",s),button("Ввести вручную","m",s)));
-            question="Если текст не читается или на изображении несколько типов объектов, отмените ввод и пришлите чёткий фрагмент нужного экрана.";
+            question=(s.step().equals("food_error") ? errorMessage(s.context().get("error"))+" " : "")
+                    +"Если текст не читается или на изображении несколько типов объектов, отмените ввод и пришлите чёткий фрагмент нужного экрана.";
         }
         if(s.step().equals("food_clarify")) {
             question=switch(expected(s.context())) {
@@ -586,6 +632,8 @@ public final class FoodPhotoFlow {
                 if (!(d.get("payload") instanceof Map<?,?>) || !(d.get("origins") instanceof Map<?,?>)) return false;
                 numericPayload(d); origins(d).values().forEach(v -> { if (!(v instanceof String)) throw new IllegalArgumentException(); });
             }
+            if(d.containsKey("manual_text") && (!isManualText(d) || !validManualText(d)
+                    || !Set.of("food_clarify","food_commit","food_cancelling").contains(s.step()))) return false;
             if(d.containsKey("reserved_file_id")) UUID.fromString((String)d.get("reserved_file_id"));
             if(d.containsKey("file_id")) UUID.fromString((String)d.get("file_id"));
             if(d.containsKey("entry_id")) UUID.fromString((String)d.get("entry_id"));
@@ -599,6 +647,17 @@ public final class FoodPhotoFlow {
     }
     private static boolean isMetric(Map<String,Object> data) {
         return Set.of("health_screenshot","watch_photo").contains(Objects.toString(data.get("image_class"),""));
+    }
+    private static boolean isManualText(Map<String,Object> data) { return Boolean.TRUE.equals(data.get("manual_text")); }
+    private static boolean validManualText(Map<String,Object> data) {
+        if(List.of("file_id","reserved_file_id","raw_metric","ignored_labels","operation_id","occurred_at")
+                .stream().anyMatch(data::containsKey)) return false;
+        if(origins(data).values().stream().anyMatch(value -> !Set.of("reported","computed").contains(value))) return false;
+        if(isMetric(data)) {
+            var all=candidates(data);
+            return all.size()==1 && all.getFirst().isEmpty() && number(data,"candidate_index")==0;
+        }
+        return !data.containsKey("candidates") && !data.containsKey("candidate_index");
     }
     private record QueuedEntry(Map<String,Object> data,Entry entry) { }
 
@@ -628,6 +687,8 @@ public final class FoodPhotoFlow {
 
     private static boolean validMetricData(Map<String,Object> data,boolean handedOff) {
         try {
+            // A manual metric is handed to ordinary draft review, never to an image queue.
+            if(handedOff && data.containsKey("manual_text")) return false;
             if(!isMetric(data) || number(data,"schema_version")!=1 || number(data,"original_update")<0
                     || number(data,"last_update")<number(data,"original_update")
                     || !(data.get("telegram_file") instanceof String file) || file.isBlank()
