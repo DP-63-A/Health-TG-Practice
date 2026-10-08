@@ -280,7 +280,7 @@ export default function EntryPage() {
     try {
       const saved = await saveCurrentEntry(entry, false)
      
-    if (saved) navigate('/diary')
+    if (saved && mountedRef.current && activeIdRef.current === entry.id) navigate('/diary')
       return saved
     } finally {
       mutationLockRef.current = false
@@ -517,12 +517,10 @@ export default function EntryPage() {
         <div><dt>Обновлена</dt><dd>{formatDate(entry.updated_at, timezone)}</dd></div>
       </dl> */}
 
-      {/* <section className="source-card" aria-label="Источник записи"> */}
-        {/* <h3>Источник</h3> */}
-        {/* <p>{entry.source_ref.label ?? entry.source_kind}</p>
-        <p>{isMetricEntry(entry) ? 'Время сообщения итога' : 'Дата записи'}: {formatNullableDate(entry.occurred_at, timezone)}</p> */}
-        {/* {isMetricEntry(entry) && <p>{metricDateLabel(entry)}: {(entry.payload as MetricsPayload).local_date || 'неизвестно'}</p>}
-        {entry.source_ref.telegram_message_id && <p>Telegram message: {entry.source_ref.telegram_message_id}</p>}
+      <section className="source-card" aria-label="Источник записи">
+        <h3>Источник записи</h3>
+        <p>{isMetricEntry(entry) ? 'Время сообщения итога' : 'Дата записи'}: {formatNullableDate(entry.occurred_at, timezone)}</p>
+        {isMetricEntry(entry) && <p>{metricDateLabel(entry)}: {(entry.payload as MetricsPayload).local_date || 'неизвестно'}</p>}
         {entry.source_ref.file_id && (sourceFile.fileId !== entry.source_ref.file_id || (!sourceFile.url && !sourceFile.error)) && (
           <p role="status">Загружаем исходный файл через защищённый API...</p>
         )}
@@ -530,13 +528,13 @@ export default function EntryPage() {
           <a className="source-link" href={sourceFile.url} target="_blank" rel="noreferrer">
             Открыть исходное изображение
           </a>
-        )} */}
-        {/* {entry.source_ref.file_id && sourceFile.fileId === entry.source_ref.file_id && sourceFile.error && (
+        )}
+        {entry.source_ref.file_id && sourceFile.fileId === entry.source_ref.file_id && sourceFile.error && (
           <p role="alert">{sourceFile.error}</p>
         )}
-      </section> */}
+      </section>
 
-      {/* <section className="source-card" aria-label="Происхождение полей">
+      <section className="source-card" aria-label="Происхождение полей">
         <h3>Происхождение полей</h3>
         {Object.keys(entry.field_origins).length === 0 ? (
           <p>Происхождение полей не указано.</p>
@@ -547,7 +545,7 @@ export default function EntryPage() {
             ))}
           </ul>
         )}
-      </section> */}
+      </section>
 
       {conflictActive && (
         <section className="source-card conflict-panel" aria-label="Свежая серверная версия">
@@ -1012,6 +1010,17 @@ function errorFor(errors: FieldErrors, field: string) {
 function originHint(entry: Entry, field: string) {
   const origin = entry.field_origins[field] ?? entry.field_origins[`payload.${field}`]
   return origin ? `Происхождение: ${originLabels[origin]}.` : ''
+}
+
+function formatNullableDate(value: string | null | undefined, timezone: string) {
+  if (!value) return 'неизвестно'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'неизвестно'
+  return new Intl.DateTimeFormat('ru-RU', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: timezone,
+  }).format(date)
 }
 
 function toInputValue(value: number | string | null | undefined) {
