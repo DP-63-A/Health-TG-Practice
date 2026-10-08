@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { AnalyticsResponse } from '../../overview/analytics.types'
 
 import './SleepCard.css'
@@ -8,6 +9,7 @@ type Period = AnalyticsResponse['period']
 interface SleepCardProps {
   sleep: Sleep | null
   period: Period | null
+  children?: ReactNode
 }
 
 // Переводим минуты в часы и минуты.
@@ -59,6 +61,7 @@ function formatDate(date: string): string {
 export function SleepCard({
   sleep,
   period,
+  children,
 }: SleepCardProps) {
   return (
     <section
@@ -168,6 +171,7 @@ export function SleepCard({
             : '—'}
         </span>
       </div>
+      {children}
     </section>
   )
 }

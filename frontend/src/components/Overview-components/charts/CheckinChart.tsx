@@ -90,7 +90,6 @@ export function CheckinChart({
 }: CheckinChartProps) {
   const titleId = useId()
   const selectId = useId()
-  const scaleId = useId()
 
 
   const categoryLabel =
@@ -127,7 +126,6 @@ export function CheckinChart({
     <section
       className="checkin-chart paper-note"
       aria-labelledby={titleId}
-      aria-describedby={scaleId}
       aria-busy={isLoading}
     >
 
@@ -137,9 +135,6 @@ export function CheckinChart({
             Wellbeing
           </h2>
 
-          <p className="checkin-chart__description">
-            Subjective scores by day
-          </p>
         </div>
 
         <div
@@ -240,21 +235,6 @@ export function CheckinChart({
           {categoryLabel}
         </p>
       )}
-
-      <div
-        id={scaleId}
-        className="checkin-chart__scale"
-      >
-        <span>1</span>
-
-        <p
-  id={scaleId}
-  className="checkin-chart__scale"
->
-  1 — very poor / very low comfort.
-  5 — very good / high comfort.
-</p>
-</div>
 
       {isLoading ? (
         <div
@@ -545,5 +525,3 @@ export function CheckinChart({
     </section>
   )
 }
-
- 

@@ -112,6 +112,17 @@
   margin-top: 20px;
 }
 
+/* Embedded charts share their summary card's paper, header and padding. */
+.app-shell .stats-page.ui-card .overview-cards :is(.sleep-card > .sleep-chart, .steps-card > .steps-chart) {
+  margin-top: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  filter: none;
+}
+
 
 .overview-cards > * {
   min-width: 0;
