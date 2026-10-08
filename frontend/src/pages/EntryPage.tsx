@@ -101,7 +101,7 @@ export default function EntryPage() {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [message, setMessage] = useState('')
   const [busyAction, setBusyAction] = useState<BusyAction | null>(null)
-  const [sourceFile, setSourceFile] = useState({ fileId: '', url: '', error: '' })
+  const [, setSourceFile] = useState({ fileId: '', url: '', error: '' })
   const [conflictEntry, setConflictEntry] = useState<Entry | null>(null)
   const [conflictActive, setConflictActive] = useState(false)
   const [freshError, setFreshError] = useState('')
