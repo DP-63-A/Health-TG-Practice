@@ -281,7 +281,7 @@ describe('HeartRateCard', () => {
     expect(text).toContain('bpm')
     expect(text).toContain('19/09/2026')
     expect(text).toContain('12:15')
-    expect(text).toContain('2026-09-19 · 12:10')
+    expect(text).toContain('2026-09-19 · time unknown')
     expect(text).toContain('Reported at')
     expect(text).toContain('At rest')
   })
@@ -298,10 +298,10 @@ describe('HeartRateCard', () => {
       />,
     )
 
-    expect(text).toContain('Последний сообщённый пульс')
-    expect(text).toContain('Время измерения 2026-09-15 · 08:30')
-    expect(text).toContain('Сообщено 19.09.2026, 12:15')
-    expect(text).not.toContain('Время измерения 2026-09-19')
+    expect(text).toContain('Latest reported heart rate')
+    expect(text).toContain('Measured at 2026-09-15 · 08:30')
+    expect(text).toContain('Reported at 19/09/2026, 12:15')
+    expect(text).not.toContain('Measured at 2026-09-19')
   })
 
   it('не подставляет время сообщения вместо неизвестного времени измерения', () => {
@@ -316,8 +316,8 @@ describe('HeartRateCard', () => {
       />,
     )
 
-    expect(text).toContain('Время измерения 2026-09-15 · время неизвестно')
-    expect(text).toContain('Сообщено 19.09.2026, 12:15')
+    expect(text).toContain('Measured at 2026-09-15 · time unknown')
+    expect(text).toContain('Reported at 19/09/2026, 12:15')
     expect(text).not.toContain('2026-09-15 · 12:15')
   })
 
@@ -346,6 +346,7 @@ describe('HeartRateCard', () => {
       <HeartRateCard
         heartRate={{
           ...exampleHeartRate,
+          value_bpm: 62,
           qualifier: null,
         }}
         period={examplePeriod}
@@ -394,7 +395,7 @@ describe('CheckinCard', () => {
       />,
     )
 
-    expect(text).toContain('Mood 0')
+    expect(text).toContain('Mood —')
   })
 })
 })

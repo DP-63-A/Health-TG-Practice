@@ -279,15 +279,14 @@ describe('FE1-03 diary', () => {
     expect(await screen.findByText('No entries')).toBeInTheDocument()
   })
 
-  it('opens a record with revision, source and protected file object URL', async () => {
+  it('opens a record and makes its protected source image available', async () => {
     await renderRoute('/diary/22222222-2222-4222-8222-222222222201')
 
-    expect(await screen.findByRole('heading', { name: 'Проверка записи' })).toBeInTheDocument()
-    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(await screen.findByRole('form', { name: 'Редактирование записи' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Источник записи' })).toBeInTheDocument()
-    const link = await screen.findByRole('link', { name: 'Открыть исходное изображение' })
-    expect(link).toHaveAttribute('href', 'blob:fixture/33333333-3333-4333-8333-333333333301')
-    expect(link.getAttribute('href')).not.toMatch(/token|bearer|session_token|fixture-session/i)
+    const imageLink = await screen.findByRole('link', { name: 'Открыть исходное изображение' })
+    expect(imageLink).toHaveAttribute('href', 'blob:fixture/33333333-3333-4333-8333-333333333301')
+    expect(imageLink.getAttribute('href')).not.toMatch(/token|bearer|session_token|fixture-session/i)
   })
 
   it('ignores stale list responses after a quick filter change', async () => {
