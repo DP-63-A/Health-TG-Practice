@@ -25,7 +25,8 @@ class FoodPhotoBoundaryTest {
     }
     @Test void albumsWrongMimeAndDeclaredOversizeNeverLoadOrRecognize() throws Exception {
         var e=mock(EntryCoreService.class);var d=mock(DialogStateService.class);var f=mock(FileStorageService.class);
-        var r=mock(FoodRecognitionService.class);var l=mock(FoodPhotoFlow.ImageLoader.class);
+        var provider=mock(RecognitionProvider.class);when(provider.mode()).thenReturn(RecognitionProvider.Mode.FIXTURE);
+        var r=new FoodRecognitionService(new ImageValidator(),provider,new RecognitionResponseParser());var l=mock(FoodPhotoFlow.ImageLoader.class);
         var flow=new FoodPhotoFlow(e,d,f,r,l,new DraftReviewFlow(e,d,null),"FIXTURE");
         var owner=new OwnerContext(UUID.randomUUID()); when(d.find(owner)).thenReturn(Optional.empty());
         for(var i:List.of(new BotUpdate.Image("f",1L,"image/png",true),new BotUpdate.Image("f",1L,"application/pdf",false),
@@ -33,7 +34,7 @@ class FoodPhotoBoundaryTest {
             var u=image(1001,1001,BotUpdate.ChatType.PRIVATE,false);
             assertFalse(flow.message(new BotUpdate(u.updateId(),u.kind(),u.chatType(),u.chatId(),u.senderId(),false,null,List.of(),null,null,Instant.EPOCH,i),owner,ZoneOffset.UTC).isEmpty());
         }
-        verifyNoInteractions(e,f,r,l);verify(d,never()).save(any());
+        verifyNoInteractions(e,f,l);verify(provider,never()).recognize(any());verify(provider,never()).recognize(any(),anyString());verify(d,never()).save(any());
     }
     @Test void loaderRejectsUntrustedPathsWithoutLeakingTokenOrRequestingNetwork() throws Exception {
         var telegram=mock(TelegramClient.class); var loader=new TelegramImageLoader(telegram,"synthetic-secret");
